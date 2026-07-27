@@ -1,0 +1,50 @@
+/** Worker 允許的資料集。 */
+export type FinMindDataset =
+  | 'TaiwanStockPrice'
+  | 'TaiwanStockPriceAdj'
+  | 'TaiwanStockDividendResult'
+  | 'TaiwanStockSplitPrice'
+  | 'TaiwanStockInstitutionalInvestorsBuySell';
+
+export type PriceRow = {
+  date: string;
+  stock_id: string;
+  open: number;
+  max: number;
+  min: number;
+  close: number;
+  Trading_Volume: number;
+};
+
+/**
+ * 法人資料每個交易日會有多列，以 name 區分身分。
+ * 規格要求外資與投信分開計算，且不可把外資自營商併入外資。
+ */
+export type InstitutionalRow = {
+  date: string;
+  stock_id: string;
+  name: 'Foreign_Investor' | 'Foreign_Dealer_Self' | 'Investment_Trust' | 'Dealer_self' | string;
+  buy: number;
+  sell: number;
+};
+
+/** 除權息與分割共用的結構：還原係數為 after_price / before_price。 */
+export type AdjustmentEventRow = {
+  date: string;
+  stock_id: string;
+  before_price: number;
+  after_price: number;
+};
+
+export type FetchFailureReason =
+  | 'invalid-request'
+  | 'not-configured'
+  | 'upstream-forbidden'
+  | 'upstream-rate-limited'
+  | 'upstream-error'
+  | 'network-error'
+  | 'malformed-response';
+
+export type FetchResult<TRow> =
+  | { ok: true; rows: TRow[] }
+  | { ok: false; reason: FetchFailureReason; message: string };

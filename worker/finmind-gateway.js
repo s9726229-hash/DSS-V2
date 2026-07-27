@@ -5,9 +5,18 @@
  * 由此處以 Authorization 標頭加到上游請求。
  */
 
-/** 資料集白名單，值為允許的日期區間上限（日曆天）。 */
+/**
+ * 資料集白名單，值為允許的日期區間上限（日曆天）。
+ *
+ * TaiwanStockPriceAdj 需要 FinMind 付費贊助等級，免費帳號會被上游拒絕；
+ * 保留在白名單中，日後升級帳號即可直接使用。
+ * 免費帳號改以 TaiwanStockPrice 搭配除息與分割事件自行還原。
+ */
 const ALLOWED_DATASETS = new Map([
+  ['TaiwanStockPrice', 400],
   ['TaiwanStockPriceAdj', 400],
+  ['TaiwanStockDividendResult', 400],
+  ['TaiwanStockSplitPrice', 400],
   ['TaiwanStockInstitutionalInvestorsBuySell', 45],
 ]);
 
