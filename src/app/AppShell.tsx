@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AnalysisPage } from '../features/analysis/AnalysisPage';
 import { DataCenterPage } from '../features/data-center/DataCenterPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { readInventory, type Inventory } from '../storage/inventory';
@@ -6,6 +7,7 @@ import './AppShell.css';
 
 const PAGES = [
   { id: 'today', label: '今日 DSS' },
+  { id: 'analysis', label: '技術分析' },
   { id: 'research', label: '歷史交易研究' },
   { id: 'profile', label: 'Profile' },
   { id: 'data', label: '資料中心' },
@@ -14,7 +16,7 @@ const PAGES = [
 
 type PageId = (typeof PAGES)[number]['id'];
 
-const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data'>, string> = {
+const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data' | 'analysis'>, string> = {
   today: '同步市場資料後，這裡會列出庫存與觀察清單的技術與籌碼狀態。',
   research: '匯入交易明細後，這裡會分析建立部位的條件與後續表現。',
   profile: '完成歷史研究後，這裡會列出候選參數與判定條件。',
@@ -114,6 +116,8 @@ export function AppShell() {
         <main className="content">
           {page === 'data' ? (
             <DataCenterPage inventory={inventory} onDataChanged={refreshInventory} />
+          ) : page === 'analysis' ? (
+            <AnalysisPage />
           ) : (
             <PlaceholderPage
               title={PAGES.find((entry) => entry.id === page)?.label ?? ''}

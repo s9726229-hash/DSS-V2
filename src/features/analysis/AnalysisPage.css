@@ -1,0 +1,210 @@
+.analysis {
+  max-width: 1080px;
+}
+
+.analysis__head {
+  margin-bottom: var(--gap-5);
+}
+
+.analysis__title {
+  margin: 0 0 var(--gap-2);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.analysis__lede {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--graphite);
+}
+
+.analysis__loading,
+.analysis__empty {
+  padding: var(--gap-5);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 4px;
+  color: var(--graphite);
+}
+
+/* ── 個股區塊 ───────────────────────────────── */
+
+.stock {
+  margin-bottom: var(--gap-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.stock__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-3);
+  padding: var(--gap-3) var(--gap-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stock__id {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stock__name {
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.stock__date {
+  margin-left: auto;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.stock__panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ── 面板 ───────────────────────────────────── */
+
+.panel {
+  min-width: 0;
+  padding: var(--gap-4) var(--gap-5);
+  border-left: 1px solid var(--rule);
+}
+
+.panel:first-child {
+  border-left: 0;
+}
+
+.panel__title {
+  margin: 0 0 var(--gap-3);
+}
+
+.panel__pending {
+  margin: 0;
+  color: var(--attention);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.panel__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-4);
+}
+
+.figure {
+  display: flex;
+  min-width: 62px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.figure__label {
+  color: var(--graphite-light);
+}
+
+.figure__value {
+  font-size: 15px;
+}
+
+/* 漲跌採台股慣例：紅漲、綠跌 */
+.figure__value--up,
+.investor__net--up {
+  color: var(--signal-up);
+}
+
+.figure__value--down,
+.investor__net--down {
+  color: var(--signal-down);
+}
+
+/* ── 法人列 ─────────────────────────────────── */
+
+.panel__investors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+
+.investor {
+  display: grid;
+  align-items: baseline;
+  gap: var(--gap-3);
+  grid-template-columns: 5.5em 1fr 4.5em 5em;
+}
+
+.investor--header .investor__label,
+.investor--header span {
+  color: var(--graphite-light);
+}
+
+.investor__label {
+  font-size: 13px;
+}
+
+.investor__net,
+.investor__strength {
+  font-size: 13px;
+  text-align: right;
+}
+
+.investor__strength {
+  color: var(--graphite);
+}
+
+.investor__continuity {
+  color: var(--graphite);
+  font-size: 12px;
+  text-align: right;
+}
+
+/* ── 狀態標籤 ───────────────────────────────── */
+
+.panel__states {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: var(--gap-4);
+  gap: var(--gap-2);
+}
+
+.tag {
+  padding: 2px var(--gap-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.tag--attention {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+  color: var(--attention);
+}
+
+.tag--quiet {
+  border-style: dashed;
+  color: var(--graphite-light);
+}
+
+.panel__note {
+  margin: var(--gap-3) 0 0;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .stock__panels {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .panel:first-child {
+    border-top: 0;
+  }
+}
