@@ -104,9 +104,21 @@ export async function fetchFinMindData(request, env, ctx) {
     return Response.json({ error: validated.error }, { status: 400 });
   }
 
-  const token = env.FINMIND_TOKEN;
+  /*
+   * 區分「Secret 未設定」與「Secret 存在但是空白」。
+   * 兩者都無法服務，但成因完全不同：後者通常是 wrangler secret put
+   * 貼上失敗而存入空字串，若都回報成「未設定」會很難查。
+   * detail 只描述狀態，不含 token 內容。
+   */
+  const token = typeof env.FINMIND_TOKEN === 'string' ? env.FINMIND_TOKEN.trim() : '';
   if (!token) {
-    return Response.json({ error: 'FinMind service is not configured' }, { status: 503 });
+    return Response.json(
+      {
+        error: 'FinMind service is not configured',
+        detail: env.FINMIND_TOKEN === undefined ? 'missing' : 'blank',
+      },
+      { status: 503 },
+    );
   }
 
   const { dataset, dataId, startDate, endDate } = validated;

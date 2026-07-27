@@ -152,10 +152,43 @@ describe('參數驗證', () => {
 describe('設定與上游錯誤', () => {
   it('未設定 Secret 時回傳 503 並說明原因', async () => {
     const response = await worker.fetch(request(PRICE_QUERY), {}, { waitUntil() {} });
+    const body = await response.json();
 
     assert.equal(response.status, 503);
-    assert.equal((await response.json()).error, 'FinMind service is not configured');
+    assert.equal(body.error, 'FinMind service is not configured');
+    assert.equal(body.detail, 'missing');
     assert.equal(fetchCalls.length, 0);
+  });
+
+  it('Secret 設成空字串時明確指出是空值，而非誤導成未設定', async () => {
+    // 貼上失敗時 wrangler 會存入空字串，兩者都會 503 但成因不同
+    for (const value of ['', '   ', '\n']) {
+      const response = await worker.fetch(
+        request(PRICE_QUERY),
+        { FINMIND_TOKEN: value },
+        { waitUntil() {} },
+      );
+      const body = await response.json();
+
+      assert.equal(response.status, 503);
+      assert.equal(body.detail, 'blank');
+    }
+  });
+
+  it('503 的內容不含 token 值', async () => {
+    const response = await worker.fetch(
+      request(PRICE_QUERY),
+      { FINMIND_TOKEN: '   ' },
+      { waitUntil() {} },
+    );
+
+    assert.ok(!(await response.text()).includes('   '));
+  });
+
+  it('token 前後有空白時會去除，不因此判定為無效', async () => {
+    await worker.fetch(request(PRICE_QUERY), { FINMIND_TOKEN: ` ${TOKEN} ` }, { waitUntil() {} });
+
+    assert.equal(fetchCalls[0].init.headers.Authorization, `Bearer ${TOKEN}`);
   });
 
   it('上游連線失敗時回傳 502 且不洩漏內部細節', async () => {
