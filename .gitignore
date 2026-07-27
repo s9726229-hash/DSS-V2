@@ -3,6 +3,7 @@ node_modules/
 dist/
 .vite/
 coverage/
+.wrangler/
 
 # 環境變數與憑證（FinMind Token、API Key 一律不進版控）
 .env
