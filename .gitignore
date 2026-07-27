@@ -1,0 +1,33 @@
+# 相依套件與建置產物
+node_modules/
+dist/
+.vite/
+coverage/
+
+# 環境變數與憑證（FinMind Token、API Key 一律不進版控）
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+.dev.vars
+
+# 個人資料：交易明細、庫存快照、市場快取、備份匯出
+*.csv
+*.CSV
+*.tsv
+*-backup.json
+*-export.json
+data/
+cache/
+
+# 本機私有規格與文件（不可提交到公開 repository）
+CURRENT_REQUIREMENTS.md
+docs/
+
+# 編輯器與作業系統雜項
+.DS_Store
+Thumbs.db
+*.local
+.idea/
+.vscode/
