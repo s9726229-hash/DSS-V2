@@ -1,0 +1,100 @@
+/*
+ * DSS V2 設計 token
+ *
+ * 核心約束：飽和色只用來表示市場方向或資料狀態，絕不用於裝飾。
+ * 漲跌採台股慣例（紅漲綠跌），與美股相反。
+ * 琥珀色專表「資料不足／需注意」，刻意既非紅也非綠，避免與漲跌混淆。
+ */
+
+:root {
+  /* 中性系 */
+  --paper: #fbfcfd;
+  --panel: #ffffff;
+  --panel-sunken: #f2f4f7;
+  --rule: #dde2e8;
+  --rule-strong: #c3cad3;
+  --ink: #171a1f;
+  --graphite: #5a6472;
+  --graphite-light: #8b95a3;
+
+  /* 語意色：僅表示市場方向或資料狀態 */
+  --signal-up: #d0342c;
+  --signal-down: #1e8c5a;
+  --attention: #b8730a;
+  --attention-bg: #fdf6e9;
+  --calibrate: #2d5ba8;
+  --calibrate-bg: #eef3fb;
+
+  /* 字體 */
+  --font-sans:
+    'IBM Plex Sans', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'PingFang TC', 'Microsoft JhengHei', monospace;
+
+  /* 間距刻度 */
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+  --gap-7: 48px;
+
+  --nav-width: 208px;
+  --status-height: 44px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 所有數值一律等寬並對齊小數位 */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+/* 微型標籤：拉丁字母加字距，中文保持自然 */
+.micro {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--graphite);
+  text-transform: uppercase;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--calibrate);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

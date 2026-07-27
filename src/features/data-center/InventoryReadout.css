@@ -1,0 +1,90 @@
+.readout {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gauge {
+  padding: var(--gap-4) var(--gap-5);
+  border-left: 1px solid var(--rule);
+}
+
+.gauge:first-child {
+  border-left: 0;
+}
+
+.gauge__label {
+  margin: 0 0 var(--gap-2);
+}
+
+.gauge__value {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  gap: var(--gap-2);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.gauge--pending .gauge__value {
+  color: var(--graphite-light);
+}
+
+.gauge__unit {
+  color: var(--graphite);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.gauge__detail {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.gauge--pending .gauge__detail {
+  color: var(--attention);
+}
+
+/* 交易日期跨度的實際覆蓋條 */
+.coverage {
+  display: flex;
+  align-items: center;
+  margin-top: var(--gap-3);
+  gap: var(--gap-2);
+}
+
+.coverage__track {
+  height: 3px;
+  flex: 1;
+  background: var(--panel-sunken);
+}
+
+.coverage__fill {
+  height: 100%;
+  background: var(--ink);
+}
+
+.coverage__span {
+  color: var(--graphite-light);
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .readout {
+    grid-template-columns: 1fr;
+  }
+
+  .gauge {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .gauge:first-child {
+    border-top: 0;
+  }
+}

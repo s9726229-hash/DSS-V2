@@ -1,0 +1,174 @@
+.import {
+  display: flex;
+  flex-direction: column;
+  padding: var(--gap-5);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.import__head {
+  margin-bottom: var(--gap-4);
+}
+
+.import__title {
+  margin: 0 0 var(--gap-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.import__description {
+  margin: 0;
+  color: var(--graphite);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.import__pick {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: var(--gap-2) var(--gap-4);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  font-size: 13px;
+  transition: border-color 120ms ease;
+}
+
+.import__pick:hover {
+  border-color: var(--ink);
+}
+
+.import__pick:focus-within {
+  outline: 2px solid var(--calibrate);
+  outline-offset: 2px;
+}
+
+.import__pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.import__result {
+  margin-top: var(--gap-4);
+  padding-top: var(--gap-4);
+  border-top: 1px solid var(--rule);
+}
+
+.import__file {
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+/* 三段式管線：對應資料層實際區分的三種結果 */
+.import__stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+
+.stage {
+  display: grid;
+  align-items: baseline;
+  gap: var(--gap-3);
+  grid-template-columns: 68px 1fr;
+}
+
+.stage__label {
+  color: var(--graphite-light);
+}
+
+.stage__value {
+  font-size: 13px;
+}
+
+.stage__value--ok {
+  color: var(--ink);
+}
+
+.stage__value--attention {
+  color: var(--attention);
+}
+
+.stage__value--plain {
+  color: var(--ink);
+}
+
+.import__skipped {
+  margin: var(--gap-3) 0 0;
+  padding: var(--gap-3);
+  border-radius: 3px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 12px;
+  list-style: none;
+}
+
+.import__skipped li {
+  display: flex;
+  gap: var(--gap-3);
+}
+
+.import__skipped-more {
+  color: var(--graphite);
+}
+
+.import__error {
+  margin: 0;
+  color: var(--attention);
+  font-size: 13px;
+}
+
+.import__hint {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.import__done {
+  margin: 0;
+  font-size: 13px;
+}
+
+.import__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--gap-4);
+  gap: var(--gap-2);
+}
+
+.btn {
+  padding: var(--gap-2) var(--gap-4);
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.btn--primary {
+  border-color: var(--calibrate);
+  background: var(--calibrate);
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  border-color: #234a8c;
+  background: #234a8c;
+}
+
+.btn:disabled {
+  border-color: var(--rule);
+  background: var(--panel-sunken);
+  color: var(--graphite-light);
+  cursor: not-allowed;
+}
