@@ -62,6 +62,23 @@ export function TechnicalPanel({ result }: { result: TechnicalResult }) {
         />
       </div>
 
+      <div className="lines">
+        {(
+          [
+            ['週線', snapshot.maPositions.weekly],
+            ['月線', snapshot.maPositions.monthly],
+            ['季線', snapshot.maPositions.quarterly],
+          ] as const
+        ).map(([label, position]) => (
+          <span className="lines__item" key={label}>
+            <span className="lines__label">{label}</span>
+            <span className={`lines__state lines__state--${position}`}>
+              {position === 'above' ? '站上' : '跌破'}
+            </span>
+          </span>
+        ))}
+      </div>
+
       <div className="panel__states">
         <span className="tag">{MONTHLY_LINE_LABEL[snapshot.monthlyLineState]}</span>
         {snapshot.recoveryState ? (

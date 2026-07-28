@@ -24,6 +24,19 @@ export type RecoveryState = 'watching' | 'confirmed' | null;
  */
 export type TechnicalAlert = 'pullback-watch' | 'trend-weakening';
 
+export type MaPosition = 'above' | 'below';
+
+/**
+ * 收盤價相對三條均線的位置。
+ * 台股慣稱 MA5 為週線、MA20 為月線、MA60 為季線。
+ * 僅描述位置，不代表買賣訊號。
+ */
+export type MaPositions = {
+  weekly: MaPosition;
+  monthly: MaPosition;
+  quarterly: MaPosition;
+};
+
 export type TechnicalSnapshot = {
   tradeDate: string;
   close: number;
@@ -32,6 +45,7 @@ export type TechnicalSnapshot = {
   ma60: number;
   /** (收盤 − MA20) / MA20 × 100% */
   bias20: number;
+  maPositions: MaPositions;
   monthlyLineState: MonthlyLineState;
   recoveryState: RecoveryState;
   alerts: TechnicalAlert[];
@@ -110,6 +124,11 @@ export function computeTechnicalSnapshot(rows: readonly PriceRow[]): TechnicalRe
       ma20,
       ma60,
       bias20: ((close - ma20) / ma20) * 100,
+      maPositions: {
+        weekly: close > ma5 ? 'above' : 'below',
+        monthly: aboveNow ? 'above' : 'below',
+        quarterly: close > ma60 ? 'above' : 'below',
+      },
       monthlyLineState,
       recoveryState: resolveRecoveryState(closes, last),
       alerts,

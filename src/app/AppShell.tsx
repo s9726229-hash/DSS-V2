@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnalysisPage } from '../features/analysis/AnalysisPage';
 import { DataCenterPage } from '../features/data-center/DataCenterPage';
+import { GuidePage } from '../features/guide/GuidePage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { syncHoldings } from '../market/sync';
 import { readInventory, type Inventory } from '../storage/inventory';
@@ -10,6 +11,7 @@ import './AppShell.css';
 const PAGES = [
   { id: 'today', label: '今日 DSS' },
   { id: 'analysis', label: '技術分析' },
+  { id: 'guide', label: '判讀說明' },
   { id: 'research', label: '歷史交易研究' },
   { id: 'profile', label: 'Profile' },
   { id: 'data', label: '資料中心' },
@@ -18,7 +20,7 @@ const PAGES = [
 
 type PageId = (typeof PAGES)[number]['id'];
 
-const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data' | 'analysis'>, string> = {
+const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data' | 'analysis' | 'guide'>, string> = {
   today: '同步市場資料後，這裡會列出庫存與觀察清單的技術與籌碼狀態。',
   research: '匯入交易明細後，這裡會分析建立部位的條件與後續表現。',
   profile: '完成歷史研究後，這裡會列出候選參數與判定條件。',
@@ -69,12 +71,17 @@ function StatusBar({
         ready={tradeDate !== null}
       />
       {sync.message ? <span className="statusbar__message">{sync.message}</span> : null}
+      {sync.allSkipped && !sync.running ? (
+        <button className="statusbar__force" type="button" onClick={() => sync.start(true)}>
+          強制重新抓取
+        </button>
+      ) : null}
       <button
         className="statusbar__sync"
         type="button"
         disabled={sync.running || !hasHoldings}
         title={hasHoldings ? undefined : '沒有庫存時不會發出網路請求'}
-        onClick={sync.start}
+        onClick={() => sync.start()}
       >
         {sync.running ? `同步中… ${sync.done}/${sync.total}` : '同步市場資料'}
       </button>
@@ -87,7 +94,9 @@ type SyncController = {
   done: number;
   total: number;
   message: string | null;
-  start: () => void;
+  /** 全部個股都因快取新鮮而跳過時，提供強制重新抓取的入口。 */
+  allSkipped: boolean;
+  start: (force?: boolean) => void;
 };
 
 /** 同步狀態與進度。沒有庫存時 syncHoldings 不會發出任何請求。 */
@@ -96,35 +105,47 @@ function useSync(onFinished: () => void): SyncController {
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  const [allSkipped, setAllSkipped] = useState(false);
 
-  const start = useCallback(() => {
-    setRunning(true);
-    setDone(0);
-    setMessage(null);
+  const start = useCallback(
+    (force = false) => {
+      setRunning(true);
+      setDone(0);
+      setMessage(null);
+      setAllSkipped(false);
 
-    void (async () => {
-      const holdings = await readHoldingsSnapshot();
-      setTotal(holdings.length);
+      void (async () => {
+        const holdings = await readHoldingsSnapshot();
+        setTotal(holdings.length);
 
-      const summary = await syncHoldings({ onProgress: () => setDone((count) => count + 1) });
+        const summary = await syncHoldings({
+          force,
+          onProgress: () => setDone((count) => count + 1),
+        });
 
-      if (summary.skippedReason === 'no-holdings') {
-        setMessage('沒有庫存，未發出任何請求');
-      } else {
-        const failed = summary.results.filter((result) => !result.ok).length;
-        setMessage(
-          failed === 0
-            ? `${summary.results.length} 檔已更新`
-            : `${summary.results.length - failed} 檔已更新．${failed} 檔失敗`,
-        );
-      }
+        if (summary.skippedReason === 'no-holdings') {
+          setMessage('沒有庫存，未發出任何請求');
+        } else {
+          const failed = summary.results.filter((result) => !result.ok).length;
+          const updated = summary.results.length - failed - summary.skippedCount;
+          const parts = [
+            updated > 0 ? `${updated} 檔已更新` : null,
+            summary.skippedCount > 0 ? `${summary.skippedCount} 檔已是最新` : null,
+            failed > 0 ? `${failed} 檔失敗` : null,
+          ].filter(Boolean);
 
-      setRunning(false);
-      onFinished();
-    })();
-  }, [onFinished]);
+          setMessage(parts.join('．'));
+          setAllSkipped(summary.skippedCount === summary.results.length && failed === 0);
+        }
 
-  return { running, done, total, message, start };
+        setRunning(false);
+        onFinished();
+      })();
+    },
+    [onFinished],
+  );
+
+  return { running, done, total, message, allSkipped, start };
 }
 
 export function AppShell() {
@@ -176,6 +197,8 @@ export function AppShell() {
             <DataCenterPage inventory={inventory} onDataChanged={refreshInventory} />
           ) : page === 'analysis' ? (
             <AnalysisPage />
+          ) : page === 'guide' ? (
+            <GuidePage />
           ) : (
             <PlaceholderPage
               title={PAGES.find((entry) => entry.id === page)?.label ?? ''}

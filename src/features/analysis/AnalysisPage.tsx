@@ -49,7 +49,8 @@ function DistortionNotice({ report }: { report: DistortionReport }) {
         ))}
       </ul>
       <p className="distortion__note">
-        上列事件落在均線計算窗口內，帳面跳空並非真實漲跌。
+        配息與分割會讓股價帳面下跌，但你的資產並沒有減少。
+        由於上列日期落在均線計算的區間內，MA 與乖離率會因此偏低。
       </p>
     </div>
   );

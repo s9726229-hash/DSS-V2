@@ -196,6 +196,39 @@
   text-align: right;
 }
 
+/* 三條均線的相對位置 */
+.lines {
+  display: flex;
+  margin-top: var(--gap-4);
+  gap: var(--gap-4);
+  padding-top: var(--gap-3);
+  border-top: 1px solid var(--rule);
+}
+
+.lines__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+
+.lines__label {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.lines__state {
+  font-size: 13px;
+}
+
+/* 跌破以琥珀色標示：這是需要留意的資料狀態，不是賣出訊號 */
+.lines__state--below {
+  color: var(--attention);
+}
+
+.lines__state--above {
+  color: var(--ink);
+}
+
 /* ── 狀態標籤 ───────────────────────────────── */
 
 .panel__states {

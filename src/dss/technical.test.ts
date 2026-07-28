@@ -124,6 +124,53 @@ describe('月線狀態', () => {
   });
 });
 
+describe('週線／月線／季線位置', () => {
+  it('收盤高於三條均線時皆為站上', () => {
+    const result = computeTechnicalSnapshot(priceRows([...flatHistory(100, 59), 200]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.snapshot.maPositions).toEqual({
+      weekly: 'above',
+      monthly: 'above',
+      quarterly: 'above',
+    });
+  });
+
+  it('收盤低於三條均線時皆為跌破', () => {
+    const result = computeTechnicalSnapshot(priceRows([...flatHistory(100, 59), 50]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.snapshot.maPositions).toEqual({
+      weekly: 'below',
+      monthly: 'below',
+      quarterly: 'below',
+    });
+  });
+
+  it('三條均線可各自不同：跌破週線但仍站上月線與季線', () => {
+    // 長期上升後最後一日小幅回落，僅跌破最短的週線
+    const rising = Array.from({ length: 59 }, (_, index) => 100 + index);
+    const result = computeTechnicalSnapshot(priceRows([...rising, 150]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.snapshot.maPositions.weekly).toBe('below');
+    expect(result.snapshot.maPositions.monthly).toBe('above');
+    expect(result.snapshot.maPositions.quarterly).toBe('above');
+  });
+
+  it('月線位置與月線狀態一致', () => {
+    const result = computeTechnicalSnapshot(priceRows([...flatHistory(100, 59), 50]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.snapshot.maPositions.monthly).toBe('below');
+    expect(result.snapshot.monthlyLineState).toBe('lost');
+  });
+});
+
 describe('風險提醒', () => {
   it('收盤跌回 MA20 下方時提出回檔觀察', () => {
     const result = computeTechnicalSnapshot(priceRows([...flatHistory(100, 50), 200, 200, 200, 200, 200, 200, 200, 200, 200, 50]));

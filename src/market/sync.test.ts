@@ -187,6 +187,55 @@ describe('有庫存時', () => {
     expect(result.syncedAt).toBe(NOW.toISOString());
   });
 
+  it('四小時內已抓過的個股直接跳過，不重複請求', async () => {
+    stubFetch();
+    await syncHoldings({ now: NOW });
+
+    const calls = stubFetch();
+    const result = await syncHoldings({ now: new Date(NOW.getTime() + 3 * 60 * 60 * 1000) });
+
+    expect(calls).toHaveLength(0);
+    expect(result.results.every((row) => row.ok && row.skipped)).toBe(true);
+    expect(result.skippedCount).toBe(2);
+  });
+
+  it('超過四小時後會重新抓取', async () => {
+    stubFetch();
+    await syncHoldings({ now: NOW });
+
+    const calls = stubFetch();
+    await syncHoldings({ now: new Date(NOW.getTime() + 5 * 60 * 60 * 1000) });
+
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it('強制重新抓取時忽略新鮮度', async () => {
+    stubFetch();
+    await syncHoldings({ now: NOW });
+
+    const calls = stubFetch();
+    const result = await syncHoldings({ now: NOW, force: true });
+
+    expect(calls.filter((call) => call.dataset === 'TaiwanStockPrice')).toHaveLength(2);
+    expect(result.skippedCount).toBe(0);
+  });
+
+  it('先前失敗而沒有快取的個股不會被當成已是最新', async () => {
+    stubFetch(
+      () =>
+        new Response(JSON.stringify({ error: 'FinMind upstream error', upstreamStatus: 429 }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    await syncHoldings({ now: NOW });
+
+    const calls = stubFetch();
+    await syncHoldings({ now: new Date(NOW.getTime() + 60_000) });
+
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
   it('逐檔完成時回報進度', async () => {
     stubFetch();
     const progress: string[] = [];

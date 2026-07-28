@@ -1,4 +1,4 @@
-import { writeCachedDataset } from '../storage/marketCache';
+import { readCachedDataset, writeCachedDataset } from '../storage/marketCache';
 import { readHoldingsSnapshot } from '../storage/portfolio';
 import { fetchDataset, type DateRange } from './finmindClient';
 import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from './types';
@@ -13,6 +13,9 @@ const INSTITUTIONAL_LOOKBACK_DAYS = 20;
 const ADJUSTMENT_LOOKBACK_DAYS = 400;
 
 const ADJUSTMENT_DATASETS = ['TaiwanStockDividendResult', 'TaiwanStockSplitPrice'] as const;
+
+/** 與 Worker 端快取 TTL 相同：這段時間內重抓只會拿到相同內容。 */
+export const FRESHNESS_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -34,20 +37,60 @@ function latestDate(rows: readonly { date: string }[]): string | null {
 }
 
 export type StockSyncResult =
-  | { stockId: string; stockName: string; ok: true; priceDate: string | null; institutionalDate: string | null }
+  | {
+      stockId: string;
+      stockName: string;
+      ok: true;
+      /** 因快取仍新鮮而未重新請求。 */
+      skipped: boolean;
+      priceDate: string | null;
+      institutionalDate: string | null;
+    }
   | { stockId: string; stockName: string; ok: false; message: string };
 
 export type SyncSummary = {
   syncedAt: string;
   results: StockSyncResult[];
+  /** 因快取新鮮而跳過的檔數。 */
+  skippedCount: number;
   /** 未執行同步的原因；正常執行時為 null。 */
   skippedReason: 'no-holdings' | null;
 };
 
 export type SyncOptions = {
   now?: Date;
+  /** 忽略新鮮度，強制重新抓取。 */
+  force?: boolean;
   onProgress?: (stockId: string) => void;
 };
+
+/**
+ * 快取是否仍新鮮。窗口對齊 Worker 端的快取 TTL：
+ * 在這段時間內重抓只會拿到相同的快取內容，純粹浪費請求。
+ */
+async function isFresh(stockId: string, now: Date): Promise<StockSyncResult | null> {
+  const cached = await readCachedDataset('TaiwanStockPrice', stockId);
+
+  if (!cached || now.getTime() - Date.parse(cached.retrievedAt) >= FRESHNESS_WINDOW_MS) {
+    return null;
+  }
+
+  const institutional = await readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId);
+
+  // 上次只成功一半時不算新鮮，仍需重抓
+  if (!institutional) {
+    return null;
+  }
+
+  return {
+    stockId,
+    stockName: '',
+    ok: true,
+    skipped: true,
+    priceDate: cached.tradeDate || null,
+    institutionalDate: institutional.tradeDate || null,
+  };
+}
 
 async function syncStock(
   stockId: string,
@@ -102,7 +145,7 @@ async function syncStock(
 
   await cacheAdjustmentEvents(stockId, now, retrievedAt);
 
-  return { stockId, stockName, ok: true, priceDate, institutionalDate };
+  return { stockId, stockName, ok: true, skipped: false, priceDate, institutionalDate };
 }
 
 /**
@@ -134,11 +177,20 @@ async function cacheAdjustmentEvents(stockId: string, now: Date, retrievedAt: st
  * 規格要求：沒有庫存時不可發出任何市場資料網路請求，
  * 且單一股票失敗不得阻擋其他股票。
  */
-export async function syncHoldings({ now = new Date(), onProgress }: SyncOptions = {}): Promise<SyncSummary> {
+export async function syncHoldings({
+  now = new Date(),
+  force = false,
+  onProgress,
+}: SyncOptions = {}): Promise<SyncSummary> {
   const holdings = await readHoldingsSnapshot();
 
   if (holdings.length === 0) {
-    return { syncedAt: now.toISOString(), results: [], skippedReason: 'no-holdings' };
+    return {
+      syncedAt: now.toISOString(),
+      results: [],
+      skippedCount: 0,
+      skippedReason: 'no-holdings',
+    };
   }
 
   // 同一份快照中若有重複代號，只同步一次
@@ -153,9 +205,16 @@ export async function syncHoldings({ now = new Date(), onProgress }: SyncOptions
 
   // 逐檔依序處理，避免一次打出大量請求觸發上游限流
   for (const [stockId, stockName] of unique) {
-    results.push(await syncStock(stockId, stockName, now));
+    const fresh = force ? null : await isFresh(stockId, now);
+
+    results.push(fresh ? { ...fresh, stockName } : await syncStock(stockId, stockName, now));
     onProgress?.(stockId);
   }
 
-  return { syncedAt: now.toISOString(), results, skippedReason: null };
+  return {
+    syncedAt: now.toISOString(),
+    results,
+    skippedCount: results.filter((result) => result.ok && result.skipped).length,
+    skippedReason: null,
+  };
 }

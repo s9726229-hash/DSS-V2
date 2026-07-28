@@ -1,0 +1,111 @@
+.guide {
+  max-width: 760px;
+}
+
+.guide__head {
+  margin-bottom: var(--gap-6);
+}
+
+.guide__title {
+  margin: 0 0 var(--gap-2);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.guide__lede {
+  margin: 0;
+  color: var(--graphite);
+}
+
+.guide__section {
+  margin-bottom: var(--gap-6);
+  padding: var(--gap-5);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.guide__section-title {
+  margin: 0 0 var(--gap-4);
+  padding-bottom: var(--gap-2);
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.guide__sub-title {
+  margin: var(--gap-5) 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.guide__list {
+  margin: 0;
+}
+
+.entry {
+  display: grid;
+  padding: var(--gap-2) 0;
+  border-top: 1px solid var(--panel-sunken);
+  gap: var(--gap-4);
+  grid-template-columns: 8.5em minmax(0, 1fr);
+}
+
+.entry:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.entry__term {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.entry__meaning {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* 補充說明：計算細節與邊界條件 */
+.entry__basis {
+  display: block;
+  margin-top: 2px;
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.guide__caution {
+  margin: 0 0 var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  border-radius: 3px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.guide__nots {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.guide__closing {
+  margin: var(--gap-4) 0 0;
+  padding-top: var(--gap-3);
+  border-top: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  .entry {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
