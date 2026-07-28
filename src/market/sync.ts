@@ -1,13 +1,18 @@
 import { writeCachedDataset } from '../storage/marketCache';
 import { readHoldingsSnapshot } from '../storage/portfolio';
 import { fetchDataset, type DateRange } from './finmindClient';
-import type { InstitutionalRow, PriceRow } from './types';
+import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from './types';
 
 /** 價格取近一年，足以計算 MA60 並保留餘裕。 */
 const PRICE_LOOKBACK_DAYS = 365;
 
 /** 法人只需最近 5 個交易日，取 20 個日曆日以涵蓋連假。 */
 const INSTITUTIONAL_LOOKBACK_DAYS = 20;
+
+/** 還原事件需涵蓋整段價格歷史，才能判斷均線窗口內是否有跳空。 */
+const ADJUSTMENT_LOOKBACK_DAYS = 400;
+
+const ADJUSTMENT_DATASETS = ['TaiwanStockDividendResult', 'TaiwanStockSplitPrice'] as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -95,7 +100,32 @@ async function syncStock(
     retrievedAt,
   });
 
+  await cacheAdjustmentEvents(stockId, now, retrievedAt);
+
   return { stockId, stockName, ok: true, priceDate, institutionalDate };
+}
+
+/**
+ * 目前使用未還原價，但仍取回除權息與分割事件，用來標示哪些個股的
+ * 均線會因帳面跳空而失真。日後改用還原價時，這些資料已在快取中，
+ * 不需重新呼叫 API。取不到時不視為同步失敗——它只影響提示，不影響主要資料。
+ */
+async function cacheAdjustmentEvents(stockId: string, now: Date, retrievedAt: string): Promise<void> {
+  const range = rangeEnding(now, ADJUSTMENT_LOOKBACK_DAYS);
+
+  for (const dataset of ADJUSTMENT_DATASETS) {
+    const result = await fetchDataset<AdjustmentEventRow>(dataset, stockId, range);
+
+    if (result.ok) {
+      await writeCachedDataset({
+        dataset,
+        stockId,
+        rows: result.rows,
+        tradeDate: latestDate(result.rows),
+        retrievedAt,
+      });
+    }
+  }
 }
 
 /**

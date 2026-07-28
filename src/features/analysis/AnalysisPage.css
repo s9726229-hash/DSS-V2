@@ -61,6 +61,41 @@
   font-size: 11px;
 }
 
+/* 未還原價造成的失真提示 */
+.distortion {
+  padding: var(--gap-3) var(--gap-5);
+  border-bottom: 1px solid var(--rule);
+  background: var(--attention-bg);
+}
+
+.distortion__title {
+  color: var(--attention);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.distortion__events {
+  display: flex;
+  flex-wrap: wrap;
+  margin: var(--gap-2) 0 0;
+  padding: 0;
+  gap: var(--gap-2) var(--gap-4);
+  list-style: none;
+}
+
+.distortion__events li {
+  display: flex;
+  gap: var(--gap-2);
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.distortion__note {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
 .stock__panels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -119,4 +119,48 @@ describe('有完整資料時', () => {
     const chip = await screen.findByRole('region', { name: '籌碼面' });
     expect(within(chip).getByText(/不合併計分/)).toBeInTheDocument();
   });
+
+  it('沒有還原事件時不顯示失真提示', async () => {
+    render(<AnalysisPage />);
+
+    await screen.findByRole('region', { name: '技術面' });
+    expect(screen.queryByText(/價格未還原/)).not.toBeInTheDocument();
+  });
+});
+
+describe('未還原價造成的失真', () => {
+  beforeEach(async () => {
+    await seedHolding();
+    const priceRows = prices(Array.from({ length: 60 }, () => 100));
+
+    await writeCachedDataset({
+      dataset: 'TaiwanStockPrice',
+      stockId: '2330',
+      rows: priceRows,
+      tradeDate: priceRows[priceRows.length - 1].date,
+      retrievedAt: NOW,
+    });
+    await writeCachedDataset({
+      dataset: 'TaiwanStockDividendResult',
+      stockId: '2330',
+      rows: [
+        {
+          date: priceRows[priceRows.length - 5].date,
+          stock_id: '2330',
+          before_price: 99.2,
+          after_price: 98.6,
+        },
+      ],
+      tradeDate: priceRows[priceRows.length - 5].date,
+      retrievedAt: NOW,
+    });
+  });
+
+  it('均線窗口內有除權息時明確標示，不讓失真數字靜默出現', async () => {
+    render(<AnalysisPage />);
+
+    expect(await screen.findByText(/價格未還原，技術指標可能失真/)).toBeInTheDocument();
+    expect(screen.getByText('除權息')).toBeInTheDocument();
+    expect(screen.getByText('-0.60%')).toBeInTheDocument();
+  });
 });

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { DistortionReport } from '../../dss/adjustment';
+import { detectDistortion } from '../../dss/adjustment';
 import type { ChipResult } from '../../dss/chip';
 import { computeChipSnapshot } from '../../dss/chip';
 import type { TechnicalResult } from '../../dss/technical';
 import { computeTechnicalSnapshot } from '../../dss/technical';
-import type { InstitutionalRow, PriceRow } from '../../market/types';
+import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../../market/types';
 import { readCachedDataset } from '../../storage/marketCache';
 import { readHoldingsSnapshot } from '../../storage/portfolio';
 import { ChipPanel } from './ChipPanel';
@@ -16,12 +18,49 @@ export type StockAnalysis = {
   priceDate: string | null;
   technical: TechnicalResult;
   chip: ChipResult;
+  distortion: DistortionReport;
 };
 
+const EVENT_LABEL: Record<'dividend' | 'split', string> = {
+  dividend: '除權息',
+  split: '分割',
+};
+
+/**
+ * 目前使用未還原價，除權息與分割會讓均線出現帳面跳空。
+ * 明確標示受影響的個股，避免失真的數字被當成真實走勢。
+ */
+function DistortionNotice({ report }: { report: DistortionReport }) {
+  if (!report.distorted) return null;
+
+  return (
+    <div className="distortion">
+      <span className="distortion__title">價格未還原，技術指標可能失真</span>
+      <ul className="distortion__events">
+        {report.events.map((event) => (
+          <li key={`${event.kind}-${event.date}`}>
+            <span className="num">{event.date}</span>
+            <span>{EVENT_LABEL[event.kind]}</span>
+            <span className="num">
+              {event.impactPercent >= 0 ? '+' : ''}
+              {event.impactPercent.toFixed(2)}%
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="distortion__note">
+        上列事件落在均線計算窗口內，帳面跳空並非真實漲跌。
+      </p>
+    </div>
+  );
+}
+
 async function analyseStock(stockId: string, stockName: string): Promise<StockAnalysis> {
-  const [priceCache, institutionalCache] = await Promise.all([
+  const [priceCache, institutionalCache, dividendCache, splitCache] = await Promise.all([
     readCachedDataset('TaiwanStockPrice', stockId),
     readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId),
+    readCachedDataset('TaiwanStockDividendResult', stockId),
+    readCachedDataset('TaiwanStockSplitPrice', stockId),
   ]);
 
   const prices = (priceCache?.payload ?? []) as PriceRow[];
@@ -33,6 +72,11 @@ async function analyseStock(stockId: string, stockName: string): Promise<StockAn
     priceDate: priceCache?.tradeDate || null,
     technical: computeTechnicalSnapshot(prices),
     chip: computeChipSnapshot({ institutional, prices }),
+    distortion: detectDistortion({
+      prices,
+      dividends: (dividendCache?.payload ?? []) as AdjustmentEventRow[],
+      splits: (splitCache?.payload ?? []) as AdjustmentEventRow[],
+    }),
   };
 }
 
@@ -82,6 +126,8 @@ export function AnalysisPage() {
               {analysis.priceDate ? `資料日 ${analysis.priceDate}` : '尚未同步'}
             </span>
           </header>
+
+          <DistortionNotice report={analysis.distortion} />
 
           <div className="stock__panels">
             <TechnicalPanel result={analysis.technical} />
