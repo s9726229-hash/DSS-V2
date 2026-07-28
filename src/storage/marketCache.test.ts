@@ -52,7 +52,72 @@ describe('writeCachedDataset', () => {
     ).toBe('2026-07-23');
   });
 
-  it('重新同步同一資料集會覆蓋為較新的內容', async () => {
+  it('不同期間的資料會合併，較早的歷史不被較新的請求洗掉', async () => {
+    // 研究用的歷史區間與日常同步的近期區間必須共存
+    await writeCachedDataset({
+      dataset: 'TaiwanStockPrice',
+      stockId: '0050',
+      rows: [{ date: '2025-10-01' }, { date: '2025-10-02' }],
+      tradeDate: '2025-10-02',
+      retrievedAt: NOW,
+    });
+    await writeCachedDataset({
+      dataset: 'TaiwanStockPrice',
+      stockId: '0050',
+      rows: [{ date: '2026-07-24' }],
+      tradeDate: '2026-07-24',
+      retrievedAt: '2026-07-28T03:00:00.000Z',
+    });
+
+    const cached = await readCachedDataset('TaiwanStockPrice', '0050');
+
+    expect(cached?.payload).toEqual([
+      { date: '2025-10-01' },
+      { date: '2025-10-02' },
+      { date: '2026-07-24' },
+    ]);
+    expect(cached?.tradeDate).toBe('2026-07-24');
+  });
+
+  it('同一天的資料以較新的請求為準，讓上游更正得以生效', async () => {
+    await writeCachedDataset({
+      dataset: 'TaiwanStockPrice',
+      stockId: '0050',
+      rows: [{ date: '2026-07-24', close: 100 }],
+      tradeDate: '2026-07-24',
+      retrievedAt: NOW,
+    });
+    await writeCachedDataset({
+      dataset: 'TaiwanStockPrice',
+      stockId: '0050',
+      rows: [{ date: '2026-07-24', close: 105 }],
+      tradeDate: '2026-07-24',
+      retrievedAt: '2026-07-28T03:00:00.000Z',
+    });
+
+    const cached = await readCachedDataset('TaiwanStockPrice', '0050');
+
+    expect(cached?.payload).toEqual([{ date: '2026-07-24', close: 105 }]);
+  });
+
+  it('法人資料同一天有多列時全部保留，不會互相覆蓋', async () => {
+    await writeCachedDataset({
+      dataset: 'TaiwanStockInstitutionalInvestorsBuySell',
+      stockId: '0050',
+      rows: [
+        { date: '2026-07-24', name: 'Foreign_Investor', buy: 10, sell: 5 },
+        { date: '2026-07-24', name: 'Investment_Trust', buy: 3, sell: 1 },
+      ],
+      tradeDate: '2026-07-24',
+      retrievedAt: NOW,
+    });
+
+    const cached = await readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', '0050');
+
+    expect(cached?.payload).toHaveLength(2);
+  });
+
+  it('合併後仍以最新的交易日為準', async () => {
     await writeCachedDataset({
       dataset: 'TaiwanStockPrice',
       stockId: '0050',
@@ -63,15 +128,12 @@ describe('writeCachedDataset', () => {
     await writeCachedDataset({
       dataset: 'TaiwanStockPrice',
       stockId: '0050',
-      rows: [{ date: '2026-07-25' }],
-      tradeDate: '2026-07-25',
+      rows: [{ date: '2025-10-01' }],
+      tradeDate: '2025-10-01',
       retrievedAt: '2026-07-28T03:00:00.000Z',
     });
 
-    const cached = await readCachedDataset('TaiwanStockPrice', '0050');
-
-    expect(cached?.tradeDate).toBe('2026-07-25');
-    expect(cached?.payload).toEqual([{ date: '2026-07-25' }]);
+    expect((await readCachedDataset('TaiwanStockPrice', '0050'))?.tradeDate).toBe('2026-07-24');
   });
 
   it('空資料不覆寫既有的有效快取', async () => {
