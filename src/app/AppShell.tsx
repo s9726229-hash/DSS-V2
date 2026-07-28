@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnalysisPage } from '../features/analysis/AnalysisPage';
 import { DataCenterPage } from '../features/data-center/DataCenterPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
+import { syncHoldings } from '../market/sync';
 import { readInventory, type Inventory } from '../storage/inventory';
+import { readHoldingsSnapshot } from '../storage/portfolio';
 import './AppShell.css';
 
 const PAGES = [
@@ -42,21 +44,23 @@ function StatusReading({
   );
 }
 
-function StatusBar({ inventory }: { inventory: Inventory | null }) {
-  const priceReady = inventory !== null && inventory.marketCache.count > 0;
+function StatusBar({
+  inventory,
+  sync,
+}: {
+  inventory: Inventory | null;
+  sync: SyncController;
+}) {
+  const marketDate = inventory?.marketCache.lastRetrievedAt?.slice(0, 10) ?? null;
   const tradeDate = inventory?.transactions.lastDate ?? null;
+  const hasHoldings = (inventory?.holdings.count ?? 0) > 0;
 
   return (
     <div className="statusbar" role="status">
       <StatusReading
-        label="價格資料"
-        value={priceReady ? '已同步' : '未就緒'}
-        ready={priceReady}
-      />
-      <StatusReading
-        label="法人資料"
-        value={priceReady ? '已同步' : '未就緒'}
-        ready={priceReady}
+        label="市場資料"
+        value={marketDate ?? '未就緒'}
+        ready={marketDate !== null}
       />
       <StatusReading label="盤中價格" value="未啟用" ready={false} />
       <StatusReading
@@ -64,11 +68,63 @@ function StatusBar({ inventory }: { inventory: Inventory | null }) {
         value={tradeDate ?? '未匯入'}
         ready={tradeDate !== null}
       />
-      <button className="statusbar__sync" type="button" disabled>
-        同步市場資料
+      {sync.message ? <span className="statusbar__message">{sync.message}</span> : null}
+      <button
+        className="statusbar__sync"
+        type="button"
+        disabled={sync.running || !hasHoldings}
+        title={hasHoldings ? undefined : '沒有庫存時不會發出網路請求'}
+        onClick={sync.start}
+      >
+        {sync.running ? `同步中… ${sync.done}/${sync.total}` : '同步市場資料'}
       </button>
     </div>
   );
+}
+
+type SyncController = {
+  running: boolean;
+  done: number;
+  total: number;
+  message: string | null;
+  start: () => void;
+};
+
+/** 同步狀態與進度。沒有庫存時 syncHoldings 不會發出任何請求。 */
+function useSync(onFinished: () => void): SyncController {
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const start = useCallback(() => {
+    setRunning(true);
+    setDone(0);
+    setMessage(null);
+
+    void (async () => {
+      const holdings = await readHoldingsSnapshot();
+      setTotal(holdings.length);
+
+      const summary = await syncHoldings({ onProgress: () => setDone((count) => count + 1) });
+
+      if (summary.skippedReason === 'no-holdings') {
+        setMessage('沒有庫存，未發出任何請求');
+      } else {
+        const failed = summary.results.filter((result) => !result.ok).length;
+        setMessage(
+          failed === 0
+            ? `${summary.results.length} 檔已更新`
+            : `${summary.results.length - failed} 檔已更新．${failed} 檔失敗`,
+        );
+      }
+
+      setRunning(false);
+      onFinished();
+    })();
+  }, [onFinished]);
+
+  return { running, done, total, message, start };
 }
 
 export function AppShell() {
@@ -80,6 +136,8 @@ export function AppShell() {
   }, []);
 
   useEffect(refreshInventory, [refreshInventory]);
+
+  const sync = useSync(refreshInventory);
 
   return (
     <div className="shell">
@@ -112,7 +170,7 @@ export function AppShell() {
       </nav>
 
       <div className="frame">
-        <StatusBar inventory={inventory} />
+        <StatusBar inventory={inventory} sync={sync} />
         <main className="content">
           {page === 'data' ? (
             <DataCenterPage inventory={inventory} onDataChanged={refreshInventory} />

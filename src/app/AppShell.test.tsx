@@ -1,9 +1,9 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAME } from '../storage/database';
-import { importTransactions } from '../storage/portfolio';
+import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
 import { AppShell } from './AppShell';
 
 beforeEach(async () => {
@@ -49,9 +49,55 @@ describe('AppShell', () => {
     render(<AppShell />);
 
     const status = await screen.findByRole('status');
-    expect(status).toHaveTextContent('價格資料');
-    expect(status).toHaveTextContent('法人資料');
+    expect(status).toHaveTextContent('市場資料');
     expect(status).toHaveTextContent('未就緒');
+  });
+
+  it('沒有庫存時同步按鈕停用，並說明原因', async () => {
+    render(<AppShell />);
+
+    const button = await screen.findByRole('button', { name: '同步市場資料' });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(button).toHaveAttribute('title', expect.stringContaining('不會發出網路請求'));
+  });
+
+  it('有庫存時同步按鈕可按，且按下後會發出請求', async () => {
+    await importHoldingsSnapshot(
+      [
+        {
+          stockId: '0050',
+          stockName: '元大台灣50',
+          tradeType: '現股',
+          quantity: 1000,
+          costPrice: 100,
+          currentPrice: 105,
+        },
+      ],
+      '2026-07-28',
+      '2026-07-28T02:00:00.000Z',
+    );
+
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ msg: 'success', status: 200, data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AppShell />);
+
+    const button = await screen.findByRole('button', { name: '同步市場資料' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('1 檔已更新');
+    });
+    expect(fetchMock).toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
   });
 
   it('有交易資料時狀態列顯示交易涵蓋的最後日期', async () => {

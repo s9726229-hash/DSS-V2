@@ -117,6 +117,16 @@
   color: var(--attention);
 }
 
+.statusbar__message {
+  margin-left: auto;
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.statusbar__message + .statusbar__sync {
+  margin-left: var(--gap-3);
+}
+
 .statusbar__sync {
   margin-left: auto;
   padding: var(--gap-1) var(--gap-3);
