@@ -120,15 +120,15 @@ describe('有完整資料時', () => {
     expect(within(chip).getByText(/不合併計分/)).toBeInTheDocument();
   });
 
-  it('沒有還原事件時不顯示失真提示', async () => {
+  it('沒有還原事件時不顯示還原說明', async () => {
     render(<AnalysisPage />);
 
     await screen.findByRole('region', { name: '技術面' });
-    expect(screen.queryByText(/價格未還原/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/已還原/)).not.toBeInTheDocument();
   });
 });
 
-describe('未還原價造成的失真', () => {
+describe('權息與分割還原', () => {
   beforeEach(async () => {
     await seedHolding();
     const priceRows = prices(Array.from({ length: 60 }, () => 100));
@@ -156,11 +156,17 @@ describe('未還原價造成的失真', () => {
     });
   });
 
-  it('均線窗口內有除權息時明確標示，不讓失真數字靜默出現', async () => {
+  it('列出已套用的還原事件', async () => {
     render(<AnalysisPage />);
 
-    expect(await screen.findByText(/價格未還原，技術指標可能失真/)).toBeInTheDocument();
+    expect(await screen.findByText('已還原權息與分割')).toBeInTheDocument();
     expect(screen.getByText('除權息')).toBeInTheDocument();
     expect(screen.getByText('-0.60%')).toBeInTheDocument();
+  });
+
+  it('說明歷史價格已換算，與對帳單不會逐筆相同', async () => {
+    render(<AnalysisPage />);
+
+    expect(await screen.findByText(/與券商對帳單的成交價不會逐筆相同/)).toBeInTheDocument();
   });
 });

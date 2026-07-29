@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { DistortionReport } from '../../dss/adjustment';
-import { detectDistortion } from '../../dss/adjustment';
+import type { DistortionEvent } from '../../dss/adjustment';
+import { adjustPrices } from '../../dss/adjustment';
 import type { ChipResult } from '../../dss/chip';
 import { computeChipSnapshot } from '../../dss/chip';
 import type { TechnicalResult } from '../../dss/technical';
@@ -18,7 +18,7 @@ export type StockAnalysis = {
   priceDate: string | null;
   technical: TechnicalResult;
   chip: ChipResult;
-  distortion: DistortionReport;
+  appliedAdjustments: DistortionEvent[];
 };
 
 const EVENT_LABEL: Record<'dividend' | 'split', string> = {
@@ -27,17 +27,20 @@ const EVENT_LABEL: Record<'dividend' | 'split', string> = {
 };
 
 /**
- * 目前使用未還原價，除權息與分割會讓均線出現帳面跳空。
- * 明確標示受影響的個股，避免失真的數字被當成真實走勢。
+ * 已套用的還原事件。
+ *
+ * 配息與分割會讓股價帳面下跌但資產未減少，若不還原，均線與乖離率會失真。
+ * 此處以中性語氣說明已做了什麼調整，而非警告——數字現在是正確的，
+ * 但使用者仍應知道畫面上的歷史價格與券商對帳單不會逐筆相符。
  */
-function DistortionNotice({ report }: { report: DistortionReport }) {
-  if (!report.distorted) return null;
+function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
+  if (events.length === 0) return null;
 
   return (
-    <div className="distortion">
-      <span className="distortion__title">價格未還原，技術指標可能失真</span>
-      <ul className="distortion__events">
-        {report.events.map((event) => (
+    <div className="adjustment">
+      <span className="adjustment__title">已還原權息與分割</span>
+      <ul className="adjustment__events">
+        {events.map((event) => (
           <li key={`${event.kind}-${event.date}`}>
             <span className="num">{event.date}</span>
             <span>{EVENT_LABEL[event.kind]}</span>
@@ -48,9 +51,8 @@ function DistortionNotice({ report }: { report: DistortionReport }) {
           </li>
         ))}
       </ul>
-      <p className="distortion__note">
-        配息與分割會讓股價帳面下跌，但你的資產並沒有減少。
-        由於上列日期落在均線計算的區間內，MA 與乖離率會因此偏低。
+      <p className="adjustment__note">
+        均線與乖離率已排除上列帳面跳空。歷史價格經過換算，與券商對帳單的成交價不會逐筆相同。
       </p>
     </div>
   );
@@ -64,8 +66,15 @@ async function analyseStock(stockId: string, stockName: string): Promise<StockAn
     readCachedDataset('TaiwanStockSplitPrice', stockId),
   ]);
 
-  const prices = (priceCache?.payload ?? []) as PriceRow[];
+  const raw = (priceCache?.payload ?? []) as PriceRow[];
   const institutional = (institutionalCache?.payload ?? []) as InstitutionalRow[];
+
+  // 先還原再計算，均線與乖離才不會被除權息與分割的帳面跳空拉偏
+  const { prices, appliedEvents } = adjustPrices({
+    prices: raw,
+    dividends: (dividendCache?.payload ?? []) as AdjustmentEventRow[],
+    splits: (splitCache?.payload ?? []) as AdjustmentEventRow[],
+  });
 
   return {
     stockId,
@@ -73,11 +82,7 @@ async function analyseStock(stockId: string, stockName: string): Promise<StockAn
     priceDate: priceCache?.tradeDate || null,
     technical: computeTechnicalSnapshot(prices),
     chip: computeChipSnapshot({ institutional, prices }),
-    distortion: detectDistortion({
-      prices,
-      dividends: (dividendCache?.payload ?? []) as AdjustmentEventRow[],
-      splits: (splitCache?.payload ?? []) as AdjustmentEventRow[],
-    }),
+    appliedAdjustments: appliedEvents,
   };
 }
 
@@ -128,7 +133,7 @@ export function AnalysisPage() {
             </span>
           </header>
 
-          <DistortionNotice report={analysis.distortion} />
+          <AdjustmentNotice events={analysis.appliedAdjustments} />
 
           <div className="stock__panels">
             <TechnicalPanel result={analysis.technical} />

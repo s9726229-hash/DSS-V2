@@ -1,4 +1,4 @@
-import { detectDistortion, type DistortionReport } from '../dss/adjustment';
+import { adjustPrices, type DistortionEvent } from '../dss/adjustment';
 import { computeChipSnapshot, type ChipResult } from '../dss/chip';
 import { computeTechnicalSnapshot, type TechnicalResult } from '../dss/technical';
 import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../market/types';
@@ -28,7 +28,8 @@ export type EntrySnapshot = {
   assetClass: AssetClass;
   technical: TechnicalResult;
   chip: ChipResult;
-  distortion: DistortionReport;
+  /** 建立部位當日以前實際套用的還原事件，供研究頁說明資料來源。 */
+  appliedAdjustments: DistortionEvent[];
   dataQuality: EntryDataQuality;
 };
 
@@ -61,8 +62,16 @@ export function buildEntrySnapshot({
   splits: readonly AdjustmentEventRow[];
 }): EntrySnapshot {
   const date = entry.tradeDate;
-  const pricesUpTo = upTo(prices, date);
+  const rawUpTo = upTo(prices, date);
   const institutionalUpTo = upTo(institutional, date);
+
+  // 先還原再計算：未還原的跳空會讓均線與乖離失真，
+  // 而百分位數統計無法忽略這種數值
+  const { prices: pricesUpTo, appliedEvents } = adjustPrices({
+    prices: rawUpTo,
+    dividends: upTo(dividends, date),
+    splits: upTo(splits, date),
+  });
 
   const technical = computeTechnicalSnapshot(pricesUpTo);
   const chip = computeChipSnapshot({ institutional: institutionalUpTo, prices: pricesUpTo });
@@ -72,11 +81,7 @@ export function buildEntrySnapshot({
     assetClass: classifyAsset(entry.stockId),
     technical,
     chip,
-    distortion: detectDistortion({
-      prices: pricesUpTo,
-      dividends: upTo(dividends, date),
-      splits: upTo(splits, date),
-    }),
+    appliedAdjustments: appliedEvents,
     dataQuality: {
       priceRows: pricesUpTo.length,
       foreignRows: institutionalUpTo.filter((row) => row.name === FOREIGN_INVESTOR).length,

@@ -61,20 +61,20 @@
   font-size: 11px;
 }
 
-/* 未還原價造成的失真提示 */
-.distortion {
+/* 已套用的還原事件說明（中性資訊，非警告） */
+.adjustment {
   padding: var(--gap-3) var(--gap-5);
   border-bottom: 1px solid var(--rule);
-  background: var(--attention-bg);
+  background: var(--panel-sunken);
 }
 
-.distortion__title {
-  color: var(--attention);
+.adjustment__title {
+  color: var(--graphite);
   font-size: 13px;
   font-weight: 600;
 }
 
-.distortion__events {
+.adjustment__events {
   display: flex;
   flex-wrap: wrap;
   margin: var(--gap-2) 0 0;
@@ -83,14 +83,14 @@
   list-style: none;
 }
 
-.distortion__events li {
+.adjustment__events li {
   display: flex;
   gap: var(--gap-2);
-  color: var(--attention);
+  color: var(--graphite);
   font-size: 12px;
 }
 
-.distortion__note {
+.adjustment__note {
   margin: var(--gap-2) 0 0;
   color: var(--graphite);
   font-size: 11px;

@@ -45,11 +45,12 @@ describe('判讀說明', () => {
     expect(within(nots).getByText(/最終買賣由你判斷/)).toBeInTheDocument();
   });
 
-  it('說明目前價格未還原及其影響', () => {
+  it('說明價格已還原及其影響', () => {
     render(<GuidePage />);
 
-    expect(screen.getByText('價格未還原')).toBeInTheDocument();
+    expect(screen.getByText('價格已還原')).toBeInTheDocument();
     expect(screen.getByText(/資產並未減少/)).toBeInTheDocument();
+    expect(screen.getByText(/與券商對帳單的成交價不會逐筆相同/)).toBeInTheDocument();
   });
 
   it('說明資料不足時寧可不判斷', () => {

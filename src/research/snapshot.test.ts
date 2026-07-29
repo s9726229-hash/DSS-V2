@@ -128,7 +128,7 @@ describe('buildEntrySnapshot 的前視偏誤防護', () => {
     expect(snapshot.chip.snapshot.lastDate).toBe(entryDate);
   });
 
-  it('失真判定也只看建立部位當日以前的事件', () => {
+  it('還原只套用建立部位當日以前的事件', () => {
     const snapshot = buildEntrySnapshot({
       entry: entry(entryDate),
       prices,
@@ -139,7 +139,47 @@ describe('buildEntrySnapshot 的前視偏誤防護', () => {
       splits: [],
     });
 
-    expect(snapshot.distortion.distorted).toBe(false);
+    expect(snapshot.appliedAdjustments).toEqual([]);
+  });
+});
+
+describe('buildEntrySnapshot 的價格還原', () => {
+  it('先還原再計算均線，使分割不產生假乖離', () => {
+    // 前 60 日為分割前的高價，最後一日為分割後的價格
+    const before = Array.from({ length: 60 }, () => 400);
+    const prices = priceRows([...before, 100]);
+    const entryDate = prices[60].date;
+
+    const snapshot = buildEntrySnapshot({
+      entry: entry(entryDate),
+      prices,
+      institutional: chipRows(prices, 100, 100),
+      dividends: [],
+      splits: [{ date: entryDate, stock_id: '2330', before_price: 400, after_price: 100 }],
+    });
+
+    expect(snapshot.technical.ok).toBe(true);
+    if (!snapshot.technical.ok) return;
+
+    // 未還原時 MA20 會是 400 附近、Bias20 約 -75%
+    expect(snapshot.technical.snapshot.ma20).toBeCloseTo(100, 6);
+    expect(snapshot.technical.snapshot.bias20).toBeCloseTo(0, 6);
+    expect(snapshot.appliedAdjustments).toHaveLength(1);
+    expect(snapshot.appliedAdjustments[0].kind).toBe('split');
+  });
+
+  it('沒有還原事件時不列出任何套用紀錄', () => {
+    const prices = priceRows(Array.from({ length: 70 }, () => 100));
+
+    const snapshot = buildEntrySnapshot({
+      entry: entry(prices[65].date),
+      prices,
+      institutional: chipRows(prices, 100, 100),
+      dividends: [],
+      splits: [],
+    });
+
+    expect(snapshot.appliedAdjustments).toEqual([]);
   });
 });
 
