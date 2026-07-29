@@ -1,0 +1,299 @@
+.research {
+  max-width: 1080px;
+}
+
+.research__loading {
+  padding: var(--gap-5);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 4px;
+  color: var(--graphite);
+}
+
+.research__head {
+  margin-bottom: var(--gap-5);
+}
+
+.research__title {
+  margin: 0 0 var(--gap-2);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.research__lede {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--graphite);
+}
+
+/* ── 樣本讀數 ───────────────────────────────── */
+
+.research__inventory {
+  display: grid;
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+.research__actions {
+  padding: var(--gap-4) var(--gap-5);
+  border-left: 1px solid var(--rule);
+}
+
+.research__empty,
+.research__missing {
+  margin: var(--gap-4) 0 0;
+  padding: var(--gap-3) var(--gap-4);
+  border-radius: 3px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 13px;
+}
+
+.research__empty-line {
+  margin: 0;
+  color: var(--attention);
+  font-size: 12px;
+}
+
+/* ── 指標分頁 ───────────────────────────────── */
+
+.tabs {
+  display: flex;
+  margin: var(--gap-6) 0 var(--gap-4);
+  border-bottom: 1px solid var(--rule);
+  gap: var(--gap-5);
+}
+
+.tabs__item {
+  padding: 0 0 var(--gap-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--graphite);
+  font-size: 14px;
+}
+
+.tabs__item:hover {
+  color: var(--ink);
+}
+
+.tabs__item--active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ── 資產類別區塊 ───────────────────────────── */
+
+.asset {
+  margin-bottom: var(--gap-6);
+  padding: var(--gap-5);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.asset__head {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: var(--gap-4);
+  padding-bottom: var(--gap-3);
+  border-bottom: 1px solid var(--rule);
+  gap: var(--gap-3);
+}
+
+.asset__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.asset__baseline {
+  margin-left: auto;
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.asset__label {
+  margin: var(--gap-5) 0 var(--gap-3);
+}
+
+.asset__label:first-of-type {
+  margin-top: 0;
+}
+
+/* ── 條件分布 ───────────────────────────────── */
+
+.dist__track {
+  position: relative;
+  height: 28px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.dist__tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 14px;
+  background: var(--ink);
+  transform: translateX(-0.5px);
+}
+
+/* 觀察窗未完整的樣本以虛淡刻度呈現，不與已驗證的混為一談 */
+.dist__tick--pending {
+  height: 7px;
+  background: var(--graphite-light);
+}
+
+.dist__scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--gap-1);
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.dist__count {
+  font-family: var(--font-sans);
+}
+
+/* ── 候選門檻 ───────────────────────────────── */
+
+.checkpoints {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.checkpoints th {
+  padding: var(--gap-1) var(--gap-3) var(--gap-2) 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--graphite-light);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.checkpoints td {
+  padding: var(--gap-2) var(--gap-3) var(--gap-2) 0;
+  border-bottom: 1px solid var(--panel-sunken);
+}
+
+.checkpoints th:not(:first-child),
+.checkpoints td:not(:first-child) {
+  text-align: right;
+}
+
+/* ── 區間結果 ───────────────────────────────── */
+
+.bands {
+  display: grid;
+  gap: var(--gap-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.band {
+  padding: var(--gap-4);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--panel-sunken);
+}
+
+.band__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+
+.band__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge {
+  margin-left: auto;
+  padding: 1px var(--gap-2);
+  border: 1px solid;
+  border-radius: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.badge--neutral {
+  border-color: var(--rule-strong);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* 未達採用標準一律琥珀，避免看起來像可以套用 */
+.badge--attention {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+  color: var(--attention);
+}
+
+.band__range {
+  margin: var(--gap-2) 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.band__stats {
+  display: grid;
+  margin: 0;
+  gap: var(--gap-2) var(--gap-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.band__stats dt {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.band__stats dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+.band__reason {
+  margin: var(--gap-3) 0 0;
+  padding-top: var(--gap-3);
+  border-top: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.research__footnote {
+  max-width: 72ch;
+  margin: var(--gap-6) 0 0;
+  padding-top: var(--gap-4);
+  border-top: 1px solid var(--rule);
+  color: var(--graphite-light);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  .research__inventory {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .research__actions {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    grid-column: 1 / -1;
+  }
+
+  .bands {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    overflow-x: auto;
+  }
+}

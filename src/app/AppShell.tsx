@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AnalysisPage } from '../features/analysis/AnalysisPage';
 import { DataCenterPage } from '../features/data-center/DataCenterPage';
 import { GuidePage } from '../features/guide/GuidePage';
+import { ResearchPage } from '../features/research/ResearchPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { syncHoldings } from '../market/sync';
 import { readInventory, type Inventory } from '../storage/inventory';
@@ -20,9 +21,8 @@ const PAGES = [
 
 type PageId = (typeof PAGES)[number]['id'];
 
-const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data' | 'analysis' | 'guide'>, string> = {
+const PLACEHOLDER_COPY: Record<Exclude<PageId, 'data' | 'analysis' | 'guide' | 'research'>, string> = {
   today: '同步市場資料後，這裡會列出庫存與觀察清單的技術與籌碼狀態。',
-  research: '匯入交易明細後，這裡會分析建立部位的條件與後續表現。',
   profile: '完成歷史研究後，這裡會列出候選參數與判定條件。',
   settings: '偏好設定。所有設定只存在這台電腦。',
 };
@@ -199,6 +199,8 @@ export function AppShell() {
             <AnalysisPage />
           ) : page === 'guide' ? (
             <GuidePage />
+          ) : page === 'research' ? (
+            <ResearchPage />
           ) : (
             <PlaceholderPage
               title={PAGES.find((entry) => entry.id === page)?.label ?? ''}
