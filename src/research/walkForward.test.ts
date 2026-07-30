@@ -319,7 +319,7 @@ describe('門檻穩定度', () => {
     // 兩個檢查點：訓練期分別是前 30 筆（值 0~29，P25=7／P75=21）
     // 與前 45 筆（值 0~29 加上 15 筆值 9，P25=9／P75=18）。
     // 中間這 15 筆值 9 的樣本只在第一個檢查點的驗證期出現過（第二個檢查點時它們已變成訓練資料），
-    // 但换成第二個檢查點的門檻會落入 pullback（9 ≤ 9），而非第一個檢查點分類的 normal（9 落在 7~21 之間）。
+    // 但換成第二個檢查點的門檻會落入 pullback（9 ≤ 9），而非第一個檢查點分類的 normal（9 落在 7~21 之間）。
     // 舊寫法（assignments）只會記到一次歸屬，恆被當成穩定；這裡驗證新寫法必須把它算作翻轉。
     const start = Date.parse('2026-01-05T00:00:00Z');
     const values = [
@@ -419,7 +419,7 @@ describe('聯合門檻（翻轉 × 重疊）', () => {
     expect(pullback?.stableCount).toBe(6);
     expect(pullback?.nonOverlappingCount).toBe(6);
     expect(pullback?.cleanCount).toBe(0);
-    expect(pullback?.evidence).not.toBe('worth-tracking');
+    expect(pullback?.evidence).toBe('overlap-sensitive');
     expect(pullback?.reason).toContain('翻轉');
     expect(pullback?.reason).toContain('重疊');
   });

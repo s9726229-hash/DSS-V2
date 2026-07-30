@@ -54,7 +54,7 @@ export type BandResult = {
   baselineMedian: number | null;
   /** 僅用非重疊樣本重算的中位數，供敏感度檢查。 */
   nonOverlappingMedian: number | null;
-  /** 本區間的樣本中，曾在其他檢查點被歸入別的區間的筆數。 */
+  /** 本區間的樣本中，歸屬會隨門檻改變的筆數。 */
   flippedCount: number;
   /** 排除翻轉樣本後的筆數。 */
   stableCount: number;
@@ -373,14 +373,14 @@ function judge({
   if (stableCount <= INSUFFICIENT_DATA_MAX) {
     return {
       evidence: 'threshold-unstable',
-      reason: `${label}排除 ${flippedCount} 筆跨檢查點改變歸屬的樣本後僅剩 ${stableCount} 筆，門檻尚未收斂，暫不推薦套用。`,
+      reason: `${label}排除 ${flippedCount} 筆歸屬會隨門檻改變的樣本後僅剩 ${stableCount} 筆，門檻尚未收斂，暫不推薦套用。`,
     };
   }
 
   if (stableMedian === null || stableMedian < baselineMedian) {
     return {
       evidence: 'threshold-unstable',
-      reason: `${label}排除 ${flippedCount} 筆跨檢查點改變歸屬的樣本後中位數降至 ${stableMedian?.toFixed(2) ?? '無'}%，低於同類基準 ${baselineMedian.toFixed(2)}%，門檻尚未收斂，暫不推薦套用。`,
+      reason: `${label}排除 ${flippedCount} 筆歸屬會隨門檻改變的樣本後中位數降至 ${stableMedian?.toFixed(2) ?? '無'}%，低於同類基準 ${baselineMedian.toFixed(2)}%，門檻尚未收斂，暫不推薦套用。`,
     };
   }
 
