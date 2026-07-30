@@ -147,7 +147,10 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
       <p className="band__range num">
         {rangeText(band.range, unit)}
         {band.range.min === null && band.range.max === null ? null : (
-          <span className="band__range-note">最新檢查點</span>
+          <>
+            {' '}
+            <span className="band__range-note">最新檢查點</span>
+          </>
         )}
       </p>
 
@@ -167,6 +170,10 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
         <div>
           <dt>中位數</dt>
           <dd className="num">{percent(band.median, '%')}</dd>
+        </div>
+        <div>
+          <dt>穩定中位數</dt>
+          <dd className="num">{percent(band.stableMedian, '%')}</dd>
         </div>
         <div>
           <dt>平均</dt>
