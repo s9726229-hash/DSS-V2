@@ -1,6 +1,7 @@
 import type { DriftRange, ThresholdDrift } from '../../research/walkForward';
 import { percent } from './format';
 
+// 兩端點不重複掛單位，只在幅度標一次，避免一行出現三個 %
 function segment(label: string, range: DriftRange, unit: string): string {
   return `${label} ${percent(range.low, '')} ～ ${percent(range.high, '')}（幅度 ${range.span.toFixed(2)}${unit}）`;
 }
