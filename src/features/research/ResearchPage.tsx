@@ -12,6 +12,8 @@ import {
 } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
 import type { BandResult, EvidenceLevel, WalkForwardResult } from '../../research/walkForward';
+import { DriftLine } from './DriftLine';
+import { percent } from './format';
 import './ResearchPage.css';
 
 const ASSET_LABEL: Record<AssetClass, string> = { stock: '個股', etf: 'ETF' };
@@ -40,11 +42,6 @@ const EVIDENCE_TONE: Record<EvidenceLevel, 'neutral' | 'attention'> = {
   'threshold-unstable': 'attention',
   'overlap-sensitive': 'attention',
 };
-
-function percent(value: number | null, unit: string): string {
-  if (value === null) return '—';
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}${unit}`;
-}
 
 /** 沒有任何檢查點時兩端都是 null，此時要明說沒有門檻，而非印出「≤ —」。 */
 function rangeText(range: BandResult['range'], unit: string): string {
@@ -147,7 +144,12 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
         <span className={`badge badge--${tone}`}>{EVIDENCE_LABEL[band.evidence]}</span>
       </header>
 
-      <p className="band__range num">{rangeText(band.range, unit)}</p>
+      <p className="band__range num">
+        {rangeText(band.range, unit)}
+        {band.range.min === null && band.range.max === null ? null : (
+          <span className="band__range-note">最新檢查點</span>
+        )}
+      </p>
 
       <dl className="band__stats">
         <div>
@@ -157,6 +159,10 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
         <div>
           <dt>非重疊</dt>
           <dd className="num">{band.nonOverlappingCount}</dd>
+        </div>
+        <div>
+          <dt>翻轉</dt>
+          <dd className="num">{band.flippedCount}</dd>
         </div>
         <div>
           <dt>中位數</dt>
@@ -211,6 +217,7 @@ function AssetSection({
 
       <h4 className="asset__label micro">候選門檻</h4>
       <Checkpoints result={result} unit={unit} />
+      <DriftLine drift={result.drift} unit={unit} />
 
       <h4 className="asset__label micro">
         驗證結果（{assetClass === 'etf' ? 'ETF 買進後 60 個交易日' : '個股買進後 20 個交易日'}）

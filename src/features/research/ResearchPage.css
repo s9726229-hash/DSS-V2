@@ -187,6 +187,12 @@
   text-align: right;
 }
 
+.checkpoints__drift {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
 /* ── 區間結果 ───────────────────────────────── */
 
 .bands {
@@ -240,6 +246,13 @@
   margin: var(--gap-2) 0 var(--gap-3);
   color: var(--graphite);
   font-size: 12px;
+}
+
+.band__range-note {
+  margin-left: var(--gap-2);
+  color: var(--graphite-light);
+  font-family: var(--font-sans);
+  font-size: 11px;
 }
 
 .band__stats {

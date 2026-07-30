@@ -138,11 +138,21 @@ describe('有建立部位時', () => {
     const band = within(stock).getByRole('article', { name: '回檔下界' });
 
     expect(
-      within(band).getAllByText(/資料不足|初步觀察|證據不足|值得繼續追蹤|重疊敏感/).length,
+      within(band).getAllByText(/資料不足|初步觀察|證據不足|值得繼續追蹤|門檻不穩定|重疊敏感/)
+        .length,
     ).toBeGreaterThan(0);
     expect(
-      within(band).getByText(/未達|屬初步觀察|低於|值得繼續追蹤|暫不推薦|缺少可比較/),
+      within(band).getByText(/未達|屬初步觀察|低於|值得繼續追蹤|暫不推薦|缺少可比較|尚未收斂/),
     ).toBeInTheDocument();
+  });
+
+  it('每個區間都列出翻轉樣本數，讓穩定度判定有依據可看', async () => {
+    render(<ResearchPage />);
+
+    const stock = await screen.findByRole('region', { name: '個股' });
+    const band = within(stock).getByRole('article', { name: '回檔下界' });
+
+    expect(within(band).getByText('翻轉')).toBeInTheDocument();
   });
 
   it('顯示樣本讀數', async () => {
