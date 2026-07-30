@@ -60,6 +60,8 @@ export type BandResult = {
   stableCount: number;
   /** 僅用未翻轉樣本重算的中位數，供門檻穩定度檢查。 */
   stableMedian: number | null;
+  /** 排除翻轉與重疊樣本後，兩者皆清的筆數，供聯合門檻判定使用。 */
+  cleanCount: number;
   evidence: EvidenceLevel;
   reason: string;
 };
@@ -159,9 +161,12 @@ export function runWalkForward({
     BAND_ORDER.map((band) => [band, { samples: new Set(), checkpoints: new Set() }]),
   );
   const ranges = new Map<BandId, { min: number | null; max: number | null }>();
-  // 每筆樣本在各檢查點被分到的區間。同一個檢查點只會分到一個區間，
-  // 因此集合大小大於 1 必然代表門檻在檢查點之間漂過了這筆樣本。
-  const assignments = new Map<MetricSample, Set<BandId>>();
+  // 只收集「實際套用過分類」的門檻（P25 與 P75 皆非 null 且不相等）。
+  // expanding walk-forward 的驗證集是巢狀的，只被最早檢查點驗證過的樣本
+  // 在後續檢查點會變成訓練資料、不會再進入 hits——若翻轉判定只看驗證期實際發生過的
+  // 歸屬，這批樣本恆被當成穩定。這裡改用「每一組門檻都重新分類一次」，
+  // 讓翻轉判定涵蓋所有非退化檢查點，不論樣本實際被驗證過幾次。
+  const thresholds: { p25: number; p75: number }[] = [];
 
   fractions.forEach((fraction, checkpointIndex) => {
     const trainingSize = Math.floor(usable.length * fraction);
@@ -191,6 +196,8 @@ export function runWalkForward({
     // 若照常切會把全部樣本倒進單一區間並產生看似有結論的結果
     if (p25 === null || p75 === null || p25 === p75) return;
 
+    thresholds.push({ p25, p75 });
+
     ranges.set('pullback', { min: null, max: p25 });
     ranges.set('normal', { min: p25, max: p75 });
     ranges.set('overheated', { min: p75, max: null });
@@ -202,52 +209,67 @@ export function runWalkForward({
       const hit = hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> };
       hit.samples.add(row);
       hit.checkpoints.add(checkpointIndex);
-
-      const assigned = assignments.get(row);
-      if (assigned === undefined) {
-        assignments.set(row, new Set([band]));
-      } else {
-        assigned.add(band);
-      }
     }
   });
 
+  // 翻轉判定：用「所有非退化檢查點的門檻」重新分類每一筆曾被驗證過的樣本，
+  // 只要有一組門檻算出的區間跟其他組不同，就是翻轉樣本。
+  const flipped = new Set<MetricSample>();
+  for (const hit of hits.values()) {
+    for (const row of hit.samples) {
+      if (flipped.has(row)) continue;
+      const value = row.metricValue as number;
+      const bandsAssigned = new Set(thresholds.map((t) => bandOf(value, t.p25, t.p75)));
+      if (bandsAssigned.size > 1) flipped.add(row);
+    }
+  }
+
   const bands = BAND_ORDER.map((band) =>
-    summarizeBand(
+    summarizeBand({
       band,
-      hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> },
-      ranges.get(band),
+      hit: hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> },
+      range: ranges.get(band),
       baseline,
-      assignments,
-    ),
+      flipped,
+    }),
   );
 
   const drift: ThresholdDrift = {
-    p25: driftOf(checkpoints.map((checkpoint) => checkpoint.p25)),
-    p75: driftOf(checkpoints.map((checkpoint) => checkpoint.p75)),
+    p25: driftOf(thresholds.map((t) => t.p25)),
+    p75: driftOf(thresholds.map((t) => t.p75)),
   };
 
   return { assetClass, checkpoints, drift, bands, baseline };
 }
 
-function summarizeBand(
-  band: BandId,
-  hit: { samples: Set<MetricSample>; checkpoints: Set<number> },
-  range: { min: number | null; max: number | null } | undefined,
-  baseline: Baseline,
-  assignments: ReadonlyMap<MetricSample, Set<BandId>>,
-): BandResult {
+function summarizeBand({
+  band,
+  hit,
+  range,
+  baseline,
+  flipped,
+}: {
+  band: BandId;
+  hit: { samples: Set<MetricSample>; checkpoints: Set<number> };
+  range: { min: number | null; max: number | null } | undefined;
+  baseline: Baseline;
+  /** 在所有非退化檢查點的門檻下，區間歸屬並非恆定的樣本。 */
+  flipped: ReadonlySet<MetricSample>;
+}): BandResult {
   const rows = [...hit.samples];
   const returns = rows.map((row) => row.returnPercent as number);
   const nonOverlapping = rows.filter((row) => !row.overlapsPrevious);
   const nonOverlappingReturns = nonOverlapping.map((row) => row.returnPercent as number);
-  // 只落入過一個區間的樣本，其歸屬不受門檻漂移影響
-  const stable = rows.filter((row) => (assignments.get(row)?.size ?? 1) === 1);
+  // 不在翻轉集合中的樣本，其歸屬在所有非退化檢查點的門檻下皆一致
+  const stable = rows.filter((row) => !flipped.has(row));
   const stableReturns = stable.map((row) => row.returnPercent as number);
+  // 既未翻轉、又非重疊——兩種質疑都排除後仍站得住的樣本
+  const clean = rows.filter((row) => !flipped.has(row) && !row.overlapsPrevious);
 
   const completeCount = rows.length;
   const stableCount = stable.length;
   const flippedCount = completeCount - stableCount;
+  const cleanCount = clean.length;
   const bandMedian = median(returns);
   const nonOverlappingMedian = median(nonOverlappingReturns);
   const stableMedian = median(stableReturns);
@@ -262,6 +284,7 @@ function summarizeBand(
     stableMedian,
     stableCount,
     flippedCount,
+    cleanCount,
     baselineMedian: baseline.median,
     label: BAND_LABEL[band],
   });
@@ -282,6 +305,7 @@ function summarizeBand(
     flippedCount,
     stableCount,
     stableMedian,
+    cleanCount,
     evidence,
     reason,
   };
@@ -296,6 +320,7 @@ function judge({
   stableMedian,
   stableCount,
   flippedCount,
+  cleanCount,
   baselineMedian,
   label,
 }: {
@@ -307,6 +332,7 @@ function judge({
   stableMedian: number | null;
   stableCount: number;
   flippedCount: number;
+  cleanCount: number;
   baselineMedian: number | null;
   label: string;
 }): { evidence: EvidenceLevel; reason: string } {
@@ -370,6 +396,17 @@ function judge({
     return {
       evidence: 'overlap-sensitive',
       reason: `${label}排除重疊樣本後中位數降至 ${nonOverlappingMedian?.toFixed(2) ?? '無'}%，低於基準，重疊敏感，暫不推薦套用。`,
+    };
+  }
+
+  // 聯合門檻：翻轉與重疊各自檢查可能各自通過，但排除的未必是同一批樣本。
+  // 若「既未翻轉、又非重疊」的樣本所剩無幾，代表結論是靠兩種質疑彼此互補撐住的，
+  // 歸給排除數較大的那一方。
+  if (cleanCount <= INSUFFICIENT_DATA_MAX) {
+    const overlapCount = completeCount - nonOverlappingCount;
+    return {
+      evidence: flippedCount > overlapCount ? 'threshold-unstable' : 'overlap-sensitive',
+      reason: `${label}排除翻轉與重疊樣本後只剩 ${cleanCount} 筆兩者皆清的樣本，證據互相重疊，暫不推薦套用。`,
     };
   }
 

@@ -315,6 +315,38 @@ describe('門檻穩定度', () => {
     expect(normal?.reason).toContain('檢查點');
   });
 
+  it('只被單一檢查點驗證過的樣本，若較晚門檻會改變其區間，仍要計為翻轉', () => {
+    // 兩個檢查點：訓練期分別是前 30 筆（值 0~29，P25=7／P75=21）
+    // 與前 45 筆（值 0~29 加上 15 筆值 9，P25=9／P75=18）。
+    // 中間這 15 筆值 9 的樣本只在第一個檢查點的驗證期出現過（第二個檢查點時它們已變成訓練資料），
+    // 但换成第二個檢查點的門檻會落入 pullback（9 ≤ 9），而非第一個檢查點分類的 normal（9 落在 7~21 之間）。
+    // 舊寫法（assignments）只會記到一次歸屬，恆被當成穩定；這裡驗證新寫法必須把它算作翻轉。
+    const start = Date.parse('2026-01-05T00:00:00Z');
+    const values = [
+      ...Array.from({ length: 30 }, (_, index) => index),
+      ...Array.from({ length: 15 }, () => 9),
+      ...Array.from({ length: 5 }, () => 100),
+    ];
+    const samples = values.map((value, index) =>
+      sample({
+        entryDate: new Date(start + index * 5 * 86_400_000).toISOString().slice(0, 10),
+        metricValue: value,
+        returnPercent: 0,
+      }),
+    );
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.6, 0.9] });
+    const normal = result.bands.find((band) => band.band === 'normal');
+    const overheated = result.bands.find((band) => band.band === 'overheated');
+
+    expect(result.checkpoints).toHaveLength(2);
+    expect(normal?.completeCount).toBe(15);
+    expect(normal?.flippedCount).toBe(15);
+    expect(normal?.stableCount).toBe(0);
+    // 值 100 的 5 筆在兩個檢查點的門檻下都落在 overheated，維持穩定
+    expect(overheated?.stableCount).toBe(5);
+  });
+
   it('回報各檢查點門檻的漂移範圍', () => {
     const samples = drifting([
       ...tailRows(4, 5, 0),
@@ -339,6 +371,57 @@ describe('門檻穩定度', () => {
 
     expect(result.drift.p25).toBeNull();
     expect(result.drift.p75).toBeNull();
+  });
+
+  it('漂移計算不得計入退化檢查點的門檻', () => {
+    // 第一個檢查點訓練期（前 25 筆）全為同一個值，P25 === P75，屬於退化檢查點，
+    // 從未實際套用來分類任何樣本。第二個檢查點訓練期併入 15 筆分散值後才不退化。
+    // 可用檢查點只有 1 個，漂移應回傳 null，而不是把退化門檻也當一組漂移端點。
+    const start = Date.parse('2026-01-05T00:00:00Z');
+    const values = [
+      ...Array.from({ length: 25 }, () => 10),
+      ...Array.from({ length: 15 }, (_, index) => 100 + index),
+      ...Array.from({ length: 10 }, () => 50),
+    ];
+    const samples = values.map((value, index) =>
+      sample({
+        entryDate: new Date(start + index * 5 * 86_400_000).toISOString().slice(0, 10),
+        metricValue: value,
+        returnPercent: 0,
+      }),
+    );
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5, 0.8] });
+
+    expect(result.checkpoints).toHaveLength(2);
+    expect(result.checkpoints[0].p25).toBe(result.checkpoints[0].p75);
+    expect(result.drift.p25).toBeNull();
+    expect(result.drift.p75).toBeNull();
+  });
+});
+
+describe('聯合門檻（翻轉 × 重疊）', () => {
+  it('翻轉與重疊各自通過但交集為空時，不得判為值得繼續追蹤', () => {
+    // pullback 區間累積 12 筆成員：6 筆（值 5）在兩組門檻下都穩定落在 pullback，
+    // 但全部標記重疊；另外 6 筆（值 9）在兩組門檻下會從 normal 翻轉到 pullback，
+    // 但全部不重疊。stableCount=6、nonOverlappingCount=6 各自通過檢查，
+    // 但穩定的那 6 筆恰好都重疊、不重疊的那 6 筆恰好都翻轉，兩者交集是空集合。
+    const samples = drifting([
+      ...tailRows(6, 5, 20, true),
+      ...tailRows(6, 9, 20),
+      ...tailRows(3, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const pullback = result.bands.find((band) => band.band === 'pullback');
+
+    expect(pullback?.completeCount).toBe(12);
+    expect(pullback?.stableCount).toBe(6);
+    expect(pullback?.nonOverlappingCount).toBe(6);
+    expect(pullback?.cleanCount).toBe(0);
+    expect(pullback?.evidence).not.toBe('worth-tracking');
+    expect(pullback?.reason).toContain('翻轉');
+    expect(pullback?.reason).toContain('重疊');
   });
 });
 
