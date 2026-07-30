@@ -72,9 +72,26 @@ export type CheckpointRecord = {
   p75: number | null;
 };
 
+export type DriftRange = {
+  low: number;
+  high: number;
+  span: number;
+};
+
+/**
+ * 門檻在檢查點之間的漂移。
+ * 可用檢查點不足 2 個時無從判斷漂移，回傳 null 而非 0，
+ * 以免「沒有漂移」與「無法判斷」被混為一談。
+ */
+export type ThresholdDrift = {
+  p25: DriftRange | null;
+  p75: DriftRange | null;
+};
+
 export type WalkForwardResult = {
   assetClass: AssetClass;
   checkpoints: CheckpointRecord[];
+  drift: ThresholdDrift;
   bands: BandResult[];
   baseline: Baseline;
 };
@@ -89,6 +106,15 @@ function median(values: readonly number[]): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function driftOf(values: readonly (number | null)[]): DriftRange | null {
+  const usable = values.filter((value): value is number => value !== null);
+  if (usable.length < 2) return null;
+
+  const low = Math.min(...usable);
+  const high = Math.max(...usable);
+  return { low, high, span: high - low };
 }
 
 function bandOf(value: number, p25: number, p75: number): BandId {
@@ -196,7 +222,12 @@ export function runWalkForward({
     ),
   );
 
-  return { assetClass, checkpoints, bands, baseline };
+  const drift: ThresholdDrift = {
+    p25: driftOf(checkpoints.map((checkpoint) => checkpoint.p25)),
+    p75: driftOf(checkpoints.map((checkpoint) => checkpoint.p75)),
+  };
+
+  return { assetClass, checkpoints, drift, bands, baseline };
 }
 
 function summarizeBand(

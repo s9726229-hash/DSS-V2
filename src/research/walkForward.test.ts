@@ -314,6 +314,32 @@ describe('門檻穩定度', () => {
     expect(normal?.evidence).toBe('insufficient-evidence');
     expect(normal?.reason).toContain('檢查點');
   });
+
+  it('回報各檢查點門檻的漂移範圍', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 0),
+      ...tailRows(7, 9, 0),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+
+    expect(result.drift.p25).toEqual({ low: 7, high: 11, span: 4 });
+    expect(result.drift.p75).toEqual({ low: 21, high: 50, span: 29 });
+  });
+
+  it('檢查點不足兩個時不回報漂移', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 0),
+      ...tailRows(7, 9, 0),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+
+    expect(result.drift.p25).toBeNull();
+    expect(result.drift.p75).toBeNull();
+  });
 });
 
 describe('重疊敏感度', () => {
