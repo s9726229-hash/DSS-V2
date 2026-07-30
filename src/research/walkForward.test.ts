@@ -31,6 +31,45 @@ function series(
   );
 }
 
+type TailRow = { metric: number; ret: number; overlaps?: boolean };
+
+/**
+ * 產生一組門檻會漂移的樣本。
+ *
+ * 前 30 筆指標值為 0～29，接著 15 筆為 50。搭配 DRIFT_FRACTIONS，兩個檢查點的
+ * 訓練期分別是前 30 筆與前 45 筆，P25 由 7 上移到 11、P75 由 21 上移到 50。
+ *
+ * tail 是最後 15 筆驗證樣本，兩個檢查點都會驗證它們：
+ * - 指標值 5：兩個檢查點都是回檔下界
+ * - 指標值 9：第一個檢查點是合理區，第二個才落入回檔下界（翻轉樣本）
+ * - 指標值 15：兩個檢查點都是合理區
+ */
+function drifting(tail: readonly TailRow[]): MetricSample[] {
+  const rows: TailRow[] = [
+    ...Array.from({ length: 30 }, (_, index) => ({ metric: index, ret: 0 })),
+    ...Array.from({ length: 15 }, () => ({ metric: 50, ret: 0 })),
+    ...tail,
+  ];
+  const start = Date.parse('2026-01-05T00:00:00Z');
+
+  return rows.map((row, index) =>
+    sample({
+      entryDate: new Date(start + index * 5 * 86_400_000).toISOString().slice(0, 10),
+      metricValue: row.metric,
+      returnPercent: row.ret,
+      overlapsPrevious: row.overlaps ?? false,
+    }),
+  );
+}
+
+/** drifting() 的 tail 簡寫：count 筆指標值 metric、報酬 ret 的樣本。 */
+function tailRows(count: number, metric: number, ret: number, overlaps = false): TailRow[] {
+  return Array.from({ length: count }, () => ({ metric, ret, overlaps }));
+}
+
+/** 兩個檢查點，訓練期為前 30 筆與前 45 筆。 */
+const DRIFT_FRACTIONS = [0.5, 0.75];
+
 describe('檢查點與分位數', () => {
   it('分位數只用訓練期資料計算', () => {
     // 訓練期指標值為 0~9，驗證期為 100 以上；分位數不應被驗證期影響
@@ -170,6 +209,110 @@ describe('證據等級', () => {
     const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
 
     expect(result.bands.every((band) => band.completeCount === 0)).toBe(true);
+  });
+});
+
+describe('門檻穩定度', () => {
+  it('同一筆樣本在不同檢查點落入不同區間時計為翻轉', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 0),
+      ...tailRows(7, 9, 0),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const pullback = result.bands.find((band) => band.band === 'pullback');
+    const normal = result.bands.find((band) => band.band === 'normal');
+
+    // 指標值 9 的 7 筆同時被計入兩個區間，兩邊都要標記為翻轉
+    expect(pullback?.flippedCount).toBe(7);
+    expect(normal?.flippedCount).toBe(7);
+    expect(pullback?.stableCount).toBe(4);
+    expect(normal?.stableCount).toBe(4);
+  });
+
+  it('排除翻轉樣本後不足 5 筆時標示門檻不穩定', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 20),
+      ...tailRows(7, 9, 20),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const pullback = result.bands.find((band) => band.band === 'pullback');
+
+    expect(pullback?.completeCount).toBe(11);
+    expect(pullback?.checkpointsCovered).toBe(2);
+    expect(pullback?.median).toBe(20);
+    expect(pullback?.stableCount).toBe(4);
+    // 重疊檢查抓不到這種情況：11 筆全部非重疊，中位數也高於基準
+    expect(pullback?.nonOverlappingCount).toBe(11);
+    expect(pullback?.evidence).toBe('threshold-unstable');
+    expect(pullback?.reason).toContain('門檻');
+  });
+
+  it('排除翻轉樣本後中位數跌破基準時標示門檻不穩定', () => {
+    const samples = drifting([
+      ...tailRows(6, 5, -10),
+      ...tailRows(7, 9, 30),
+      ...tailRows(2, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const pullback = result.bands.find((band) => band.band === 'pullback');
+
+    expect(pullback?.completeCount).toBe(13);
+    expect(pullback?.stableCount).toBe(6);
+    expect(pullback?.median).toBe(30);
+    expect(pullback?.stableMedian).toBe(-10);
+    expect(pullback?.evidence).toBe('threshold-unstable');
+  });
+
+  it('門檻沒有漂移時不會被誤判為不穩定', () => {
+    // 指標值只取 0／50／100，任何訓練期大小算出的 P25 都是 0、P75 都是 100
+    const samples = series(
+      80,
+      (index) => (index % 3) * 50,
+      (index) => (index % 3 === 1 ? 20 : 0),
+    );
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.4, 0.6, 0.8] });
+    const normal = result.bands.find((band) => band.band === 'normal');
+
+    expect(normal?.flippedCount).toBe(0);
+    expect(normal?.stableCount).toBe(normal?.completeCount);
+    expect(normal?.evidence).toBe('worth-tracking');
+  });
+
+  it('與重疊敏感同時成立時，優先顯示門檻不穩定', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 20),
+      ...tailRows(7, 9, 20, true),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const pullback = result.bands.find((band) => band.band === 'pullback');
+
+    // 非重疊只剩 4 筆，重疊敏感也成立；但歸屬不確定比重疊更根本
+    expect(pullback?.nonOverlappingCount).toBe(4);
+    expect(pullback?.evidence).toBe('threshold-unstable');
+  });
+
+  it('只有一個檢查點時不會誤報門檻不穩定', () => {
+    const samples = drifting([
+      ...tailRows(4, 5, 20),
+      ...tailRows(7, 9, 20),
+      ...tailRows(4, 15, 0),
+    ]);
+
+    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const normal = result.bands.find((band) => band.band === 'normal');
+
+    expect(normal?.completeCount).toBe(11);
+    expect(normal?.flippedCount).toBe(0);
+    expect(normal?.evidence).toBe('insufficient-evidence');
+    expect(normal?.reason).toContain('檢查點');
   });
 });
 

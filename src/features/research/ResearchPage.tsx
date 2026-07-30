@@ -27,6 +27,7 @@ const EVIDENCE_LABEL: Record<EvidenceLevel, string> = {
   preliminary: '初步觀察',
   'insufficient-data': '資料不足',
   'insufficient-evidence': '證據不足',
+  'threshold-unstable': '門檻不穩定',
   'overlap-sensitive': '重疊敏感',
 };
 
@@ -36,6 +37,7 @@ const EVIDENCE_TONE: Record<EvidenceLevel, 'neutral' | 'attention'> = {
   preliminary: 'attention',
   'insufficient-data': 'attention',
   'insufficient-evidence': 'attention',
+  'threshold-unstable': 'attention',
   'overlap-sensitive': 'attention',
 };
 

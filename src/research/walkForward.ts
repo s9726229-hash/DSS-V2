@@ -28,6 +28,7 @@ export type BandId = 'pullback' | 'normal' | 'overheated';
  * - preliminary：5–9 筆，僅為初步觀察
  * - worth-tracking：10 筆以上、跨 2 個以上檢查點，且中位數不低於同類基準
  * - insufficient-evidence：樣本足夠但未通過比較，不建議套用
+ * - threshold-unstable：排除跨檢查點改變歸屬的樣本後結果不足或反轉，門檻尚未收斂
  * - overlap-sensitive：排除重疊樣本後結果不足或反轉，暫不推薦套用
  */
 export type EvidenceLevel =
@@ -35,6 +36,7 @@ export type EvidenceLevel =
   | 'preliminary'
   | 'worth-tracking'
   | 'insufficient-evidence'
+  | 'threshold-unstable'
   | 'overlap-sensitive';
 
 export type BandResult = {
@@ -52,6 +54,12 @@ export type BandResult = {
   baselineMedian: number | null;
   /** 僅用非重疊樣本重算的中位數，供敏感度檢查。 */
   nonOverlappingMedian: number | null;
+  /** 本區間的樣本中，曾在其他檢查點被歸入別的區間的筆數。 */
+  flippedCount: number;
+  /** 排除翻轉樣本後的筆數。 */
+  stableCount: number;
+  /** 僅用未翻轉樣本重算的中位數，供門檻穩定度檢查。 */
+  stableMedian: number | null;
   evidence: EvidenceLevel;
   reason: string;
 };
@@ -125,6 +133,9 @@ export function runWalkForward({
     BAND_ORDER.map((band) => [band, { samples: new Set(), checkpoints: new Set() }]),
   );
   const ranges = new Map<BandId, { min: number | null; max: number | null }>();
+  // 每筆樣本在各檢查點被分到的區間。同一個檢查點只會分到一個區間，
+  // 因此集合大小大於 1 必然代表門檻在檢查點之間漂過了這筆樣本。
+  const assignments = new Map<MetricSample, Set<BandId>>();
 
   fractions.forEach((fraction, checkpointIndex) => {
     const trainingSize = Math.floor(usable.length * fraction);
@@ -165,11 +176,24 @@ export function runWalkForward({
       const hit = hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> };
       hit.samples.add(row);
       hit.checkpoints.add(checkpointIndex);
+
+      const assigned = assignments.get(row);
+      if (assigned === undefined) {
+        assignments.set(row, new Set([band]));
+      } else {
+        assigned.add(band);
+      }
     }
   });
 
   const bands = BAND_ORDER.map((band) =>
-    summarizeBand(band, hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> }, ranges.get(band), baseline),
+    summarizeBand(
+      band,
+      hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> },
+      ranges.get(band),
+      baseline,
+      assignments,
+    ),
   );
 
   return { assetClass, checkpoints, bands, baseline };
@@ -180,15 +204,22 @@ function summarizeBand(
   hit: { samples: Set<MetricSample>; checkpoints: Set<number> },
   range: { min: number | null; max: number | null } | undefined,
   baseline: Baseline,
+  assignments: ReadonlyMap<MetricSample, Set<BandId>>,
 ): BandResult {
   const rows = [...hit.samples];
   const returns = rows.map((row) => row.returnPercent as number);
   const nonOverlapping = rows.filter((row) => !row.overlapsPrevious);
   const nonOverlappingReturns = nonOverlapping.map((row) => row.returnPercent as number);
+  // 只落入過一個區間的樣本，其歸屬不受門檻漂移影響
+  const stable = rows.filter((row) => (assignments.get(row)?.size ?? 1) === 1);
+  const stableReturns = stable.map((row) => row.returnPercent as number);
 
   const completeCount = rows.length;
+  const stableCount = stable.length;
+  const flippedCount = completeCount - stableCount;
   const bandMedian = median(returns);
   const nonOverlappingMedian = median(nonOverlappingReturns);
+  const stableMedian = median(stableReturns);
   const checkpointsCovered = hit.checkpoints.size;
 
   const { evidence, reason } = judge({
@@ -197,6 +228,9 @@ function summarizeBand(
     bandMedian,
     nonOverlappingMedian,
     nonOverlappingCount: nonOverlapping.length,
+    stableMedian,
+    stableCount,
+    flippedCount,
     baselineMedian: baseline.median,
     label: BAND_LABEL[band],
   });
@@ -214,6 +248,9 @@ function summarizeBand(
     checkpointsCovered,
     baselineMedian: baseline.median,
     nonOverlappingMedian,
+    flippedCount,
+    stableCount,
+    stableMedian,
     evidence,
     reason,
   };
@@ -225,6 +262,9 @@ function judge({
   bandMedian,
   nonOverlappingMedian,
   nonOverlappingCount,
+  stableMedian,
+  stableCount,
+  flippedCount,
   baselineMedian,
   label,
 }: {
@@ -233,6 +273,9 @@ function judge({
   bandMedian: number | null;
   nonOverlappingMedian: number | null;
   nonOverlappingCount: number;
+  stableMedian: number | null;
+  stableCount: number;
+  flippedCount: number;
   baselineMedian: number | null;
   label: string;
 }): { evidence: EvidenceLevel; reason: string } {
@@ -265,6 +308,22 @@ function judge({
     return {
       evidence: 'insufficient-evidence',
       reason: `${label}中位數 ${bandMedian.toFixed(2)}% 低於同類基準 ${baselineMedian.toFixed(2)}%，未顯示差異。`,
+    };
+  }
+
+  // 穩定度敏感度檢查：排除區間歸屬會隨檢查點改變的樣本後，結論若消失，
+  // 代表這個區間是靠一個尚未收斂的門檻切出來的
+  if (stableCount <= INSUFFICIENT_DATA_MAX) {
+    return {
+      evidence: 'threshold-unstable',
+      reason: `${label}排除 ${flippedCount} 筆跨檢查點改變歸屬的樣本後僅剩 ${stableCount} 筆，門檻尚未收斂，暫不推薦套用。`,
+    };
+  }
+
+  if (stableMedian === null || stableMedian < baselineMedian) {
+    return {
+      evidence: 'threshold-unstable',
+      reason: `${label}排除 ${flippedCount} 筆跨檢查點改變歸屬的樣本後中位數降至 ${stableMedian?.toFixed(2) ?? '無'}%，低於同類基準 ${baselineMedian.toFixed(2)}%，門檻尚未收斂，暫不推薦套用。`,
     };
   }
 
