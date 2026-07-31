@@ -60,31 +60,7 @@
 
 /* ── 指標分頁 ───────────────────────────────── */
 
-.tabs {
-  display: flex;
-  margin: var(--gap-6) 0 var(--gap-4);
-  border-bottom: 1px solid var(--rule);
-  gap: var(--gap-5);
-}
-
-.tabs__item {
-  padding: 0 0 var(--gap-2);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--graphite);
-  font-size: 14px;
-}
-
-.tabs__item:hover {
-  color: var(--ink);
-}
-
-.tabs__item--active {
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-  font-weight: 600;
-}
+/* .tabs* 已搬到 theme.css 供跨頁共用 */
 
 /* ── 資產類別區塊 ───────────────────────────── */
 
@@ -191,6 +167,59 @@
   margin: var(--gap-2) 0 0;
   color: var(--graphite-light);
   font-size: 11px;
+}
+
+/* ── 搜尋紀錄 ───────────────────────────────── */
+
+.history__lede {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-4);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.history__run {
+  margin-bottom: var(--gap-4);
+  padding: var(--gap-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-2) var(--gap-3);
+  margin-bottom: var(--gap-3);
+  padding-bottom: var(--gap-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.history__time {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.history__counts {
+  margin-left: auto;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.history__scroll {
+  overflow-x: auto;
+}
+
+.history__table {
+  min-width: 620px;
+}
+
+/* 證據等級欄靠左，標籤才不會被推到離指標名稱很遠的地方 */
+.history__table td:nth-child(n + 6),
+.history__table th:nth-child(n + 6) {
+  text-align: left;
 }
 
 /* ── 區間結果 ───────────────────────────────── */
@@ -304,9 +333,5 @@
 
   .bands {
     grid-template-columns: 1fr;
-  }
-
-  .tabs {
-    overflow-x: auto;
   }
 }

@@ -1,4 +1,4 @@
-import { deleteDB } from 'idb';
+import { deleteDB, openDB } from 'idb';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ImportedHolding, ImportedTransaction } from '../import/types';
 import { DATABASE_NAME, openDssDatabase } from './database';
@@ -201,11 +201,48 @@ describe('readHoldingsSnapshot', () => {
 });
 
 describe('資料庫結構', () => {
-  it('建立四個資料表', async () => {
+  it('建立五個資料表', async () => {
     const db = await openDssDatabase();
     const names = [...db.objectStoreNames].sort();
     db.close();
 
-    expect(names).toEqual(['holdingsSnapshots', 'marketCache', 'settings', 'transactions']);
+    expect(names).toEqual([
+      'holdingsSnapshots',
+      'marketCache',
+      'researchRuns',
+      'settings',
+      'transactions',
+    ]);
+  });
+
+  /**
+   * researchRuns 是在 v2 才加入的。既有使用者的資料庫停在 v1，
+   * 升級時只能補上缺少的資料表，絕不能連帶清掉已匯入的交易。
+   */
+  it('把既有的 v1 資料庫升級到 v2，補上 researchRuns 且不動既有資料', async () => {
+    const legacy = await openDB(DATABASE_NAME, 1, {
+      upgrade(db) {
+        db.createObjectStore('settings', { keyPath: 'key' });
+        db.createObjectStore('transactions', { keyPath: 'id' });
+        db.createObjectStore('holdingsSnapshots', { keyPath: 'id' });
+        db.createObjectStore('marketCache', { keyPath: 'id' });
+      },
+    });
+    await legacy.put('transactions', {
+      ...tx(),
+      id: '既有交易#0',
+      importedAt: IMPORTED_AT,
+    });
+    legacy.close();
+
+    const upgraded = await openDssDatabase();
+    const names = [...upgraded.objectStoreNames].sort();
+    const survivors = await upgraded.getAll('transactions');
+    upgraded.close();
+
+    expect(upgraded.version).toBe(2);
+    expect(names).toContain('researchRuns');
+    expect(survivors).toHaveLength(1);
+    expect(survivors[0].stockId).toBe('2330');
   });
 });
