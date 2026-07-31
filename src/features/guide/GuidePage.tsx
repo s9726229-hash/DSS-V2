@@ -3,22 +3,36 @@ import './GuidePage.css';
 function Entry({
   term,
   meaning,
-  basis,
+  detail,
+  detailLabel = '怎麼算',
 }: {
   term: string;
   meaning: string;
-  basis?: string;
+  detail?: string;
+  detailLabel?: '怎麼算' | '為什麼';
 }) {
   return (
     <div className="entry">
       <dt className="entry__term">{term}</dt>
       <dd className="entry__meaning">
         {meaning}
-        {basis ? <span className="entry__basis">{basis}</span> : null}
+        {detail ? (
+          <span className="entry__detail">
+            <span className="entry__detail-label micro">{detailLabel}</span>
+            {detail}
+          </span>
+        ) : null}
       </dd>
     </div>
   );
 }
+
+const JUMP_LINKS = [
+  { href: '#premise', label: '計算前提' },
+  { href: '#technical', label: '技術面' },
+  { href: '#chip', label: '籌碼面' },
+  { href: '#nots', label: '本系統不做的事' },
+];
 
 export function GuidePage() {
   return (
@@ -26,67 +40,75 @@ export function GuidePage() {
       <header className="guide__head">
         <h1 className="guide__title">判讀說明</h1>
         <p className="guide__lede">
-          技術分析頁上每個數字與狀態的計算方式與涵義。所有狀態只描述資料事實，不代表買賣建議。
+          技術分析頁上每個數字與狀態是什麼意思、怎麼算出來的。所有狀態只描述資料事實，不代表買賣建議。
         </p>
+        <nav className="guide__jump" aria-label="快速跳轉">
+          {JUMP_LINKS.map((link) => (
+            <a key={link.href} href={link.href}>
+              {link.label}
+            </a>
+          ))}
+        </nav>
       </header>
 
-      <section className="guide__section" aria-label="計算前提">
+      <section className="guide__section" id="premise" aria-label="計算前提">
         <h2 className="guide__section-title">計算前提</h2>
         <dl className="guide__list">
           <Entry
             term="資料時點"
-            meaning="一律以最近一個已完成的交易日收盤資料計算。"
-            basis="盤中不重算均線；目前未啟用盤中價格。"
+            meaning="只用最近一個已經收盤的交易日資料計算，盤中不會即時更新。"
+            detailLabel="為什麼"
+            detail="目前還沒有開放盤中報價功能。"
           />
           <Entry
             term="價格已還原"
-            meaning="所有技術指標都以還原權息與分割後的價格計算。"
-            basis="配息與分割會讓股價帳面下跌但資產並未減少；不還原的話均線會被跳空拉低、乖離率失真。還原後的歷史價格經過換算，與券商對帳單的成交價不會逐筆相同，技術分析頁會列出已套用的事件。"
+            meaning="所有均線和乖離率，都是用「還原權息與分割後」的價格算的。"
+            detail="配息或分割當天，股價帳面上會跌，但資產並未減少；如果不還原，均線會被這個假跌幅拉低，乖離率也會算錯。還原後的價格是換算過的，與券商對帳單的成交價不會逐筆相同——技術分析頁的「計算流程」分頁會列出實際用了哪些還原事件。"
           />
           <Entry
-            term="資料不足"
-            meaning="價格少於 60 筆時不計算任何技術指標；外資或投信不足 5 個交易日時不計算籌碼結果。"
-            basis="寧可顯示「資料不足」，也不以殘缺資料產生看似完整的判斷。"
+            term="資料不足時怎麼辦"
+            meaning="股價少於 60 天，或外資、投信任一邊少於 5 個交易日，就不算任何結果。"
+            detailLabel="為什麼"
+            detail="寧可顯示「資料不足」，也不要用不夠的資料硬算出一個看起來完整的答案。"
           />
         </dl>
       </section>
 
-      <section className="guide__section" aria-label="技術面">
+      <section className="guide__section" id="technical" aria-label="技術面">
         <h2 className="guide__section-title">技術面</h2>
-        <dl className="guide__list">
-          <Entry term="MA5（週線）" meaning="最近 5 個交易日收盤價的平均。短線輔助參考。" />
-          <Entry term="MA20（月線）" meaning="最近 20 個交易日收盤價的平均。主要判斷軸。" />
-          <Entry term="MA60（季線）" meaning="最近 60 個交易日收盤價的平均。只看結構位置。" />
+        <dl className="guide__list guide__list--grid">
+          <Entry term="MA5（週線）" meaning="最近 5 天收盤價的平均，短線看一下就好。" />
+          <Entry term="MA20（月線）" meaning="最近 20 天收盤價的平均，是主要判斷依據。" />
+          <Entry term="MA60（季線）" meaning="最近 60 天收盤價的平均，只看長期的結構位置。" />
           <Entry
-            term="Bias20（乖離率）"
-            meaning="收盤價偏離月線的百分比。"
-            basis="（收盤 − MA20）÷ MA20 × 100%。正值代表收盤在月線之上。"
+            term="乖離率 Bias20"
+            meaning="今天收盤比月線貴或便宜多少趴。正值代表收盤在月線之上。"
+            detail="（收盤 − MA20）÷ MA20 × 100%"
           />
           <Entry
             term="站上／跌破"
-            meaning="收盤價高於或低於該條均線。"
-            basis="三條線各自獨立，可能同時出現跌破週線但站上季線。"
+            meaning="收盤價在這條均線之上，還是之下。"
+            detailLabel="為什麼"
+            detail="三條線各自獨立判斷，可能同時「跌破週線」又「站上季線」。"
           />
         </dl>
 
         <h3 className="guide__sub-title">月線狀態</h3>
-        <dl className="guide__list">
-          <Entry term="收復月線" meaning="前一日收盤在月線之下，當日收盤站上月線。" />
-          <Entry term="站穩月線" meaning="前一日與當日收盤都在月線之上。" />
-          <Entry term="跌破月線" meaning="當日收盤在月線之下。" />
+        <dl className="guide__list guide__list--grid">
+          <Entry term="收復月線" meaning="昨天收盤還在月線下面，今天收盤爬回月線之上。" />
+          <Entry term="站穩月線" meaning="昨天、今天收盤都在月線之上。" />
+          <Entry term="跌破月線" meaning="今天收盤在月線之下。" />
         </dl>
 
         <h3 className="guide__sub-title">回穩判定</h3>
         <dl className="guide__list">
           <Entry
             term="回檔後回穩觀察"
-            meaning="收盤剛由月線下方穿越至上方，僅為觀察。"
-            basis="單日穿越不足以確認，需再觀察一個交易日。"
+            meaning="收盤剛從月線下方爬上來，先觀察，還不算數。"
+            detailLabel="為什麼"
+            detail="只穿越一天不夠準，要再等下一天確認。"
           />
-          <Entry
-            term="回檔後回穩"
-            meaning="穿越月線後的下一個交易日仍站在月線之上。"
-          />
+          <Entry term="回檔後回穩" meaning="爬上月線的隔一天，收盤還站在上面。" />
         </dl>
 
         <h3 className="guide__sub-title">風險提醒</h3>
@@ -94,59 +116,64 @@ export function GuidePage() {
           以下兩項提醒你重新檢視持倉，<strong>不是賣出指令</strong>。
         </p>
         <dl className="guide__list">
-          <Entry term="回檔觀察" meaning="收盤跌回月線下方。" />
+          <Entry term="回檔觀察" meaning="收盤又跌回月線下面了。" />
           <Entry
             term="趨勢轉弱"
-            meaning="連續 2 個交易日收盤在季線下方。"
-            basis="需要兩日確認；若資料筆數不足以確認前一日的季線，不會發出此提醒。"
+            meaning="連續兩天收盤都在季線下面。"
+            detailLabel="為什麼"
+            detail="只看一天容易判斷錯誤，需要兩天都跌破才提醒；如果資料不夠算出前一天的季線，這個提醒不會出現。"
           />
         </dl>
       </section>
 
-      <section className="guide__section" aria-label="籌碼面">
+      <section className="guide__section" id="chip" aria-label="籌碼面">
         <h2 className="guide__section-title">籌碼面</h2>
-        <dl className="guide__list">
+        <dl className="guide__list guide__list--grid">
           <Entry
             term="外資及陸資"
-            meaning="官方分類的「外資及陸資（不含外資自營商）」。"
-            basis="外資自營商是獨立身分，不併入外資計算。"
+            meaning="官方講的「外資及陸資」，統計時不含外資自營商。"
+            detailLabel="為什麼"
+            detail="外資自營商是獨立身分，不併入外資計算。"
           />
-          <Entry term="投信" meaning="國內投信法人。與外資完全分開計算，不合併。" />
+          <Entry term="投信" meaning="國內的投信法人，跟外資完全分開算，不會合併看。" />
           <Entry
             term="5 日淨額"
-            meaning="最近 5 個交易日買超減賣超的合計，以張為單位。"
-            basis="只採用能對應到成交量的交易日，確保與平均量涵蓋同一期間。"
+            meaning="最近 5 個交易日，買進和賣出張數的差，正值代表買超。"
+            detailLabel="為什麼"
+            detail="只用能對到成交量的交易日，確保跟 5 日均量算的是同一段期間。"
           />
           <Entry
             term="強度"
-            meaning="5 日淨額除以同期間 5 日平均成交量。"
-            basis="正規化後可跨個股比較。+0.5 代表 5 日淨額約等於半天的成交量。"
+            meaning="這 5 天買超（或賣超）的量，相當於平常幾天的成交量。+0.5 大概就是半天的量。"
+            detailLabel="為什麼"
+            detail="股本大的股票成交量本來就大，直接比張數不公平；除過量之後，不同股票才能放在一起比。"
           />
           <Entry
             term="連續性"
-            meaning="由最後一日往前推，同方向的連續天數。"
-            basis="最後一日持平時記為「無連續」。"
+            meaning="從最近一天往前數，同一個方向連續買超或賣超了幾天。"
+            detail="如果最近一天打平（淨額為 0），算「無連續」。"
           />
         </dl>
 
         <h3 className="guide__sub-title">聯合狀態</h3>
         <p className="guide__caution">
-          僅為顯示用的並列描述，<strong>不形成綜合評分，也不覆寫技術面結果</strong>。
+          以下只是外資與投信方向的並列描述，<strong>不形成綜合評分，也不覆寫技術面結果</strong>。
         </p>
-        <dl className="guide__list">
-          <Entry term="外資與投信同買" meaning="兩者 5 日淨額皆為正。" />
-          <Entry term="外資與投信同賣" meaning="兩者 5 日淨額皆為負。" />
-          <Entry term="外資與投信分歧" meaning="兩者方向相反。" />
-          <Entry term="無共識" meaning="任一方 5 日淨額為零。" />
+        <dl className="guide__list guide__list--grid">
+          <Entry term="外資與投信同買" meaning="這 5 天，外資和投信都是買超。" />
+          <Entry term="外資與投信同賣" meaning="這 5 天，外資和投信都是賣超。" />
+          <Entry term="外資與投信分歧" meaning="這 5 天，一個買超、一個賣超。" />
+          <Entry term="無共識" meaning="這 5 天，有一邊淨額剛好是 0。" />
           <Entry
             term="法人資料未就緒"
-            meaning="外資或投信任一方不足 5 個可用交易日。"
-            basis="此時不顯示中性或無共識，並標示最後可用日期。"
+            meaning="外資或投信任一邊，資料不到 5 個交易日。"
+            detailLabel="為什麼"
+            detail="這時不會顯示中性或無共識，畫面會標出最後一次有資料的日期。"
           />
         </dl>
       </section>
 
-      <section className="guide__section" aria-label="本系統不做的事">
+      <section className="guide__section guide__section--nots" id="nots" aria-label="本系統不做的事">
         <h2 className="guide__section-title">本系統不做的事</h2>
         <ul className="guide__nots">
           <li>不因單一均線穿越顯示買進或賣出。</li>

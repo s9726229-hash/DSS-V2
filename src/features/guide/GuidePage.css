@@ -1,43 +1,71 @@
 .guide {
-  max-width: 760px;
+  max-width: 940px;
 }
 
 .guide__head {
-  margin-bottom: var(--gap-6);
+  margin-bottom: var(--gap-4);
 }
 
 .guide__title {
-  margin: 0 0 var(--gap-2);
-  font-size: 22px;
+  margin: 0 0 var(--gap-1);
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .guide__lede {
-  margin: 0;
+  margin: 0 0 var(--gap-3);
   color: var(--graphite);
+  font-size: 13px;
+}
+
+/* 快速跳轉：讓長頁一眼找到要看的區塊 */
+.guide__jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-2) var(--gap-3);
+}
+
+.guide__jump a {
+  padding: 2px var(--gap-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--graphite);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.guide__jump a:hover {
+  border-color: var(--rule-strong);
+  color: var(--ink);
 }
 
 .guide__section {
-  margin-bottom: var(--gap-6);
-  padding: var(--gap-5);
+  margin-bottom: var(--gap-4);
+  padding: var(--gap-4);
   border: 1px solid var(--rule);
   border-radius: 4px;
   background: var(--panel);
+  scroll-margin-top: var(--gap-4);
+}
+
+.guide__section--nots {
+  border-color: var(--rule-strong);
+  background: var(--panel-sunken);
 }
 
 .guide__section-title {
-  margin: 0 0 var(--gap-4);
+  margin: 0 0 var(--gap-3);
   padding-bottom: var(--gap-2);
   border-bottom: 1px solid var(--rule);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .guide__sub-title {
-  margin: var(--gap-5) 0 var(--gap-3);
+  margin: var(--gap-4) 0 var(--gap-2);
   color: var(--graphite);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
 }
@@ -46,12 +74,20 @@
   margin: 0;
 }
 
+/* 條目多且短的區塊改雙欄，塞滿橫向空間、縮短整頁高度 */
+.guide__list--grid {
+  column-count: 2;
+  column-gap: var(--gap-5);
+}
+
+.guide__list--grid .entry {
+  break-inside: avoid-column;
+}
+
+/* 名詞與說明同行呈現（run-in），比逐條起新行更省垂直空間 */
 .entry {
-  display: grid;
-  padding: var(--gap-2) 0;
+  padding: 5px 0;
   border-top: 1px solid var(--panel-sunken);
-  gap: var(--gap-4);
-  grid-template-columns: 8.5em minmax(0, 1fr);
 }
 
 .entry:first-child {
@@ -60,52 +96,63 @@
 }
 
 .entry__term {
+  display: inline;
+  margin-right: var(--gap-2);
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .entry__meaning {
+  display: inline;
   margin: 0;
-  font-size: 13px;
-  line-height: 1.65;
+  font-size: 12.5px;
+  line-height: 1.55;
 }
 
-/* 補充說明：計算細節與邊界條件 */
-.entry__basis {
+/* 補充說明：公式或原因，降一級並用標籤區分，避免跟主要說明混在一起 */
+.entry__detail {
   display: block;
   margin-top: 2px;
+  padding-left: var(--gap-2);
+  border-left: 2px solid var(--rule);
   color: var(--graphite);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.entry__detail-label {
+  display: inline-block;
+  margin-right: 4px;
 }
 
 .guide__caution {
-  margin: 0 0 var(--gap-3);
-  padding: var(--gap-2) var(--gap-3);
+  margin: 0 0 var(--gap-2);
+  padding: var(--gap-1) var(--gap-2);
   border-radius: 3px;
   background: var(--attention-bg);
   color: var(--attention);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .guide__nots {
   margin: 0;
-  padding-left: 1.2em;
+  padding-left: 1.1em;
   color: var(--ink);
-  font-size: 13px;
-  line-height: 1.9;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 .guide__closing {
-  margin: var(--gap-4) 0 0;
-  padding-top: var(--gap-3);
+  margin: var(--gap-3) 0 0;
+  padding-top: var(--gap-2);
   border-top: 1px solid var(--rule);
   color: var(--graphite);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 @media (max-width: 620px) {
-  .entry {
-    grid-template-columns: 1fr;
-    gap: 2px;
+  .guide__list--grid {
+    column-count: 1;
   }
 }
