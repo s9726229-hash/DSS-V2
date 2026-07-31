@@ -84,6 +84,153 @@ button {
   cursor: pointer;
 }
 
+/* 分頁列：跨頁共用（歷史交易研究、技術分析等） */
+.tabs {
+  display: flex;
+  margin: var(--gap-6) 0 var(--gap-4);
+  border-bottom: 1px solid var(--rule);
+  gap: var(--gap-5);
+}
+
+.tabs__item {
+  padding: 0 0 var(--gap-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--graphite);
+  font-size: 14px;
+}
+
+.tabs__item:hover {
+  color: var(--ink);
+}
+
+.tabs__item--active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 620px) {
+  .tabs {
+    overflow-x: auto;
+  }
+}
+
+/* 計算流程圖：跨頁共用（技術分析／歷史交易研究） */
+.flow {
+  max-width: 760px;
+  margin-bottom: var(--gap-4);
+}
+
+.flow__lede {
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.flowchart__scroll {
+  overflow-x: auto;
+}
+
+/* 寬度依各自 viewBox 用 inline style 指定（1 viewBox 單位＝1px），避免共用寬度把不同尺寸的圖拉伸變形 */
+.flowchart {
+  display: block;
+  height: auto;
+}
+
+.flowchart text {
+  font-family: var(--font-sans);
+}
+
+.flowchart__node,
+.flowchart__decision,
+.flowchart__converge {
+  fill: var(--panel);
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.flowchart__decision {
+  fill: var(--panel-sunken);
+}
+
+.flowchart__edge,
+.flowchart__divider {
+  fill: none;
+  stroke: var(--rule-strong);
+  stroke-width: 1.25;
+}
+
+.flowchart__arrowhead {
+  fill: var(--rule-strong);
+}
+
+.flowchart__node-text {
+  fill: var(--ink);
+  font-size: 12.5px;
+}
+
+.flowchart__node-subtext {
+  fill: var(--graphite);
+  font-size: 10px;
+}
+
+.flowchart__eyebrow {
+  fill: var(--graphite-light);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.flowchart__label {
+  fill: var(--ink);
+  font-size: 11px;
+}
+
+.flowchart__gate-label {
+  fill: var(--graphite);
+  font-size: 10px;
+}
+
+/* 兩者都用群組（<g>）包住 rect+text，色彩才能一致套用到多行文字 */
+.flowchart__terminal--quiet {
+  fill: var(--panel);
+}
+
+.flowchart__terminal--quiet rect {
+  stroke: var(--rule-strong);
+  stroke-dasharray: 3 3;
+}
+
+.flowchart__terminal--attention rect {
+  fill: var(--attention-bg);
+  stroke: var(--attention);
+}
+
+.flowchart__terminal-text {
+  fill: var(--graphite);
+  font-size: 10.5px;
+}
+
+.flowchart__terminal--attention .flowchart__terminal-text,
+.flowchart__terminal--attention .flowchart__node-subtext {
+  fill: var(--attention);
+}
+
+/* 視覺隱藏但仍可被螢幕閱讀器讀到 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 :focus-visible {
   outline: 2px solid var(--calibrate);
   outline-offset: 2px;

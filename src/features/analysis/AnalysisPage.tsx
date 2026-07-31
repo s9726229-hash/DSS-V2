@@ -8,9 +8,17 @@ import { computeTechnicalSnapshot } from '../../dss/technical';
 import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../../market/types';
 import { readCachedDataset } from '../../storage/marketCache';
 import { readHoldingsSnapshot } from '../../storage/portfolio';
+import { CalculationFlow } from './CalculationFlow';
 import { ChipPanel } from './ChipPanel';
 import { TechnicalPanel } from './TechnicalPanel';
 import './AnalysisPage.css';
+
+type Tab = 'status' | 'flow';
+
+const TAB_LABEL: Record<Tab, string> = {
+  status: '個股狀態',
+  flow: '計算流程',
+};
 
 export type StockAnalysis = {
   stockId: string;
@@ -87,6 +95,7 @@ async function analyseStock(stockId: string, stockName: string): Promise<StockAn
 }
 
 export function AnalysisPage() {
+  const [tab, setTab] = useState<Tab>('status');
   const [analyses, setAnalyses] = useState<StockAnalysis[] | null>(null);
 
   useEffect(() => {
@@ -115,32 +124,56 @@ export function AnalysisPage() {
         </p>
       </header>
 
-      {analyses === null ? <p className="analysis__loading">讀取中…</p> : null}
+      <nav className="tabs" aria-label="技術分析檢視">
+        {(['status', 'flow'] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={id === tab ? 'tabs__item tabs__item--active' : 'tabs__item'}
+            aria-current={id === tab ? 'page' : undefined}
+            onClick={() => setTab(id)}
+          >
+            {TAB_LABEL[id]}
+          </button>
+        ))}
+      </nav>
 
-      {analyses !== null && analyses.length === 0 ? (
-        <p className="analysis__empty">
-          尚未匯入庫存。請先到<strong>資料中心</strong>匯入庫存報表，再同步市場資料。
-        </p>
+      {tab === 'flow' ? <CalculationFlow /> : null}
+
+      {tab === 'status' ? (
+        <>
+          {analyses === null ? <p className="analysis__loading">讀取中…</p> : null}
+
+          {analyses !== null && analyses.length === 0 ? (
+            <p className="analysis__empty">
+              尚未匯入庫存。請先到<strong>資料中心</strong>匯入庫存報表，再同步市場資料。
+            </p>
+          ) : null}
+
+          {analyses?.map((analysis) => (
+            <section
+              className="stock"
+              key={analysis.stockId}
+              aria-label={`${analysis.stockId} 分析`}
+            >
+              <header className="stock__head">
+                <h2 className="stock__id num">{analysis.stockId}</h2>
+                <span className="stock__name">{analysis.stockName}</span>
+                <span className="stock__date num">
+                  {analysis.priceDate ? `資料日 ${analysis.priceDate}` : '尚未同步'}
+                </span>
+              </header>
+
+              <AdjustmentNotice events={analysis.appliedAdjustments} />
+
+              <div className="stock__panels">
+                <TechnicalPanel result={analysis.technical} />
+                <ChipPanel result={analysis.chip} />
+              </div>
+            </section>
+          ))}
+        </>
       ) : null}
-
-      {analyses?.map((analysis) => (
-        <section className="stock" key={analysis.stockId} aria-label={`${analysis.stockId} 分析`}>
-          <header className="stock__head">
-            <h2 className="stock__id num">{analysis.stockId}</h2>
-            <span className="stock__name">{analysis.stockName}</span>
-            <span className="stock__date num">
-              {analysis.priceDate ? `資料日 ${analysis.priceDate}` : '尚未同步'}
-            </span>
-          </header>
-
-          <AdjustmentNotice events={analysis.appliedAdjustments} />
-
-          <div className="stock__panels">
-            <TechnicalPanel result={analysis.technical} />
-            <ChipPanel result={analysis.chip} />
-          </div>
-        </section>
-      ))}
     </div>
   );
 }
