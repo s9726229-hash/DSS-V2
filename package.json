@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run && npm run test:worker",
-    "test:worker": "node --test worker/finmind-gateway.test.mjs",
+    "test:worker": "node --test worker/finmind-gateway.test.mjs worker/finmind-usage.test.mjs",
     "worker:login": "wrangler login",
     "worker:deploy": "wrangler deploy --config worker/wrangler.toml",
     "worker:secret": "wrangler secret put FINMIND_TOKEN --config worker/wrangler.toml"

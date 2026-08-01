@@ -4,7 +4,7 @@ import type { FetchFailureReason, FetchResult, FinMindDataset } from './types';
  * Worker 位址。瀏覽器不持有也不傳送 FinMind token，
  * 因此查詢網址只會包含資料集、股號與日期。
  */
-const WORKER_BASE_URL =
+export const WORKER_BASE_URL =
   import.meta.env.VITE_FINMIND_WORKER_URL ?? 'https://dss-v2-finmind.s9726229.workers.dev';
 
 export type DateRange = {
@@ -41,12 +41,18 @@ function failure<TRow>(reason: FetchFailureReason): FetchResult<TRow> {
   return { ok: false, reason, message: MESSAGES[reason] };
 }
 
-/** 依上游狀態碼區分帳號權限不足、限流與其他錯誤。 */
+/**
+ * 依上游狀態碼區分帳號權限不足、限流與其他錯誤。
+ *
+ * FinMind 額度用完時回的是 402（Requests reach the upper limit），不是 429。
+ * 兩者都要視為限流，否則額度爆掉會顯示成「服務暫時無法取得資料」，
+ * 使用者會去查 Worker 而不是等下一個小時。
+ */
 function reasonForUpstreamStatus(upstreamStatus: unknown): FetchFailureReason {
   if (upstreamStatus === 400 || upstreamStatus === 401 || upstreamStatus === 403) {
     return 'upstream-forbidden';
   }
-  if (upstreamStatus === 429) {
+  if (upstreamStatus === 402 || upstreamStatus === 429) {
     return 'upstream-rate-limited';
   }
   return 'upstream-error';

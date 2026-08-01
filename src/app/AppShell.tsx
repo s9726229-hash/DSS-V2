@@ -5,6 +5,7 @@ import { GuidePage } from '../features/guide/GuidePage';
 import { ResearchPage } from '../features/research/ResearchPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { syncHoldings } from '../market/sync';
+import { fetchFinMindUsage, type UsageResult } from '../market/usageClient';
 import { readInventory, type Inventory } from '../storage/inventory';
 import { readHoldingsSnapshot } from '../storage/portfolio';
 import './AppShell.css';
@@ -46,12 +47,48 @@ function StatusReading({
   );
 }
 
+/** 用量接近上限時轉為待注意色，讓人在還來得及的時候看到。 */
+const USAGE_ATTENTION_RATIO = 0.8;
+
+function UsageReading({ usage }: { usage: UsageController }) {
+  const { state, refresh } = usage;
+
+  const { value, attention } =
+    state === 'idle'
+      ? { value: '點此查詢', attention: false }
+      : state === 'loading'
+        ? { value: '查詢中…', attention: false }
+        : state.ok
+          ? {
+              value: `${state.used}/${state.limit}`,
+              attention: state.used >= state.limit * USAGE_ATTENTION_RATIO,
+            }
+          : { value: '查詢失敗', attention: true };
+
+  return (
+    <button
+      type="button"
+      className="reading statusbar__usage"
+      onClick={refresh}
+      disabled={state === 'loading'}
+      title="FinMind 每小時的請求次數。查詢用量本身不會動到你的資料，但點一次就是一次請求。"
+    >
+      <span className="reading__label">FinMind 用量</span>
+      <span className={attention ? 'reading__value reading__value--pending' : 'reading__value num'}>
+        {value}
+      </span>
+    </button>
+  );
+}
+
 function StatusBar({
   inventory,
   sync,
+  usage,
 }: {
   inventory: Inventory | null;
   sync: SyncController;
+  usage: UsageController;
 }) {
   const marketDate = inventory?.marketCache.lastRetrievedAt?.slice(0, 10) ?? null;
   const tradeDate = inventory?.transactions.lastDate ?? null;
@@ -70,6 +107,7 @@ function StatusBar({
         value={tradeDate ?? '未匯入'}
         ready={tradeDate !== null}
       />
+      <UsageReading usage={usage} />
       {sync.message ? <span className="statusbar__message">{sync.message}</span> : null}
       {sync.allSkipped && !sync.running ? (
         <button className="statusbar__force" type="button" onClick={() => sync.start(true)}>
@@ -87,6 +125,30 @@ function StatusBar({
       </button>
     </div>
   );
+}
+
+type UsageState = 'idle' | 'loading' | UsageResult;
+
+type UsageController = {
+  state: UsageState;
+  refresh: () => void;
+};
+
+/**
+ * FinMind 用量。
+ *
+ * 刻意不在開啟頁面時自動查詢：這支查詢本身算不算進每小時 600 次額度
+ * 並未見於文件，因此只在同步完成後與使用者主動點擊時才發出。
+ */
+function useUsage(): UsageController {
+  const [state, setState] = useState<UsageState>('idle');
+
+  const refresh = useCallback(() => {
+    setState('loading');
+    void fetchFinMindUsage().then(setState);
+  }, []);
+
+  return { state, refresh };
 }
 
 type SyncController = {
@@ -152,13 +214,21 @@ export function AppShell() {
   const [page, setPage] = useState<PageId>('today');
   const [inventory, setInventory] = useState<Inventory | null>(null);
 
+  const usage = useUsage();
+
   const refreshInventory = useCallback(() => {
     void readInventory().then(setInventory);
   }, []);
 
   useEffect(refreshInventory, [refreshInventory]);
 
-  const sync = useSync(refreshInventory);
+  /** 同步剛用掉一批額度，這時候的用量數字才有意義。 */
+  const onSyncFinished = useCallback(() => {
+    refreshInventory();
+    usage.refresh();
+  }, [refreshInventory, usage]);
+
+  const sync = useSync(onSyncFinished);
 
   return (
     <div className="shell">
@@ -191,7 +261,7 @@ export function AppShell() {
       </nav>
 
       <div className="frame">
-        <StatusBar inventory={inventory} sync={sync} />
+        <StatusBar inventory={inventory} sync={sync} usage={usage} />
         <main className="content">
           {page === 'data' ? (
             <DataCenterPage inventory={inventory} onDataChanged={refreshInventory} />

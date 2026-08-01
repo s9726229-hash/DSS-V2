@@ -103,6 +103,23 @@ describe('fetchDataset', () => {
     expect(result.reason).toBe('upstream-rate-limited');
   });
 
+  /** FinMind 額度用完回的是 402，不是 429；漏掉會顯示成服務故障，讓人去查錯地方。 */
+  it('上游 402 時判定為請求次數受限', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({ error: 'FinMind upstream error', upstreamStatus: 402 }, 502),
+      ),
+    );
+
+    const result = await fetchDataset('TaiwanStockPrice', '0050', RANGE);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('upstream-rate-limited');
+    expect(result.message).toContain('上限');
+  });
+
   it('請求參數被 Worker 拒絕時回報 invalid-request', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: 'unknown dataset' }, 400)));
 
