@@ -10,7 +10,7 @@ import type { StoredTransaction } from '../storage/types';
  * 規格要求第一輪研究只取建立部位，加碼與再進場須分開標記。
  * 但規格同時允許「同一股票多次建立部位，每筆都是獨立樣本」，
  * 對於「賣光後再買」該歸哪一類並未言明，因此此處一律視為 entry，
- * 另以 isReentry 標記，由研究頁決定是否納入。
+ * 另以 isReentry 標記，由 selectEntries 決定是否納入（預設不納入）。
  */
 export type PositionEventKind = 'entry' | 'add-on' | 'exit';
 
@@ -98,10 +98,17 @@ export function identifyPositionEvents(
   return events;
 }
 
-/** 只取建立部位；預設排除再進場，符合規格「第一輪只取建立部位」。 */
+/**
+ * 只取建立部位；預設排除再進場。
+ *
+ * 規格兩處明說「加碼與再進場保留紀錄，但不混入第一輪提取」，
+ * 而「同一股票多次建立部位時，每筆都保留為獨立研究樣本」是指
+ * 不把同檔多次進場合併成一筆紀錄，不是要求納入第一輪。
+ * 再進場的決策摻有對該檔的既有經驗，與首次建立部位不是同一種決策。
+ */
 export function selectEntries(
   events: readonly PositionEvent[],
-  { includeReentries = true }: { includeReentries?: boolean } = {},
+  { includeReentries = false }: { includeReentries?: boolean } = {},
 ): PositionEvent[] {
   return events.filter(
     (event) => event.kind === 'entry' && (includeReentries || !event.isReentry),

@@ -12,6 +12,8 @@ import {
 } from '../../research/runResearch';
 import { readResearchRuns, saveResearchRun } from '../../research/runStore';
 import type { AssetClass } from '../../research/snapshot';
+import { buildTransactionLog, type TransactionLogRow } from '../../research/transactionLog';
+import { readTransactions } from '../../storage/portfolio';
 import type { BandResult, WalkForwardResult } from '../../research/walkForward';
 import type { ResearchRunRecord } from '../../storage/types';
 import { DriftLine } from './DriftLine';
@@ -19,12 +21,14 @@ import { ASSET_LABEL, BAND_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './eviden
 import { percent } from './format';
 import { ResearchFlow } from './ResearchFlow';
 import { ResearchHistory } from './ResearchHistory';
+import { TransactionLog } from './TransactionLog';
 import './ResearchPage.css';
 
-type View = 'result' | 'flow' | 'history';
+type View = 'result' | 'log' | 'flow' | 'history';
 
 const VIEW_LABEL: Record<View, string> = {
   result: '研究結果',
+  log: '交易歷史',
   flow: '計算流程',
   history: '搜尋紀錄',
 };
@@ -228,6 +232,7 @@ export function ResearchPage() {
   const [view, setView] = useState<View>('result');
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [runs, setRuns] = useState<ResearchRunRecord[] | null>(null);
+  const [log, setLog] = useState<TransactionLogRow[]>([]);
   const [metric, setMetric] = useState<ResearchMetric>('bias20');
   const [backfilling, setBackfilling] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -240,6 +245,7 @@ export function ResearchPage() {
     void (async () => {
       const next = await runResearch();
       setReport(next);
+      setLog(buildTransactionLog(await readTransactions()));
       await saveResearchRun(next, new Date().toISOString());
       setRuns(await readResearchRuns());
     })();
@@ -271,7 +277,8 @@ export function ResearchPage() {
         <h1 className="research__title">歷史交易研究</h1>
         <p className="research__lede">
           分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。
-          2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析。
+          2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析
+          {report.reentryCount > 0 ? `（另有 ${report.reentryCount} 筆再進場已保留紀錄）` : null}。
         </p>
       </header>
 
@@ -314,7 +321,7 @@ export function ResearchPage() {
       </section>
 
       <nav className="tabs" aria-label="研究檢視">
-        {(['result', 'flow', 'history'] as const).map((id) => (
+        {(['result', 'log', 'flow', 'history'] as const).map((id) => (
           <button
             key={id}
             type="button"
@@ -326,6 +333,8 @@ export function ResearchPage() {
           </button>
         ))}
       </nav>
+
+      {view === 'log' ? <TransactionLog rows={log} /> : null}
 
       {view === 'flow' ? <ResearchFlow /> : null}
 

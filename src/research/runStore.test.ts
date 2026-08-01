@@ -65,6 +65,7 @@ function report(overrides: Partial<ResearchReport> = {}): ResearchReport {
 
   return {
     entryCount: 20,
+    reentryCount: 3,
     technicalCount: 19,
     chipCount: 18,
     completeCount: 16,

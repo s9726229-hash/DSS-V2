@@ -51,6 +51,13 @@ export type ResearchRunRecord = {
   /** 結果內容簽章，用來判斷這次搜尋是否與上一次完全相同。 */
   signature: string;
   entryCount: number;
+  /**
+   * 這次搜尋是否已排除再進場。
+   *
+   * 2026-08-01 之前的紀錄把再進場一併算進建立部位，樣本定義與現在不同，
+   * 缺這個欄位就代表是舊定義；兩者的筆數不可直接比較，所以必須標示而不是靜靜混列。
+   */
+  excludesReentries?: boolean;
   technicalCount: number;
   chipCount: number;
   completeCount: number;

@@ -92,6 +92,7 @@ export async function saveResearchRun(
       executedAt,
       signature,
       entryCount: report.entryCount,
+      excludesReentries: true,
       technicalCount: report.technicalCount,
       chipCount: report.chipCount,
       completeCount: report.completeCount,

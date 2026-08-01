@@ -81,6 +81,11 @@ export function ResearchHistory({ runs }: { runs: ResearchRunRecord[] | null }) 
               建立部位 {run.entryCount}．技術面 {run.technicalCount}．籌碼面 {run.chipCount}．
               完整樣本 {run.completeCount}
             </span>
+            {run.excludesReentries === true ? null : (
+              <span className="history__note" title="這筆紀錄把再進場一併算進建立部位，樣本定義與現在不同">
+                舊樣本定義：含再進場
+              </span>
+            )}
           </header>
 
           <div className="history__scroll">
