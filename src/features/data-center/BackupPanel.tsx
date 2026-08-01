@@ -1,19 +1,9 @@
 import { useId, useState } from 'react';
 import { createBackup, createLightweightBackup, restoreBackup } from '../../storage/backup';
+import { downloadJson } from '../../storage/downloadFile';
 import './BackupPanel.css';
 
 type Message = { tone: 'ok' | 'attention'; text: string } | null;
-
-function download(payload: unknown, fileName: string): void {
-  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
 
 function stamp(): string {
   return new Date().toISOString().slice(0, 10);
@@ -23,14 +13,31 @@ export function BackupPanel({ onDataChanged }: { onDataChanged: () => void }) {
   const [message, setMessage] = useState<Message>(null);
   const inputId = useId();
 
-  async function handleFull() {
-    download(await createBackup(), `dss-v2-完整備份-${stamp()}.json`);
-    setMessage({ tone: 'ok', text: '完整備份已下載。' });
-  }
+  /**
+   * 備份下載。
+   *
+   * 訊息刻意寫「已送出下載」而不是「已下載」：瀏覽器是否真的存下檔案，
+   * 網頁端無從得知。站台的自動下載權限被封鎖時會靜默失敗，
+   * 寫成「已下載」會讓使用者以為程式壞了而不是去看瀏覽器設定。
+   */
+  async function runBackup(kind: 'full' | 'lightweight') {
+    const label = kind === 'full' ? '完整備份' : '輕量備份';
 
-  async function handleLightweight() {
-    download(await createLightweightBackup(), `dss-v2-輕量備份-${stamp()}.json`);
-    setMessage({ tone: 'ok', text: '輕量備份已下載。' });
+    setMessage({ tone: 'ok', text: `正在準備${label}…` });
+
+    try {
+      const payload = kind === 'full' ? await createBackup() : await createLightweightBackup();
+      downloadJson(payload, `dss-v2-${label}-${stamp()}.json`);
+      setMessage({
+        tone: 'ok',
+        text: `${label}已送出下載。若瀏覽器沒有出現檔案，請檢查這個網站的「自動下載」權限。`,
+      });
+    } catch (error) {
+      setMessage({
+        tone: 'attention',
+        text: `${label}失敗：${error instanceof Error ? error.message : '未知錯誤'}`,
+      });
+    }
   }
 
   async function handleRestore(file: File | undefined) {
@@ -70,10 +77,10 @@ export function BackupPanel({ onDataChanged }: { onDataChanged: () => void }) {
       </header>
 
       <div className="backup__actions">
-        <button type="button" className="btn" onClick={() => void handleFull()}>
+        <button type="button" className="btn" onClick={() => void runBackup('full')}>
           完整備份
         </button>
-        <button type="button" className="btn" onClick={() => void handleLightweight()}>
+        <button type="button" className="btn" onClick={() => void runBackup('lightweight')}>
           輕量備份
         </button>
         <label className="backup__restore" htmlFor={inputId}>

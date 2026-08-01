@@ -23,6 +23,7 @@ export function TodayPage() {
   /** 目前被拖曳的股票與它的來源題材；未拖曳時為 null。 */
   const [dragging, setDragging] = useState<{ stockId: string; from: string | null } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null | undefined>(undefined);
+  const [tab, setTab] = useState<'holdings' | 'watches' | null>(null);
 
   const refresh = useCallback(() => {
     void loadTodayView().then(setView);
@@ -47,6 +48,12 @@ export function TodayPage() {
     return <p className="research__loading">讀取中…</p>;
   }
 
+  /*
+   * 規格：今日 DSS 先顯示庫存，再顯示觀察清單。改成分頁後由預設分頁承接這個順序。
+   * 但沒有庫存時預設落在空分頁只會讓人以為壞了，此時改開觀察清單。
+   */
+  const active = tab ?? (view.holdings.length > 0 ? 'holdings' : 'watches');
+
   const byId = new Map<string, WatchCard>(view.watches.map((card) => [card.stockId, card]));
   const noThresholds =
     view.holdings.length + view.watches.length > 0 &&
@@ -68,7 +75,7 @@ export function TodayPage() {
       {view.holdings.length === 0 && view.watches.length === 0 ? (
         <p className="research__empty">
           尚未匯入庫存，也還沒有觀察標的。到<strong>資料中心</strong>匯入庫存檔，
-          或在下方加入想觀察的股票。
+          或在觀察清單分頁加入想觀察的股票。
         </p>
       ) : null}
 
@@ -79,20 +86,47 @@ export function TodayPage() {
         </p>
       ) : null}
 
-      {view.holdings.length > 0 ? (
+      <nav className="tabs" aria-label="今日檢視">
+        <button
+          type="button"
+          className={active === 'holdings' ? 'tabs__item tabs__item--active' : 'tabs__item'}
+          aria-current={active === 'holdings' ? 'page' : undefined}
+          onClick={() => setTab('holdings')}
+        >
+          持股 <span className="num">{view.holdings.length}</span>
+        </button>
+        <button
+          type="button"
+          className={active === 'watches' ? 'tabs__item tabs__item--active' : 'tabs__item'}
+          aria-current={active === 'watches' ? 'page' : undefined}
+          onClick={() => setTab('watches')}
+        >
+          觀察清單 <span className="num">{view.watches.length}</span>
+        </button>
+      </nav>
+
+      {active === 'holdings' ? (
         <section className="today__section" aria-label="持股">
-          <h2 className="today__section-title">持股</h2>
-          <div className="today__grid">
-            {view.holdings.map((card) => (
-              <HoldingCardView key={card.stockId} card={card} />
-            ))}
-          </div>
+          {view.holdings.length === 0 ? (
+            <p className="research__empty">
+              尚未匯入庫存。到<strong>資料中心</strong>匯入庫存檔。
+            </p>
+          ) : (
+            <div className="today__grid">
+              {view.holdings.map((card) => (
+                <HoldingCardView key={card.stockId} card={card} />
+              ))}
+            </div>
+          )}
         </section>
       ) : null}
 
-      <section className="today__section" aria-label="觀察清單">
+      <section
+        className="today__section"
+        aria-label="觀察清單"
+        hidden={active !== 'watches'}
+      >
         <div className="today__section-head">
-          <h2 className="today__section-title">觀察清單</h2>
           <button type="button" className="btn" onClick={() => setManaging((on) => !on)}>
             {managing ? '完成' : '管理觀察清單'}
           </button>

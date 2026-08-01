@@ -204,11 +204,13 @@
   margin-bottom: var(--gap-5);
 }
 
+/* 區段標題已由分頁承擔，這一列只剩管理按鈕，靠右不與分頁列爭視線。 */
 .today__section-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--gap-3);
+  margin-bottom: var(--gap-2);
 }
 
 .today__section-title {
