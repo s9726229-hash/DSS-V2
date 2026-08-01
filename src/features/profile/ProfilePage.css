@@ -104,3 +104,64 @@
   color: var(--graphite-light);
   font-size: 10px;
 }
+
+/* ── 手動調整 ───────────────────────────────── */
+
+.editor__field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-1);
+}
+
+.editor__input {
+  width: 88px;
+  padding: 2px var(--gap-1);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  text-align: right;
+}
+
+.editor__input:focus {
+  border-color: var(--calibrate);
+  outline: 2px solid var(--calibrate-bg);
+}
+
+.editor__unit {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+/* 下界不低於上界時中間區永遠是空的，這種設定不能存。 */
+.conditions__row--conflict .editor__input {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+}
+
+.conditions__conflict {
+  display: block;
+  margin-top: 2px;
+  color: var(--attention);
+  font-size: 11px;
+}
+
+/* 未儲存時才出現的動作列。停在底部，捲到哪都按得到。 */
+.profile__bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: var(--gap-3) var(--gap-4);
+  border: 1px solid var(--calibrate);
+  border-radius: 4px;
+  background: var(--calibrate-bg);
+}
+
+.profile__bar-text {
+  flex: 1;
+  color: var(--calibrate);
+  font-size: 12px;
+}

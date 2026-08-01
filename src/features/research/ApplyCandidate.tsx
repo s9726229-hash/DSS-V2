@@ -5,7 +5,7 @@ import type { AssetClass } from '../../research/snapshot';
 import type { BandResult } from '../../research/walkForward';
 import type { StockAnalysis } from '../../dss/analyseHoldings';
 import { applyCandidate, type Profile } from '../../profile/profile';
-import { previewProfileChange } from '../../profile/preview';
+import { ProfileChangePreview } from '../profile/ProfileChangePreview';
 import { ASSET_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
 
@@ -58,11 +58,6 @@ export function ApplyCandidate({
     [profile, candidate, weakEvidence],
   );
 
-  const changes = useMemo(
-    () => (analyses === null ? [] : previewProfileChange({ analyses, current: profile, next })),
-    [analyses, profile, next],
-  );
-
   const blocked = weakEvidence && !acknowledged;
 
   return (
@@ -95,28 +90,7 @@ export function ApplyCandidate({
         <p className="apply__reason">{candidate.band.reason}</p>
 
         <h4 className="apply__section micro">套用後庫存的變化</h4>
-        {analyses === null ? (
-          <p className="apply__empty">正在讀取庫存資料…</p>
-        ) : changes.length === 0 ? (
-          <p className="apply__empty">
-            目前庫存沒有任何標的的區間歸屬會因此改變。
-          </p>
-        ) : (
-          <ul className="apply__changes">
-            {changes.map((row) => (
-              <li key={`${row.stockId}-${row.metric}`}>
-                <span className="num apply__change-id">{row.stockId}</span>
-                <span className="apply__change-name">{row.stockName}</span>
-                <span className="num">{percent(row.value, METRIC_UNIT[row.metric])}</span>
-                <span className="apply__change-move">
-                  {row.before === null ? '未分類' : bandLabel(row.metric, row.before)}
-                  {' → '}
-                  {row.after === null ? '未分類' : bandLabel(row.metric, row.after)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ProfileChangePreview analyses={analyses} current={profile} next={next} />
 
         {weakEvidence ? (
           <label className="apply__ack">

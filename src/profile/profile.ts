@@ -114,6 +114,77 @@ export function applyCandidate(profile: Profile, application: CandidateApplicati
   };
 }
 
+export type BoundarySide = 'lower' | 'upper';
+
+type BoundaryTarget = {
+  assetClass: AssetClass;
+  metric: ResearchMetric;
+  side: BoundarySide;
+};
+
+function writeEntry(profile: Profile, target: BoundaryTarget, entry: ProfileEntry): Profile {
+  return {
+    ...profile,
+    entries: {
+      ...profile.entries,
+      [profileKey(target.assetClass, target.metric)]: entry,
+    },
+  };
+}
+
+/**
+ * 手動設定一個邊界。
+ *
+ * 來源批次與證據等級一律清空：手動改過之後，這個數字就不再是那批研究的結論，
+ * 繼續掛著來源會讓畫面謊稱它有經過驗證。畫面上改以「自訂／未驗證」標示。
+ */
+export function setManualBoundary(
+  profile: Profile,
+  { assetClass, metric, side, value, at }: BoundaryTarget & { value: number; at: string },
+): Profile {
+  const entry = readEntry(profile, assetClass, metric);
+
+  return writeEntry(
+    profile,
+    { assetClass, metric, side },
+    {
+      ...entry,
+      [side]: {
+        value,
+        origin: 'manual',
+        sourceRunId: null,
+        sourceEvidence: null,
+        appliedDespiteWeakEvidence: false,
+        updatedAt: at,
+      },
+    },
+  );
+}
+
+/** 清除一個邊界，回到未設定。 */
+export function clearBoundary(profile: Profile, target: BoundaryTarget): Profile {
+  const entry = readEntry(profile, target.assetClass, target.metric);
+
+  return writeEntry(profile, target, { ...entry, [target.side]: null });
+}
+
+/**
+ * 下界不低於上界時，三個區間退化——中間區永遠是空的。
+ * 這種設定沒有意義，儲存前要擋下來。
+ */
+export function boundaryConflict(entry: ProfileEntry): boolean {
+  if (entry.lower === null || entry.upper === null) return false;
+
+  return entry.lower.value >= entry.upper.value;
+}
+
+/** Profile 是否含有手動設定、未經驗證的門檻。 */
+export function hasUnverifiedBoundary(profile: Profile): boolean {
+  return Object.values(profile.entries).some(
+    (entry) => entry?.lower?.origin === 'manual' || entry?.upper?.origin === 'manual',
+  );
+}
+
 /**
  * 依 Profile 判斷一個指標值落在哪一區。
  *
