@@ -1,21 +1,5 @@
-import type { ChipResult, Continuity, InvestorChip, JointChipState } from '../../dss/chip';
-
-const JOINT_LABEL: Record<JointChipState, string> = {
-  'both-accumulating': '外資與投信同買',
-  'both-distributing': '外資與投信同賣',
-  divergent: '外資與投信分歧',
-  'no-consensus': '無共識',
-};
-
-function shares(value: number): string {
-  const lots = value / 1000;
-  return `${lots >= 0 ? '+' : ''}${lots.toFixed(0)} 張`;
-}
-
-function continuityText({ direction, days }: Continuity): string {
-  if (direction === 'flat' || days === 0) return '無連續';
-  return `連${direction === 'buy' ? '買' : '賣'} ${days} 日`;
-}
+import type { ChipResult, InvestorChip } from '../../dss/chip';
+import { continuityText, JOINT_LABEL, lots } from '../dssLabels';
 
 function InvestorRow({ label, chip }: { label: string; chip: InvestorChip }) {
   const tone = chip.fiveDayNet > 0 ? 'up' : chip.fiveDayNet < 0 ? 'down' : undefined;
@@ -24,7 +8,7 @@ function InvestorRow({ label, chip }: { label: string; chip: InvestorChip }) {
     <div className="investor">
       <span className="investor__label">{label}</span>
       <span className={tone ? `investor__net num investor__net--${tone}` : 'investor__net num'}>
-        {shares(chip.fiveDayNet)}
+        {lots(chip.fiveDayNet)}
       </span>
       <span className="investor__strength num" title="5 日淨額 ÷ 5 日平均成交量">
         {chip.strength >= 0 ? '+' : ''}

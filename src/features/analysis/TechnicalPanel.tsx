@@ -1,20 +1,5 @@
-import type { MonthlyLineState, RecoveryState, TechnicalAlert, TechnicalResult } from '../../dss/technical';
-
-const MONTHLY_LINE_LABEL: Record<MonthlyLineState, string> = {
-  recovery: '收復月線',
-  confirmed: '站穩月線',
-  lost: '跌破月線',
-};
-
-const RECOVERY_LABEL: Record<Exclude<RecoveryState, null>, string> = {
-  watching: '回檔後回穩觀察',
-  confirmed: '回檔後回穩',
-};
-
-const ALERT_LABEL: Record<TechnicalAlert, string> = {
-  'pullback-watch': '回檔觀察',
-  'trend-weakening': '趨勢轉弱',
-};
+import type { TechnicalResult } from '../../dss/technical';
+import { ALERT_LABEL, MONTHLY_LINE_LABEL, RECOVERY_LABEL } from '../dssLabels';
 
 function Figure({ label, value, tone }: { label: string; value: string; tone?: 'up' | 'down' }) {
   return (

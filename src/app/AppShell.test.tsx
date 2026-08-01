@@ -20,10 +20,19 @@ describe('AppShell', () => {
     }
   });
 
-  it('預設顯示今日 DSS', () => {
+  // 今日 DSS 要先讀庫存與 Profile 才畫得出卡片，因此標題是非同步出現的
+  it('預設顯示今日 DSS', async () => {
     render(<AppShell />);
 
-    expect(screen.getByRole('heading', { level: 1, name: '今日 DSS' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '今日 DSS' }),
+    ).toBeInTheDocument();
+  });
+
+  it('沒有庫存時，今日 DSS 指引使用者先去匯入', async () => {
+    render(<AppShell />);
+
+    expect(await screen.findByText(/尚未匯入庫存/)).toBeInTheDocument();
   });
 
   it('點擊導覽可切換到資料中心', async () => {

@@ -1,0 +1,199 @@
+.today {
+  max-width: 1080px;
+}
+
+.today__head {
+  margin-bottom: var(--gap-5);
+}
+
+.today__title {
+  margin: 0 0 var(--gap-2);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.today__lede {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--graphite);
+}
+
+.today__grid {
+  display: grid;
+  gap: var(--gap-3);
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+}
+
+@media (max-width: 900px) {
+  .today__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 圖卡 ───────────────────────────────────── */
+
+.card {
+  padding: var(--gap-3) var(--gap-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  padding-bottom: var(--gap-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.card__identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+
+.card__id {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card__name {
+  font-size: 13px;
+}
+
+.card__class {
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--graphite);
+  font-size: 10px;
+}
+
+/* 資料完整度只表示資料狀態，不表示好壞。 */
+.card__completeness {
+  font-size: 11px;
+}
+
+.card__completeness--complete {
+  color: var(--graphite-light);
+}
+
+.card__completeness--partial,
+.card__completeness--none {
+  color: var(--attention);
+}
+
+.card__position {
+  display: grid;
+  padding: var(--gap-3) 0 var(--gap-2);
+  gap: var(--gap-2) var(--gap-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.card__label {
+  color: var(--graphite-light);
+}
+
+.card__value {
+  font-size: 14px;
+}
+
+.card__value--up {
+  color: var(--signal-up);
+}
+
+.card__value--down {
+  color: var(--signal-down);
+}
+
+/* ── Profile 判定 ───────────────────────────── */
+
+.card__bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-1);
+  padding: var(--gap-2) 0;
+  border-top: 1px solid var(--panel-sunken);
+}
+
+.band-chip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-1);
+  padding: 2px var(--gap-2);
+  border: 1px solid var(--calibrate);
+  border-radius: 2px;
+  background: var(--calibrate-bg);
+  font-size: 11px;
+}
+
+/* 未分類與資料不足都不是結論，維持中性，不要看起來像判定。 */
+.band-chip--muted {
+  border-color: var(--rule);
+  background: var(--panel-sunken);
+  color: var(--graphite-light);
+}
+
+.band-chip__metric {
+  color: var(--graphite);
+}
+
+.band-chip--muted .band-chip__metric {
+  color: var(--graphite-light);
+}
+
+.band-chip__state {
+  font-weight: 600;
+}
+
+.band-chip__flag {
+  padding: 0 3px;
+  border: 1px solid var(--attention);
+  border-radius: 2px;
+  color: var(--attention);
+  font-size: 10px;
+}
+
+/* ── 技術與籌碼列 ───────────────────────────── */
+
+.card__readouts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-1);
+  padding-top: var(--gap-2);
+  border-top: 1px solid var(--panel-sunken);
+}
+
+.card__readout {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+
+.card__readout-body {
+  flex: 1;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.card__readout-body--missing {
+  color: var(--attention);
+}
+
+.card__tag {
+  margin-left: var(--gap-1);
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--graphite);
+  font-size: 10px;
+}
