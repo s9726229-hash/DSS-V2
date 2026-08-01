@@ -365,3 +365,80 @@
   font-size: 11px;
   cursor: pointer;
 }
+
+/* ── 迷你趨勢圖 ─────────────────────────────── */
+
+.card__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+
+.card__summary-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.spark {
+  width: 168px;
+  height: 44px;
+  flex: none;
+}
+
+.spark__close {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* MA20 退到背景，收盤線才是主體。 */
+.spark__ma {
+  fill: none;
+  stroke: var(--calibrate);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 規格：小圖不得只用圖形隱藏資料不足。 */
+.spark__empty {
+  width: 168px;
+  margin: 0;
+  color: var(--attention);
+  font-size: 11px;
+  text-align: right;
+}
+
+/* ── 拖曳整理 ───────────────────────────────── */
+
+.today__drag-hint {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-2);
+  color: var(--calibrate);
+  font-size: 12px;
+}
+
+.today__draggable {
+  cursor: grab;
+}
+
+.today__draggable:active {
+  cursor: grabbing;
+}
+
+.today__topic--drop {
+  outline: 2px dashed var(--calibrate);
+  outline-offset: 4px;
+}
+
+.today__topic-order {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.today__topic-order button:disabled {
+  color: var(--rule);
+  cursor: not-allowed;
+}

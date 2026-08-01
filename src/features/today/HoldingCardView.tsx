@@ -10,6 +10,7 @@ import { METRIC_LABEL, METRIC_UNIT } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
 import { continuityText, JOINT_LABEL, lots, MONTHLY_LINE_LABEL } from '../dssLabels';
+import { Sparkline } from './Sparkline';
 
 const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
   complete: '資料完整',
@@ -94,7 +95,10 @@ function CardFrame({
         </span>
       </header>
 
-      {children}
+      <div className="card__summary">
+        <div className="card__summary-body">{children}</div>
+        <Sparkline series={analysis.trend} />
+      </div>
 
       <div className="card__bands">
         {core.bands.map((band) => (

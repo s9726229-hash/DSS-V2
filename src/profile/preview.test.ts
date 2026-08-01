@@ -27,6 +27,7 @@ function analysis(overrides: {
     stockName,
     priceDate: '2026-07-31',
     appliedAdjustments: [],
+    trend: { points: [], min: 0, max: 1, drawable: false },
     technical: technicalOk
       ? ({ ok: true, snapshot: { bias20 } } as unknown as StockAnalysis['technical'])
       : ({

@@ -4,6 +4,8 @@ import { loadTodayView, type TodayView } from '../../dss/todayView';
 import {
   addTopic,
   addWatch,
+  moveTopicOrder,
+  moveWatchTopic,
   removeTopic,
   removeWatch,
   setWatchTopics,
@@ -18,6 +20,9 @@ export function TodayPage() {
   const [view, setView] = useState<TodayView | null>(null);
   const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
   const [managing, setManaging] = useState(false);
+  /** 目前被拖曳的股票與它的來源題材；未拖曳時為 null。 */
+  const [dragging, setDragging] = useState<{ stockId: string; from: string | null } | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null | undefined>(undefined);
 
   const refresh = useCallback(() => {
     void loadTodayView().then(setView);
@@ -94,6 +99,13 @@ export function TodayPage() {
         </div>
 
         {managing ? (
+          <p className="today__drag-hint">
+            管理模式：卡片可拖進其他題材，題材可用箭頭調整順序。這些只改變你的分類方式，
+            不影響任何計算或判定。
+          </p>
+        ) : null}
+
+        {managing ? (
           <WatchlistManager
             watchlist={watchlist}
             onAddStock={(stockId, stockName) =>
@@ -111,21 +123,82 @@ export function TodayPage() {
             還沒有觀察標的。按「管理觀察清單」加入股票，同步時就會一併取得它們的資料。
           </p>
         ) : (
-          view.groups.map((group) => (
-            <div className="today__topic" key={group.topic ?? '__none__'}>
+          view.groups.map((group, index) => (
+            <div
+              className={
+                managing && dropTarget === group.topic
+                  ? 'today__topic today__topic--drop'
+                  : 'today__topic'
+              }
+              key={group.topic ?? '__none__'}
+              onDragOver={(event) => {
+                if (!managing || dragging === null) return;
+                event.preventDefault();
+                setDropTarget(group.topic);
+              }}
+              onDragLeave={() => setDropTarget(undefined)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDropTarget(undefined);
+                if (!managing || dragging === null) return;
+                commit(
+                  moveWatchTopic(watchlist, {
+                    stockId: dragging.stockId,
+                    from: dragging.from,
+                    to: group.topic,
+                  }),
+                );
+                setDragging(null);
+              }}
+            >
               <h3 className="today__topic-title">
                 {group.topic ?? '未分類'}
                 <span className="today__topic-count num">{group.stockIds.length}</span>
+                {managing && group.topic !== null ? (
+                  <span className="today__topic-order">
+                    <button
+                      type="button"
+                      className="manager__remove"
+                      aria-label={`${group.topic} 往前移`}
+                      disabled={index === 0}
+                      onClick={() => commit(moveTopicOrder(watchlist, group.topic as string, index - 1))}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="manager__remove"
+                      aria-label={`${group.topic} 往後移`}
+                      disabled={index >= watchlist.topics.length - 1}
+                      onClick={() => commit(moveTopicOrder(watchlist, group.topic as string, index + 1))}
+                    >
+                      ↓
+                    </button>
+                  </span>
+                ) : null}
               </h3>
 
               {group.stockIds.length === 0 ? (
-                <p className="today__topic-empty">這個題材還沒有股票。</p>
+                <p className="today__topic-empty">
+                  {managing ? '把卡片拖進來，或在上方勾選題材。' : '這個題材還沒有股票。'}
+                </p>
               ) : (
                 <div className="today__grid">
                   {group.stockIds.map((stockId) => {
                     const card = byId.get(stockId);
                     return card === undefined ? null : (
-                      <WatchCardView key={`${group.topic ?? ''}-${stockId}`} card={card} />
+                      <div
+                        key={`${group.topic ?? ''}-${stockId}`}
+                        draggable={managing}
+                        className={managing ? 'today__draggable' : undefined}
+                        onDragStart={() => setDragging({ stockId, from: group.topic })}
+                        onDragEnd={() => {
+                          setDragging(null);
+                          setDropTarget(undefined);
+                        }}
+                      >
+                        <WatchCardView card={card} />
+                      </div>
                     );
                   })}
                 </div>

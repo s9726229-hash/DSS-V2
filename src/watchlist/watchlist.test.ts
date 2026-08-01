@@ -4,6 +4,8 @@ import {
   addWatch,
   emptyWatchlist,
   groupByTopic,
+  moveTopicOrder,
+  moveWatchTopic,
   removeTopic,
   removeWatch,
   renameTopic,
@@ -159,5 +161,63 @@ describe('依題材分組', () => {
 
   it('完全空白時回傳空陣列', () => {
     expect(groupByTopic(emptyWatchlist())).toEqual([]);
+  });
+});
+
+describe('拖曳整理', () => {
+  function withTopics(): Watchlist {
+    return setWatchTopics(addTopic(addTopic(seeded(), 'PCB'), 'AI'), '2330', ['PCB']);
+  }
+
+  it('從一個題材拖到另一個題材會換邊', () => {
+    const list = moveWatchTopic(withTopics(), { stockId: '2330', from: 'PCB', to: 'AI' });
+
+    expect(list.entries.find((row) => row.stockId === '2330')?.topics).toEqual(['AI']);
+  });
+
+  it('拖到未分類只移除來源題材', () => {
+    const both = setWatchTopics(withTopics(), '2330', ['PCB', 'AI']);
+    const list = moveWatchTopic(both, { stockId: '2330', from: 'PCB', to: null });
+
+    expect(list.entries.find((row) => row.stockId === '2330')?.topics).toEqual(['AI']);
+  });
+
+  it('從未分類拖進題材只是加上，不動其他題材', () => {
+    const list = moveWatchTopic(withTopics(), { stockId: '2454', from: null, to: 'AI' });
+
+    expect(list.entries.find((row) => row.stockId === '2454')?.topics).toEqual(['AI']);
+  });
+
+  it('拖到已經屬於的題材不會重複', () => {
+    const list = moveWatchTopic(withTopics(), { stockId: '2330', from: null, to: 'PCB' });
+
+    expect(list.entries.find((row) => row.stockId === '2330')?.topics).toEqual(['PCB']);
+  });
+
+  it('拖到不存在的題材不生效', () => {
+    const list = moveWatchTopic(withTopics(), { stockId: '2330', from: 'PCB', to: '不存在' });
+
+    expect(list.entries.find((row) => row.stockId === '2330')?.topics).toEqual(['PCB']);
+  });
+
+  /** 規格：拖曳只改個人組織，不改分析參數。 */
+  it('拖曳不動加入日期', () => {
+    const before = withTopics();
+    const list = moveWatchTopic(before, { stockId: '2330', from: 'PCB', to: 'AI' });
+
+    expect(list.entries.find((row) => row.stockId === '2330')?.addedAt).toBe(
+      before.entries.find((row) => row.stockId === '2330')?.addedAt,
+    );
+  });
+
+  it('題材可以調整順序', () => {
+    const list = moveTopicOrder(withTopics(), 'AI', 0);
+
+    expect(list.topics).toEqual(['AI', 'PCB']);
+  });
+
+  it('索引超出範圍時順序不變', () => {
+    expect(moveTopicOrder(withTopics(), 'AI', 5).topics).toEqual(['PCB', 'AI']);
+    expect(moveTopicOrder(withTopics(), '不存在', 0).topics).toEqual(['PCB', 'AI']);
   });
 });

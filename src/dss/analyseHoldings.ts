@@ -4,6 +4,7 @@ import { readHoldingsSnapshot } from '../storage/portfolio';
 import { adjustPrices, type DistortionEvent } from './adjustment';
 import { computeChipSnapshot, type ChipResult } from './chip';
 import { computeTechnicalSnapshot, type TechnicalResult } from './technical';
+import { buildTrendSeries, type TrendSeries } from './trend';
 
 /**
  * 單一股票在最近一個交易日的技術與籌碼狀態。
@@ -18,6 +19,8 @@ export type StockAnalysis = {
   technical: TechnicalResult;
   chip: ChipResult;
   appliedAdjustments: DistortionEvent[];
+  /** 迷你趨勢圖用的收盤與 MA20 序列，取還原後的價格。 */
+  trend: TrendSeries;
 };
 
 export async function analyseStock(stockId: string, stockName: string): Promise<StockAnalysis> {
@@ -45,6 +48,7 @@ export async function analyseStock(stockId: string, stockName: string): Promise<
     technical: computeTechnicalSnapshot(prices),
     chip: computeChipSnapshot({ institutional, prices }),
     appliedAdjustments: appliedEvents,
+    trend: buildTrendSeries(prices),
   };
 }
 

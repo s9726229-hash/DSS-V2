@@ -126,3 +126,43 @@ export function groupByTopic(list: Watchlist): TopicGroup[] {
 
   return groups;
 }
+
+/**
+ * 把一檔股票移到指定題材。
+ *
+ * 規格：拖曳只改個人組織，不改分析參數。因此這裡只動 topics，
+ * 不碰加入日期，也不影響任何計算結果。
+ *
+ * 從某個題材拖到另一個題材時，來源題材要移除、目標題材要加上；
+ * 拖到未分類（to 為 null）則只是從來源題材移除，其他題材維持不變。
+ */
+export function moveWatchTopic(
+  list: Watchlist,
+  { stockId, from, to }: { stockId: string; from: string | null; to: string | null },
+): Watchlist {
+  if (to !== null && !list.topics.includes(to)) return list;
+
+  return {
+    ...list,
+    entries: list.entries.map((entry) => {
+      if (entry.stockId !== stockId) return entry;
+
+      const without = from === null ? entry.topics : entry.topics.filter((name) => name !== from);
+      const next = to === null || without.includes(to) ? without : [...without, to];
+
+      return { ...entry, topics: next };
+    }),
+  };
+}
+
+/** 調整題材的顯示順序。索引超出範圍時原樣回傳，不做環繞。 */
+export function moveTopicOrder(list: Watchlist, topic: string, toIndex: number): Watchlist {
+  const current = list.topics.indexOf(topic);
+  if (current === -1 || toIndex < 0 || toIndex >= list.topics.length) return list;
+
+  const topics = [...list.topics];
+  topics.splice(current, 1);
+  topics.splice(toIndex, 0, topic);
+
+  return { ...list, topics };
+}
