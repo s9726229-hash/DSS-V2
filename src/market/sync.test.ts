@@ -1,6 +1,8 @@
 import { deleteDB } from 'idb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAME } from '../storage/database';
+import { addWatch, emptyWatchlist } from '../watchlist/watchlist';
+import { writeWatchlist } from '../watchlist/watchlistStore';
 import { readCachedDataset } from '../storage/marketCache';
 import { importHoldingsSnapshot } from '../storage/portfolio';
 import { syncHoldings } from './sync';
@@ -49,15 +51,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('沒有庫存時', () => {
+describe('庫存與觀察清單都是空的時候', () => {
   it('不發出任何網路請求', async () => {
     const calls = stubFetch();
 
     const result = await syncHoldings({ now: NOW });
 
     expect(calls).toHaveLength(0);
-    expect(result.skippedReason).toBe('no-holdings');
+    expect(result.skippedReason).toBe('nothing-to-sync');
     expect(result.results).toEqual([]);
+  });
+});
+
+describe('只有觀察清單、沒有庫存時', () => {
+  /**
+   * 規格原本寫「沒有庫存時不可發出請求」，那時還沒有觀察清單。
+   * 觀察股同樣需要價格與法人資料，否則卡片永遠是資料不足；
+   * 真正該守的是「沒有任何要看的標的就不要連網」。
+   */
+  it('仍會同步觀察中的股票', async () => {
+    await writeWatchlist(
+      addWatch(emptyWatchlist(), { stockId: '2454', stockName: '聯發科', at: NOW.toISOString() }),
+    );
+    stubFetch();
+
+    const result = await syncHoldings({ now: NOW });
+
+    expect(result.skippedReason).toBeNull();
+    expect(result.results.map((row) => row.stockId)).toEqual(['2454']);
   });
 });
 
@@ -68,6 +89,22 @@ describe('有庫存時', () => {
       '2026-07-28',
       NOW.toISOString(),
     );
+  });
+
+  it('庫存與觀察清單重疊的股票只同步一次', async () => {
+    await writeWatchlist(
+      addWatch(
+        addWatch(emptyWatchlist(), { stockId: '2330', stockName: '台積電', at: NOW.toISOString() }),
+        { stockId: '2454', stockName: '聯發科', at: NOW.toISOString() },
+      ),
+    );
+    stubFetch();
+
+    const result = await syncHoldings({ now: NOW });
+    const ids = result.results.map((row) => row.stockId);
+
+    expect(ids).toEqual(['0050', '2330', '2454']);
+    expect(ids.filter((id) => id === '2330')).toHaveLength(1);
   });
 
   it('每檔各取價格與法人兩個資料集', async () => {

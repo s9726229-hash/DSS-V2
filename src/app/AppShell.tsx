@@ -9,6 +9,8 @@ import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { syncHoldings } from '../market/sync';
 import { fetchFinMindUsage, type UsageResult } from '../market/usageClient';
 import { readInventory, type Inventory } from '../storage/inventory';
+import { watchedStockIds } from '../watchlist/watchlist';
+import { readWatchlist } from '../watchlist/watchlistStore';
 import { readHoldingsSnapshot } from '../storage/portfolio';
 import './AppShell.css';
 
@@ -88,14 +90,17 @@ function StatusBar({
   inventory,
   sync,
   usage,
+  watchCount,
 }: {
   inventory: Inventory | null;
   sync: SyncController;
   usage: UsageController;
+  /** 觀察標的數；只有庫存與觀察都空的時候才不能同步。 */
+  watchCount: number;
 }) {
   const marketDate = inventory?.marketCache.lastRetrievedAt?.slice(0, 10) ?? null;
   const tradeDate = inventory?.transactions.lastDate ?? null;
-  const hasHoldings = (inventory?.holdings.count ?? 0) > 0;
+  const syncable = (inventory?.holdings.count ?? 0) > 0 || watchCount > 0;
 
   return (
     <div className="statusbar" role="status">
@@ -120,8 +125,8 @@ function StatusBar({
       <button
         className="statusbar__sync"
         type="button"
-        disabled={sync.running || !hasHoldings}
-        title={hasHoldings ? undefined : '沒有庫存時不會發出網路請求'}
+        disabled={sync.running || !syncable}
+        title={syncable ? undefined : '沒有庫存也沒有觀察標的時不會發出網路請求'}
         onClick={() => sync.start()}
       >
         {sync.running ? `同步中… ${sync.done}/${sync.total}` : '同步市場資料'}
@@ -180,16 +185,20 @@ function useSync(onFinished: () => void): SyncController {
       setAllSkipped(false);
 
       void (async () => {
-        const holdings = await readHoldingsSnapshot();
-        setTotal(holdings.length);
+        // 進度分母要涵蓋觀察股，否則同步觀察標的時進度會超過 100%
+        const [holdings, watchlist] = await Promise.all([
+          readHoldingsSnapshot(),
+          readWatchlist(),
+        ]);
+        setTotal(new Set([...holdings.map((h) => h.stockId), ...watchedStockIds(watchlist)]).size);
 
         const summary = await syncHoldings({
           force,
           onProgress: () => setDone((count) => count + 1),
         });
 
-        if (summary.skippedReason === 'no-holdings') {
-          setMessage('沒有庫存，未發出任何請求');
+        if (summary.skippedReason === 'nothing-to-sync') {
+          setMessage('沒有庫存也沒有觀察標的，未發出任何請求');
         } else {
           const failed = summary.results.filter((result) => !result.ok).length;
           const updated = summary.results.length - failed - summary.skippedCount;
@@ -216,11 +225,13 @@ function useSync(onFinished: () => void): SyncController {
 export function AppShell() {
   const [page, setPage] = useState<PageId>('today');
   const [inventory, setInventory] = useState<Inventory | null>(null);
+  const [watchCount, setWatchCount] = useState(0);
 
   const usage = useUsage();
 
   const refreshInventory = useCallback(() => {
     void readInventory().then(setInventory);
+    void readWatchlist().then((list) => setWatchCount(watchedStockIds(list).length));
   }, []);
 
   useEffect(refreshInventory, [refreshInventory]);
@@ -264,7 +275,7 @@ export function AppShell() {
       </nav>
 
       <div className="frame">
-        <StatusBar inventory={inventory} sync={sync} usage={usage} />
+        <StatusBar inventory={inventory} sync={sync} usage={usage} watchCount={watchCount} />
         <main className="content">
           {page === 'data' ? (
             <DataCenterPage inventory={inventory} onDataChanged={refreshInventory} />

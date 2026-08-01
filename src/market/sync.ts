@@ -1,5 +1,6 @@
 import { readCachedDataset, writeCachedDataset } from '../storage/marketCache';
 import { readHoldingsSnapshot } from '../storage/portfolio';
+import { readWatchlist } from '../watchlist/watchlistStore';
 import { fetchDataset, type DateRange } from './finmindClient';
 import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from './types';
 
@@ -54,7 +55,7 @@ export type SyncSummary = {
   /** 因快取新鮮而跳過的檔數。 */
   skippedCount: number;
   /** 未執行同步的原因；正常執行時為 null。 */
-  skippedReason: 'no-holdings' | null;
+  skippedReason: 'nothing-to-sync' | null;
 };
 
 export type SyncOptions = {
@@ -172,33 +173,45 @@ async function cacheAdjustmentEvents(stockId: string, now: Date, retrievedAt: st
 }
 
 /**
- * 同步最新一份庫存快照中的個股。
+ * 同步最新一份庫存快照與觀察清單中的個股。
  *
- * 規格要求：沒有庫存時不可發出任何市場資料網路請求，
- * 且單一股票失敗不得阻擋其他股票。
+ * 規格原本寫的是「沒有庫存時不可發出任何市場資料網路請求」，那時還沒有觀察清單。
+ * 觀察股同樣需要價格與法人資料，否則它們的卡片永遠是資料不足；
+ * 該條規則真正要守的是「沒有任何要看的標的就不要連網」，因此改以兩者的聯集為準。
+ *
+ * 單一股票失敗不得阻擋其他股票。
  */
 export async function syncHoldings({
   now = new Date(),
   force = false,
   onProgress,
 }: SyncOptions = {}): Promise<SyncSummary> {
-  const holdings = await readHoldingsSnapshot();
+  const [holdings, watchlist] = await Promise.all([readHoldingsSnapshot(), readWatchlist()]);
 
-  if (holdings.length === 0) {
-    return {
-      syncedAt: now.toISOString(),
-      results: [],
-      skippedCount: 0,
-      skippedReason: 'no-holdings',
-    };
-  }
-
-  // 同一份快照中若有重複代號，只同步一次
+  /*
+   * 庫存與觀察清單的聯集，先庫存後觀察。
+   * 兩邊都可能列到同一檔，重複的只留第一次——重抓一次不會壞，
+   * 但會白白吃掉 FinMind 每小時的額度。
+   */
   const unique = new Map<string, string>();
   for (const holding of holdings) {
     if (!unique.has(holding.stockId)) {
       unique.set(holding.stockId, holding.stockName);
     }
+  }
+  for (const entry of watchlist.entries) {
+    if (!unique.has(entry.stockId)) {
+      unique.set(entry.stockId, entry.stockName);
+    }
+  }
+
+  if (unique.size === 0) {
+    return {
+      syncedAt: now.toISOString(),
+      results: [],
+      skippedCount: 0,
+      skippedReason: 'nothing-to-sync',
+    };
   }
 
   const results: StockSyncResult[] = [];

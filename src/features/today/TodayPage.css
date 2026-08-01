@@ -197,3 +197,171 @@
   color: var(--graphite);
   font-size: 10px;
 }
+
+/* ── 分區與題材 ─────────────────────────────── */
+
+.today__section {
+  margin-bottom: var(--gap-5);
+}
+
+.today__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+
+.today__section-title {
+  margin: 0 0 var(--gap-2);
+  padding-bottom: var(--gap-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.today__section-head .today__section-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.today__topic {
+  margin: var(--gap-3) 0;
+}
+
+.today__topic-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+  margin: 0 0 var(--gap-2);
+  color: var(--graphite);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.today__topic-count {
+  color: var(--graphite-light);
+  font-weight: 400;
+}
+
+.today__topic-empty {
+  margin: 0;
+  color: var(--graphite-light);
+  font-size: 12px;
+}
+
+/* 觀察卡的摘要層：只有加入日期，沒有成本與損益。 */
+.card__watch {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+  padding: var(--gap-2) 0;
+}
+
+.card__untagged {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+/* ── 管理觀察清單 ───────────────────────────── */
+
+.manager {
+  margin: var(--gap-3) 0;
+  padding: var(--gap-3) var(--gap-4);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--panel-sunken);
+}
+
+.manager__note {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.manager__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gap-2);
+  margin-bottom: var(--gap-2);
+}
+
+.manager__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.manager__field--wide {
+  flex: 1;
+}
+
+.manager__label {
+  color: var(--graphite-light);
+}
+
+.manager__input {
+  width: 100%;
+  padding: 3px var(--gap-2);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.manager__input:focus {
+  border-color: var(--calibrate);
+  outline: 2px solid var(--calibrate-bg);
+}
+
+.manager__hint {
+  margin: 0 0 var(--gap-2);
+  color: var(--attention);
+  font-size: 11px;
+}
+
+.manager__topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-1);
+  margin-bottom: var(--gap-3);
+}
+
+.manager__topic {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--panel);
+  font-size: 11px;
+}
+
+.manager__remove {
+  padding: 0 3px;
+  border: 0;
+  background: none;
+  color: var(--graphite-light);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.manager__remove:hover {
+  color: var(--signal-up);
+}
+
+.manager__table {
+  margin-top: var(--gap-2);
+}
+
+.manager__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: var(--gap-2);
+  font-size: 11px;
+  cursor: pointer;
+}

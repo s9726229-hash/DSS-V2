@@ -28,22 +28,36 @@ export type CardBand = {
   evidence: EvidenceLevel | null;
 };
 
-export type HoldingCard = {
+/**
+ * 持股卡與觀察卡共用的部分。
+ *
+ * 規格：同一標的共用同一份資料與計算結果。兩種卡各算一次的話，
+ * 同一檔在兩處會顯示不同的判定。
+ */
+export type CardCore = {
   stockId: string;
   stockName: string;
   assetClass: AssetClass;
+  priceDate: string | null;
+  completeness: DataCompleteness;
+  bands: CardBand[];
+  analysis: StockAnalysis;
+};
+
+export type WatchCard = CardCore & {
+  addedAt: string;
+  topics: string[];
+};
+
+export type HoldingCard = CardCore & {
   tradeType: string;
   /** 庫存快照日期，與市場資料日期是兩回事，兩者都要顯示。 */
   snapshotDate: string;
-  priceDate: string | null;
   quantity: number;
   costPrice: number;
   currentPrice: number;
   position: PositionResult;
   heldDays: number | null;
-  completeness: DataCompleteness;
-  bands: CardBand[];
-  analysis: StockAnalysis;
 };
 
 /**
@@ -134,6 +148,51 @@ function cardBand(
   return { metric, value, band, unverified, evidence };
 }
 
+export function buildCardCore({
+  stockId,
+  stockName,
+  analysis,
+  profile,
+}: {
+  stockId: string;
+  stockName: string;
+  analysis: StockAnalysis;
+  profile: Profile;
+}): CardCore {
+  const assetClass = classifyAsset(stockId);
+
+  return {
+    stockId,
+    stockName,
+    assetClass,
+    priceDate: analysis.priceDate,
+    completeness: dataCompleteness(analysis),
+    bands: RESEARCH_METRICS.map((metric) => cardBand(analysis, metric, profile, assetClass)),
+    analysis,
+  };
+}
+
+export function buildWatchCard({
+  entry,
+  analysis,
+  profile,
+}: {
+  entry: { stockId: string; stockName: string; addedAt: string; topics: string[] };
+  analysis: StockAnalysis;
+  profile: Profile;
+}): WatchCard {
+  return {
+    ...buildCardCore({
+      stockId: entry.stockId,
+      stockName: entry.stockName,
+      analysis,
+      profile,
+    }),
+    addedAt: entry.addedAt,
+    topics: entry.topics,
+  };
+}
+
 export function buildHoldingCard({
   holding,
   analysis,
@@ -146,22 +205,19 @@ export function buildHoldingCard({
   /** 最近一次建立部位的日期；沒有對應交易紀錄時為 null。 */
   entryDate: string | null;
 }): HoldingCard {
-  const assetClass = classifyAsset(holding.stockId);
-
   return {
-    stockId: holding.stockId,
-    stockName: holding.stockName,
-    assetClass,
+    ...buildCardCore({
+      stockId: holding.stockId,
+      stockName: holding.stockName,
+      analysis,
+      profile,
+    }),
     tradeType: holding.tradeType,
     snapshotDate: holding.snapshotDate,
-    priceDate: analysis.priceDate,
     quantity: holding.quantity,
     costPrice: holding.costPrice,
     currentPrice: holding.currentPrice,
     position: positionResult(holding),
     heldDays: heldDays(entryDate, analysis.priceDate),
-    completeness: dataCompleteness(analysis),
-    bands: RESEARCH_METRICS.map((metric) => cardBand(analysis, metric, profile, assetClass)),
-    analysis,
   };
 }
