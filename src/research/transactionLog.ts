@@ -1,4 +1,5 @@
-import type { StoredTransaction, TransactionSide } from '../storage/types';
+import type { TransactionSide } from '../import/types';
+import type { StoredTransaction } from '../storage/types';
 import { identifyPositionEvents, selectEntries, type PositionEvent } from './positions';
 import { RESEARCH_FROM_DATE } from './runResearch';
 
