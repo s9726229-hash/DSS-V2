@@ -60,31 +60,7 @@
 
 /* ── 指標分頁 ───────────────────────────────── */
 
-.tabs {
-  display: flex;
-  margin: var(--gap-6) 0 var(--gap-4);
-  border-bottom: 1px solid var(--rule);
-  gap: var(--gap-5);
-}
-
-.tabs__item {
-  padding: 0 0 var(--gap-2);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--graphite);
-  font-size: 14px;
-}
-
-.tabs__item:hover {
-  color: var(--ink);
-}
-
-.tabs__item--active {
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-  font-weight: 600;
-}
+/* .tabs* 已搬到 theme.css 供跨頁共用 */
 
 /* ── 資產類別區塊 ───────────────────────────── */
 
@@ -187,6 +163,173 @@
   text-align: right;
 }
 
+.checkpoints__drift {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+/* ── 交易歷史 ───────────────────────────────── */
+
+.log__lede {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.log__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2) var(--gap-4);
+  margin-bottom: var(--gap-2);
+  padding-bottom: var(--gap-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* 對帳列：558 筆怎麼收斂成幾筆樣本，在這一行就能數完。 */
+.log__tally {
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.log__filter {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-1);
+  color: var(--graphite);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.log__scroll {
+  overflow-x: auto;
+}
+
+.log__table {
+  min-width: 720px;
+}
+
+/* 股票欄是文字，靠右會讓中文名稱參差不齊。 */
+.log__table th.log__col-name,
+.log__table td.log__col-name,
+.log__table th.log__col-kind,
+.log__table td.log__col-kind {
+  text-align: left;
+}
+
+.log__id {
+  color: var(--graphite);
+}
+
+/* 台股慣例：買紅賣綠。分類標籤刻意不用這兩色，以免與漲跌語意打架。 */
+.log__buy {
+  color: var(--signal-up);
+}
+
+.log__sell {
+  color: var(--signal-down);
+}
+
+.tag {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--graphite);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tag--entry {
+  border-color: var(--calibrate);
+  background: var(--calibrate-bg);
+  color: var(--calibrate);
+}
+
+.tag--reentry {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+  color: var(--attention);
+}
+
+.log__included {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.log__excluded {
+  color: var(--graphite-light);
+  font-size: 12px;
+}
+
+/* ── 搜尋紀錄 ───────────────────────────────── */
+
+.history__lede {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-4);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.history__run {
+  margin-bottom: var(--gap-4);
+  padding: var(--gap-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.history__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-2) var(--gap-3);
+  margin-bottom: var(--gap-3);
+  padding-bottom: var(--gap-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.history__time {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.history__counts {
+  margin-left: auto;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+/* 舊定義的紀錄筆數不可與現行紀錄直接比較，標成待注意而非靜靜混列。 */
+.history__note {
+  padding: 1px 6px;
+  border: 1px solid var(--attention);
+  border-radius: 2px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.history__scroll {
+  overflow-x: auto;
+}
+
+.history__table {
+  min-width: 620px;
+}
+
+/* 證據等級欄靠左，標籤才不會被推到離指標名稱很遠的地方 */
+.history__table td:nth-child(n + 6),
+.history__table th:nth-child(n + 6) {
+  text-align: left;
+}
+
 /* ── 區間結果 ───────────────────────────────── */
 
 .bands {
@@ -242,6 +385,13 @@
   font-size: 12px;
 }
 
+.band__range-note {
+  margin-left: var(--gap-2);
+  color: var(--graphite-light);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
 .band__stats {
   display: grid;
   margin: 0;
@@ -291,9 +441,5 @@
 
   .bands {
     grid-template-columns: 1fr;
-  }
-
-  .tabs {
-    overflow-x: auto;
   }
 }

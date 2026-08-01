@@ -4,6 +4,7 @@ import type {
   HoldingSnapshotRecord,
   LightweightBackupPayload,
   MarketCacheRecord,
+  ResearchRunRecord,
   StoredSetting,
   StoredTransaction,
 } from './types';
@@ -24,12 +25,14 @@ export async function createBackup(): Promise<BackupPayload> {
   const db = await openDssDatabase();
 
   try {
-    const [settings, transactions, holdingsSnapshots, marketCache] = await Promise.all([
-      db.getAll('settings'),
-      db.getAll('transactions'),
-      db.getAll('holdingsSnapshots'),
-      db.getAll('marketCache'),
-    ]);
+    const [settings, transactions, holdingsSnapshots, researchRuns, marketCache] =
+      await Promise.all([
+        db.getAll('settings'),
+        db.getAll('transactions'),
+        db.getAll('holdingsSnapshots'),
+        db.getAll('researchRuns'),
+        db.getAll('marketCache'),
+      ]);
 
     return {
       version: BACKUP_VERSION,
@@ -37,6 +40,7 @@ export async function createBackup(): Promise<BackupPayload> {
       settings: withoutSensitiveSettings(settings),
       transactions,
       holdingsSnapshots,
+      researchRuns,
       marketCache,
     };
   } finally {
@@ -59,6 +63,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * 還原一律取代 settings／transactions／holdingsSnapshots。
  * marketCache 只在備份檔含有該欄位時才取代，
  * 這樣還原輕量備份不會清掉本機既有快取（快取可重新向 FinMind 取得，但重取有成本）。
+ * researchRuns 同樣為選用：researchRuns 早於它存在的備份檔仍要能還原，
+ * 且缺少該欄位時不應清掉本機既有的搜尋紀錄（那是重算不回來的歷程）。
  */
 export async function restoreBackup(payload: unknown): Promise<RestoreResult> {
   if (!isRecord(payload)) {
@@ -76,12 +82,14 @@ export async function restoreBackup(payload: unknown): Promise<RestoreResult> {
   const transactions = payload.transactions;
   const holdingsSnapshots = payload.holdingsSnapshots;
   const marketCache = payload.marketCache;
+  const researchRuns = payload.researchRuns;
 
   if (
     !Array.isArray(settings) ||
     !Array.isArray(transactions) ||
     !Array.isArray(holdingsSnapshots) ||
-    (marketCache !== undefined && !Array.isArray(marketCache))
+    (marketCache !== undefined && !Array.isArray(marketCache)) ||
+    (researchRuns !== undefined && !Array.isArray(researchRuns))
   ) {
     return { ok: false, error: '備份檔格式不正確：資料欄位必須為陣列' };
   }
@@ -89,10 +97,19 @@ export async function restoreBackup(payload: unknown): Promise<RestoreResult> {
   const db = await openDssDatabase();
 
   try {
-    const storeNames: ('settings' | 'transactions' | 'holdingsSnapshots' | 'marketCache')[] =
-      marketCache === undefined
-        ? ['settings', 'transactions', 'holdingsSnapshots']
-        : ['settings', 'transactions', 'holdingsSnapshots', 'marketCache'];
+    const storeNames: (
+      | 'settings'
+      | 'transactions'
+      | 'holdingsSnapshots'
+      | 'marketCache'
+      | 'researchRuns'
+    )[] = [
+      'settings',
+      'transactions',
+      'holdingsSnapshots',
+      ...(marketCache === undefined ? [] : (['marketCache'] as const)),
+      ...(researchRuns === undefined ? [] : (['researchRuns'] as const)),
+    ];
 
     const transaction = db.transaction(storeNames, 'readwrite');
 
@@ -101,6 +118,7 @@ export async function restoreBackup(payload: unknown): Promise<RestoreResult> {
       transaction.objectStore('transactions').clear(),
       transaction.objectStore('holdingsSnapshots').clear(),
       ...(marketCache === undefined ? [] : [transaction.objectStore('marketCache').clear()]),
+      ...(researchRuns === undefined ? [] : [transaction.objectStore('researchRuns').clear()]),
     ]);
 
     await Promise.all([
@@ -117,6 +135,11 @@ export async function restoreBackup(payload: unknown): Promise<RestoreResult> {
         ? []
         : (marketCache as MarketCacheRecord[]).map((row) =>
             transaction.objectStore('marketCache').put(row),
+          )),
+      ...(researchRuns === undefined
+        ? []
+        : (researchRuns as ResearchRunRecord[]).map((row) =>
+            transaction.objectStore('researchRuns').put(row),
           )),
     ]);
 

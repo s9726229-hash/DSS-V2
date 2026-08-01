@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StoredTransaction } from '../storage/types';
-import { identifyPositionEvents } from './positions';
+import { identifyPositionEvents, selectEntries } from './positions';
 
 function tx(overrides: Partial<StoredTransaction> = {}): StoredTransaction {
   return {
@@ -130,5 +130,46 @@ describe('建立部位辨識', () => {
     ]);
 
     expect(events.map((event) => event.kind)).toEqual(['entry', 'add-on']);
+  });
+});
+
+describe('研究樣本篩選', () => {
+  /** 首次建立部位 → 賣光 → 再進場 → 加碼，涵蓋所有分類。 */
+  function mixedEvents() {
+    return identifyPositionEvents([
+      tx({ tradeDate: '2026-03-02' }),
+      tx({ tradeDate: '2026-03-10', side: 'sell' }),
+      tx({ tradeDate: '2026-04-01' }),
+      tx({ tradeDate: '2026-04-08' }),
+      tx({ tradeDate: '2026-04-15', tradeType: '現沖' }),
+    ]);
+  }
+
+  it('預設排除再進場，只留首次建立部位', () => {
+    const entries = selectEntries(mixedEvents());
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ tradeDate: '2026-03-02', isReentry: false });
+  });
+
+  it('明確要求時才納入再進場', () => {
+    const entries = selectEntries(mixedEvents(), { includeReentries: true });
+
+    expect(entries.map((entry) => entry.tradeDate)).toEqual(['2026-03-02', '2026-04-01']);
+  });
+
+  it('加碼、賣出與現沖一律不是研究樣本', () => {
+    const entries = selectEntries(mixedEvents(), { includeReentries: true });
+
+    expect(entries.every((entry) => entry.kind === 'entry')).toBe(true);
+    expect(entries.some((entry) => entry.tradeType === '現沖')).toBe(false);
+  });
+
+  it('不同股票的首次建立部位各自保留', () => {
+    const entries = selectEntries(
+      identifyPositionEvents([tx(), tx({ stockId: '0050', stockName: '元大台灣50' })]),
+    );
+
+    expect(entries.map((entry) => entry.stockId)).toEqual(['2330', '0050']);
   });
 });

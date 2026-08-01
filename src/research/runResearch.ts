@@ -37,6 +37,8 @@ export type ResearchSample = MetricSample & {
 export type ResearchReport = {
   /** 研究期間內的建立部位總數。 */
   entryCount: number;
+  /** 研究期間內已保留紀錄、但依規格不列入本輪的再進場筆數。 */
+  reentryCount: number;
   /** 其中技術面可分析的筆數。 */
   technicalCount: number;
   /** 其中籌碼面可分析的筆數。 */
@@ -65,12 +67,25 @@ async function loadStockData(stockId: string) {
   };
 }
 
-/** 取出研究期間內的建立部位。 */
+/** 取出研究期間內的建立部位（不含再進場）。 */
 export async function loadResearchEntries(from = RESEARCH_FROM_DATE): Promise<PositionEvent[]> {
   const transactions = await readTransactions();
   return selectEntries(identifyPositionEvents(transactions)).filter(
     (entry) => entry.tradeDate >= from,
   );
+}
+
+/**
+ * 研究期間內被排除的再進場筆數。
+ *
+ * 規格要求再進場「保留紀錄，但不混入第一輪提取」，
+ * 所以樣本數的落差要能在頁面上交代，不能靜靜消失。
+ */
+export async function countResearchReentries(from = RESEARCH_FROM_DATE): Promise<number> {
+  const transactions = await readTransactions();
+  return selectEntries(identifyPositionEvents(transactions), { includeReentries: true }).filter(
+    (entry) => entry.isReentry && entry.tradeDate >= from,
+  ).length;
 }
 
 /**
@@ -81,6 +96,7 @@ export async function loadResearchEntries(from = RESEARCH_FROM_DATE): Promise<Po
  */
 export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchReport> {
   const entries = await loadResearchEntries(from);
+  const reentryCount = await countResearchReentries(from);
 
   const samples: Record<ResearchMetric, ResearchSample[]> = {
     bias20: [],
@@ -157,6 +173,7 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
 
   return {
     entryCount: entries.length,
+    reentryCount,
     technicalCount,
     chipCount,
     completeCount,

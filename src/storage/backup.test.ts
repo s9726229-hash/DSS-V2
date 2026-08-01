@@ -4,7 +4,7 @@ import type { ImportedTransaction } from '../import/types';
 import { createBackup, createLightweightBackup, restoreBackup } from './backup';
 import { DATABASE_NAME, openDssDatabase } from './database';
 import { importHoldingsSnapshot, importTransactions, readTransactions } from './portfolio';
-import type { BackupPayload, MarketCacheRecord } from './types';
+import type { BackupPayload, MarketCacheRecord, ResearchRunRecord } from './types';
 
 const IMPORTED_AT = '2026-07-27T12:00:00.000Z';
 
@@ -46,6 +46,21 @@ async function seedMarketCache(): Promise<MarketCacheRecord> {
   db.close();
 
   return record;
+}
+
+async function seedResearchRun(): Promise<void> {
+  const db = await openDssDatabase();
+  await db.put('researchRuns', {
+    id: 'run:2026-08-01T00:00:00.000Z',
+    executedAt: '2026-08-01T00:00:00.000Z',
+    signature: 'sig',
+    entryCount: 20,
+    technicalCount: 19,
+    chipCount: 18,
+    completeCount: 16,
+    results: {} as ResearchRunRecord['results'],
+  });
+  db.close();
 }
 
 beforeEach(async () => {
@@ -142,6 +157,21 @@ describe('restoreBackup', () => {
     const cache = await db.getAll('marketCache');
     db.close();
     expect(cache).toHaveLength(1);
+  });
+
+  it('還原沒有 researchRuns 欄位的舊備份時保留既有搜尋紀錄', async () => {
+    await seedResearchRun();
+    const backup = await createBackup();
+    const { researchRuns: _researchRuns, ...older } = backup;
+
+    const result = await restoreBackup(older);
+
+    expect(result.ok).toBe(true);
+
+    const db = await openDssDatabase();
+    const runs = await db.getAll('researchRuns');
+    db.close();
+    expect(runs).toHaveLength(1);
   });
 
   it('拒絕版本不符的備份檔並說明原因', async () => {

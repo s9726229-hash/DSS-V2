@@ -28,6 +28,7 @@ export type BandId = 'pullback' | 'normal' | 'overheated';
  * - preliminary：5–9 筆，僅為初步觀察
  * - worth-tracking：10 筆以上、跨 2 個以上檢查點，且中位數不低於同類基準
  * - insufficient-evidence：樣本足夠但未通過比較，不建議套用
+ * - threshold-unstable：排除跨檢查點改變歸屬的樣本後結果不足或反轉，門檻尚未收斂
  * - overlap-sensitive：排除重疊樣本後結果不足或反轉，暫不推薦套用
  */
 export type EvidenceLevel =
@@ -35,6 +36,7 @@ export type EvidenceLevel =
   | 'preliminary'
   | 'worth-tracking'
   | 'insufficient-evidence'
+  | 'threshold-unstable'
   | 'overlap-sensitive';
 
 export type BandResult = {
@@ -52,6 +54,14 @@ export type BandResult = {
   baselineMedian: number | null;
   /** 僅用非重疊樣本重算的中位數，供敏感度檢查。 */
   nonOverlappingMedian: number | null;
+  /** 本區間的樣本中，歸屬會隨門檻改變的筆數。 */
+  flippedCount: number;
+  /** 排除翻轉樣本後的筆數。 */
+  stableCount: number;
+  /** 僅用未翻轉樣本重算的中位數，供門檻穩定度檢查。 */
+  stableMedian: number | null;
+  /** 排除翻轉與重疊樣本後，兩者皆清的筆數，供聯合門檻判定使用。 */
+  cleanCount: number;
   evidence: EvidenceLevel;
   reason: string;
 };
@@ -64,9 +74,26 @@ export type CheckpointRecord = {
   p75: number | null;
 };
 
+export type DriftRange = {
+  low: number;
+  high: number;
+  span: number;
+};
+
+/**
+ * 門檻在檢查點之間的漂移。
+ * 可用檢查點不足 2 個時無從判斷漂移，回傳 null 而非 0，
+ * 以免「沒有漂移」與「無法判斷」被混為一談。
+ */
+export type ThresholdDrift = {
+  p25: DriftRange | null;
+  p75: DriftRange | null;
+};
+
 export type WalkForwardResult = {
   assetClass: AssetClass;
   checkpoints: CheckpointRecord[];
+  drift: ThresholdDrift;
   bands: BandResult[];
   baseline: Baseline;
 };
@@ -81,6 +108,15 @@ function median(values: readonly number[]): number | null {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function driftOf(values: readonly (number | null)[]): DriftRange | null {
+  const usable = values.filter((value): value is number => value !== null);
+  if (usable.length < 2) return null;
+
+  const low = Math.min(...usable);
+  const high = Math.max(...usable);
+  return { low, high, span: high - low };
 }
 
 function bandOf(value: number, p25: number, p75: number): BandId {
@@ -125,6 +161,12 @@ export function runWalkForward({
     BAND_ORDER.map((band) => [band, { samples: new Set(), checkpoints: new Set() }]),
   );
   const ranges = new Map<BandId, { min: number | null; max: number | null }>();
+  // 只收集「實際套用過分類」的門檻（P25 與 P75 皆非 null 且不相等）。
+  // expanding walk-forward 的驗證集是巢狀的，只被最早檢查點驗證過的樣本
+  // 在後續檢查點會變成訓練資料、不會再進入 hits——若翻轉判定只看驗證期實際發生過的
+  // 歸屬，這批樣本恆被當成穩定。這裡改用「每一組門檻都重新分類一次」，
+  // 讓翻轉判定涵蓋所有非退化檢查點，不論樣本實際被驗證過幾次。
+  const thresholds: { p25: number; p75: number }[] = [];
 
   fractions.forEach((fraction, checkpointIndex) => {
     const trainingSize = Math.floor(usable.length * fraction);
@@ -154,6 +196,8 @@ export function runWalkForward({
     // 若照常切會把全部樣本倒進單一區間並產生看似有結論的結果
     if (p25 === null || p75 === null || p25 === p75) return;
 
+    thresholds.push({ p25, p75 });
+
     ranges.set('pullback', { min: null, max: p25 });
     ranges.set('normal', { min: p25, max: p75 });
     ranges.set('overheated', { min: p75, max: null });
@@ -168,27 +212,67 @@ export function runWalkForward({
     }
   });
 
+  // 翻轉判定：用「所有非退化檢查點的門檻」重新分類每一筆曾被驗證過的樣本，
+  // 只要有一組門檻算出的區間跟其他組不同，就是翻轉樣本。
+  const flipped = new Set<MetricSample>();
+  for (const hit of hits.values()) {
+    for (const row of hit.samples) {
+      if (flipped.has(row)) continue;
+      const value = row.metricValue as number;
+      const bandsAssigned = new Set(thresholds.map((t) => bandOf(value, t.p25, t.p75)));
+      if (bandsAssigned.size > 1) flipped.add(row);
+    }
+  }
+
   const bands = BAND_ORDER.map((band) =>
-    summarizeBand(band, hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> }, ranges.get(band), baseline),
+    summarizeBand({
+      band,
+      hit: hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> },
+      range: ranges.get(band),
+      baseline,
+      flipped,
+    }),
   );
 
-  return { assetClass, checkpoints, bands, baseline };
+  const drift: ThresholdDrift = {
+    p25: driftOf(thresholds.map((t) => t.p25)),
+    p75: driftOf(thresholds.map((t) => t.p75)),
+  };
+
+  return { assetClass, checkpoints, drift, bands, baseline };
 }
 
-function summarizeBand(
-  band: BandId,
-  hit: { samples: Set<MetricSample>; checkpoints: Set<number> },
-  range: { min: number | null; max: number | null } | undefined,
-  baseline: Baseline,
-): BandResult {
+function summarizeBand({
+  band,
+  hit,
+  range,
+  baseline,
+  flipped,
+}: {
+  band: BandId;
+  hit: { samples: Set<MetricSample>; checkpoints: Set<number> };
+  range: { min: number | null; max: number | null } | undefined;
+  baseline: Baseline;
+  /** 在所有非退化檢查點的門檻下，區間歸屬並非恆定的樣本。 */
+  flipped: ReadonlySet<MetricSample>;
+}): BandResult {
   const rows = [...hit.samples];
   const returns = rows.map((row) => row.returnPercent as number);
   const nonOverlapping = rows.filter((row) => !row.overlapsPrevious);
   const nonOverlappingReturns = nonOverlapping.map((row) => row.returnPercent as number);
+  // 不在翻轉集合中的樣本，其歸屬在所有非退化檢查點的門檻下皆一致
+  const stable = rows.filter((row) => !flipped.has(row));
+  const stableReturns = stable.map((row) => row.returnPercent as number);
+  // 既未翻轉、又非重疊——兩種質疑都排除後仍站得住的樣本
+  const clean = rows.filter((row) => !flipped.has(row) && !row.overlapsPrevious);
 
   const completeCount = rows.length;
+  const stableCount = stable.length;
+  const flippedCount = completeCount - stableCount;
+  const cleanCount = clean.length;
   const bandMedian = median(returns);
   const nonOverlappingMedian = median(nonOverlappingReturns);
+  const stableMedian = median(stableReturns);
   const checkpointsCovered = hit.checkpoints.size;
 
   const { evidence, reason } = judge({
@@ -197,6 +281,10 @@ function summarizeBand(
     bandMedian,
     nonOverlappingMedian,
     nonOverlappingCount: nonOverlapping.length,
+    stableMedian,
+    stableCount,
+    flippedCount,
+    cleanCount,
     baselineMedian: baseline.median,
     label: BAND_LABEL[band],
   });
@@ -214,6 +302,10 @@ function summarizeBand(
     checkpointsCovered,
     baselineMedian: baseline.median,
     nonOverlappingMedian,
+    flippedCount,
+    stableCount,
+    stableMedian,
+    cleanCount,
     evidence,
     reason,
   };
@@ -225,6 +317,10 @@ function judge({
   bandMedian,
   nonOverlappingMedian,
   nonOverlappingCount,
+  stableMedian,
+  stableCount,
+  flippedCount,
+  cleanCount,
   baselineMedian,
   label,
 }: {
@@ -233,6 +329,10 @@ function judge({
   bandMedian: number | null;
   nonOverlappingMedian: number | null;
   nonOverlappingCount: number;
+  stableMedian: number | null;
+  stableCount: number;
+  flippedCount: number;
+  cleanCount: number;
   baselineMedian: number | null;
   label: string;
 }): { evidence: EvidenceLevel; reason: string } {
@@ -268,6 +368,22 @@ function judge({
     };
   }
 
+  // 穩定度敏感度檢查：排除區間歸屬會隨檢查點改變的樣本後，結論若消失，
+  // 代表這個區間是靠一個尚未收斂的門檻切出來的
+  if (stableCount <= INSUFFICIENT_DATA_MAX) {
+    return {
+      evidence: 'threshold-unstable',
+      reason: `${label}排除 ${flippedCount} 筆歸屬會隨門檻改變的樣本後僅剩 ${stableCount} 筆，門檻尚未收斂，暫不推薦套用。`,
+    };
+  }
+
+  if (stableMedian === null || stableMedian < baselineMedian) {
+    return {
+      evidence: 'threshold-unstable',
+      reason: `${label}排除 ${flippedCount} 筆歸屬會隨門檻改變的樣本後中位數降至 ${stableMedian?.toFixed(2) ?? '無'}%，低於同類基準 ${baselineMedian.toFixed(2)}%，門檻尚未收斂，暫不推薦套用。`,
+    };
+  }
+
   // 敏感度檢查：排除重疊樣本後若不足或反轉，代表結果由重疊事件撐起
   if (nonOverlappingCount <= INSUFFICIENT_DATA_MAX) {
     return {
@@ -280,6 +396,17 @@ function judge({
     return {
       evidence: 'overlap-sensitive',
       reason: `${label}排除重疊樣本後中位數降至 ${nonOverlappingMedian?.toFixed(2) ?? '無'}%，低於基準，重疊敏感，暫不推薦套用。`,
+    };
+  }
+
+  // 聯合門檻：翻轉與重疊各自檢查可能各自通過，但排除的未必是同一批樣本。
+  // 若「既未翻轉、又非重疊」的樣本所剩無幾，代表結論是靠兩種質疑彼此互補撐住的，
+  // 歸給排除數較大的那一方。
+  if (cleanCount <= INSUFFICIENT_DATA_MAX) {
+    const overlapCount = completeCount - nonOverlappingCount;
+    return {
+      evidence: flippedCount > overlapCount ? 'threshold-unstable' : 'overlap-sensitive',
+      reason: `${label}排除翻轉與重疊樣本後只剩 ${cleanCount} 筆兩者皆清的樣本，證據互相重疊，暫不推薦套用。`,
     };
   }
 

@@ -138,11 +138,21 @@ describe('有建立部位時', () => {
     const band = within(stock).getByRole('article', { name: '回檔下界' });
 
     expect(
-      within(band).getAllByText(/資料不足|初步觀察|證據不足|值得繼續追蹤|重疊敏感/).length,
+      within(band).getAllByText(/資料不足|初步觀察|證據不足|值得繼續追蹤|門檻不穩定|重疊敏感/)
+        .length,
     ).toBeGreaterThan(0);
     expect(
-      within(band).getByText(/未達|屬初步觀察|低於|值得繼續追蹤|暫不推薦|缺少可比較/),
+      within(band).getByText(/未達|屬初步觀察|低於|值得繼續追蹤|暫不推薦|缺少可比較|尚未收斂/),
     ).toBeInTheDocument();
+  });
+
+  it('每個區間都列出翻轉樣本數，讓穩定度判定有依據可看', async () => {
+    render(<ResearchPage />);
+
+    const stock = await screen.findByRole('region', { name: '個股' });
+    const band = within(stock).getByRole('article', { name: '回檔下界' });
+
+    expect(within(band).getByText('翻轉')).toBeInTheDocument();
   });
 
   it('顯示樣本讀數', async () => {
@@ -170,6 +180,84 @@ describe('沒有檢查點時', () => {
 
     const etf = await screen.findByRole('region', { name: 'ETF' });
     expect(within(etf).getAllByText('尚無可用門檻').length).toBe(3);
+  });
+});
+
+describe('計算流程分頁', () => {
+  it('預設顯示研究結果，不顯示流程圖', async () => {
+    render(<ResearchPage />);
+
+    await screen.findByText(/請先到.*匯入交易明細/);
+    expect(screen.queryByText('建立部位辨識')).not.toBeInTheDocument();
+  });
+
+  it('切到計算流程會顯示流程圖，並標出每個證據等級的判定門檻', async () => {
+    render(<ResearchPage />);
+    await screen.findByText(/請先到.*匯入交易明細/);
+
+    await userEvent.click(screen.getByRole('button', { name: '計算流程' }));
+
+    expect(screen.getByText('建立部位辨識')).toBeInTheDocument();
+    expect(screen.getByText('walk-forward 切點')).toBeInTheDocument();
+    expect(screen.getByText('資料不足')).toBeInTheDocument();
+    expect(screen.getByText('初步觀察')).toBeInTheDocument();
+    expect(screen.getByText('門檻不穩定／重疊敏感')).toBeInTheDocument();
+    expect(screen.getByText('值得繼續追蹤')).toBeInTheDocument();
+    expect(screen.queryByText(/請先到.*匯入交易明細/)).not.toBeInTheDocument();
+  });
+
+  it('切回研究結果會恢復原本內容', async () => {
+    render(<ResearchPage />);
+    await screen.findByText(/請先到.*匯入交易明細/);
+
+    await userEvent.click(screen.getByRole('button', { name: '計算流程' }));
+    await userEvent.click(screen.getByRole('button', { name: '研究結果' }));
+
+    expect(await screen.findByText(/請先到.*匯入交易明細/)).toBeInTheDocument();
+  });
+});
+
+describe('搜尋紀錄分頁', () => {
+  it('沒有紀錄時說明何時會自動留下', async () => {
+    render(<ResearchPage />);
+    await screen.findByText(/請先到.*匯入交易明細/);
+
+    await userEvent.click(screen.getByRole('button', { name: '搜尋紀錄' }));
+
+    expect(screen.getByText(/每次結果變動都會自動留下一筆/)).toBeInTheDocument();
+  });
+
+  it('研究執行後保存該次搜尋，並在紀錄中列出各指標與類別', async () => {
+    for (let index = 0; index < 6; index += 1) {
+      await seedStock(`230${index}`, 150 + index * 3);
+    }
+
+    render(<ResearchPage />);
+    await screen.findByRole('region', { name: '個股' });
+
+    await userEvent.click(screen.getByRole('button', { name: '搜尋紀錄' }));
+
+    const runs = await screen.findAllByRole('region', { name: /搜尋紀錄 / });
+    expect(runs).toHaveLength(1);
+    expect(within(runs[0]).getAllByText('20MA 乖離率').length).toBeGreaterThan(0);
+    expect(within(runs[0]).getAllByText('個股').length).toBeGreaterThan(0);
+    expect(within(runs[0]).getAllByText('ETF').length).toBeGreaterThan(0);
+  });
+
+  it('重新開啟頁面不會因結果相同而重複累積紀錄', async () => {
+    await seedStock('2330', 150);
+
+    const first = render(<ResearchPage />);
+    await screen.findByRole('region', { name: '個股' });
+    first.unmount();
+
+    render(<ResearchPage />);
+    await screen.findByRole('region', { name: '個股' });
+    await userEvent.click(screen.getByRole('button', { name: '搜尋紀錄' }));
+
+    await waitFor(async () => {
+      expect(await screen.findAllByRole('region', { name: /搜尋紀錄 / })).toHaveLength(1);
+    });
   });
 });
 

@@ -2,7 +2,8 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { DssDatabase } from './types';
 
 export const DATABASE_NAME = 'dss-v2';
-export const DATABASE_VERSION = 1;
+/** v2：新增 researchRuns，保存每次候選搜尋的完整結果。 */
+export const DATABASE_VERSION = 2;
 
 export function openDssDatabase(): Promise<IDBPDatabase<DssDatabase>> {
   return openDB<DssDatabase>(DATABASE_NAME, DATABASE_VERSION, {
@@ -18,6 +19,9 @@ export function openDssDatabase(): Promise<IDBPDatabase<DssDatabase>> {
       }
       if (!db.objectStoreNames.contains('marketCache')) {
         db.createObjectStore('marketCache', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('researchRuns')) {
+        db.createObjectStore('researchRuns', { keyPath: 'id' });
       }
     },
   });

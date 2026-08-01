@@ -10,39 +10,28 @@ import {
   type ResearchReport,
   type ResearchSample,
 } from '../../research/runResearch';
+import { readResearchRuns, saveResearchRun } from '../../research/runStore';
 import type { AssetClass } from '../../research/snapshot';
-import type { BandResult, EvidenceLevel, WalkForwardResult } from '../../research/walkForward';
+import { buildTransactionLog, type TransactionLogRow } from '../../research/transactionLog';
+import { readTransactions } from '../../storage/portfolio';
+import type { BandResult, WalkForwardResult } from '../../research/walkForward';
+import type { ResearchRunRecord } from '../../storage/types';
+import { DriftLine } from './DriftLine';
+import { ASSET_LABEL, BAND_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
+import { percent } from './format';
+import { ResearchFlow } from './ResearchFlow';
+import { ResearchHistory } from './ResearchHistory';
+import { TransactionLog } from './TransactionLog';
 import './ResearchPage.css';
 
-const ASSET_LABEL: Record<AssetClass, string> = { stock: '個股', etf: 'ETF' };
+type View = 'result' | 'log' | 'flow' | 'history';
 
-const BAND_LABEL: Record<BandResult['band'], string> = {
-  pullback: '回檔下界',
-  normal: '合理區',
-  overheated: '偏熱上界',
+const VIEW_LABEL: Record<View, string> = {
+  result: '研究結果',
+  log: '交易歷史',
+  flow: '計算流程',
+  history: '搜尋紀錄',
 };
-
-const EVIDENCE_LABEL: Record<EvidenceLevel, string> = {
-  'worth-tracking': '值得繼續追蹤',
-  preliminary: '初步觀察',
-  'insufficient-data': '資料不足',
-  'insufficient-evidence': '證據不足',
-  'overlap-sensitive': '重疊敏感',
-};
-
-/** 只有「值得繼續追蹤」為中性墨色，其餘一律琥珀，避免看起來像可以採用。 */
-const EVIDENCE_TONE: Record<EvidenceLevel, 'neutral' | 'attention'> = {
-  'worth-tracking': 'neutral',
-  preliminary: 'attention',
-  'insufficient-data': 'attention',
-  'insufficient-evidence': 'attention',
-  'overlap-sensitive': 'attention',
-};
-
-function percent(value: number | null, unit: string): string {
-  if (value === null) return '—';
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}${unit}`;
-}
 
 /** 沒有任何檢查點時兩端都是 null，此時要明說沒有門檻，而非印出「≤ —」。 */
 function rangeText(range: BandResult['range'], unit: string): string {
@@ -145,7 +134,15 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
         <span className={`badge badge--${tone}`}>{EVIDENCE_LABEL[band.evidence]}</span>
       </header>
 
-      <p className="band__range num">{rangeText(band.range, unit)}</p>
+      <p className="band__range num">
+        {rangeText(band.range, unit)}
+        {band.range.min === null && band.range.max === null ? null : (
+          <>
+            {' '}
+            <span className="band__range-note">最新檢查點</span>
+          </>
+        )}
+      </p>
 
       <dl className="band__stats">
         <div>
@@ -157,8 +154,16 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
           <dd className="num">{band.nonOverlappingCount}</dd>
         </div>
         <div>
+          <dt>翻轉</dt>
+          <dd className="num">{band.flippedCount}</dd>
+        </div>
+        <div>
           <dt>中位數</dt>
           <dd className="num">{percent(band.median, '%')}</dd>
+        </div>
+        <div>
+          <dt>穩定中位數</dt>
+          <dd className="num">{percent(band.stableMedian, '%')}</dd>
         </div>
         <div>
           <dt>平均</dt>
@@ -209,6 +214,7 @@ function AssetSection({
 
       <h4 className="asset__label micro">候選門檻</h4>
       <Checkpoints result={result} unit={unit} />
+      <DriftLine drift={result.drift} unit={unit} />
 
       <h4 className="asset__label micro">
         驗證結果（{assetClass === 'etf' ? 'ETF 買進後 60 個交易日' : '個股買進後 20 個交易日'}）
@@ -223,13 +229,26 @@ function AssetSection({
 }
 
 export function ResearchPage() {
+  const [view, setView] = useState<View>('result');
   const [report, setReport] = useState<ResearchReport | null>(null);
+  const [runs, setRuns] = useState<ResearchRunRecord[] | null>(null);
+  const [log, setLog] = useState<TransactionLogRow[]>([]);
   const [metric, setMetric] = useState<ResearchMetric>('bias20');
   const [backfilling, setBackfilling] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
 
+  /**
+   * 每次研究結束就保存一次候選搜尋（規格步驟 4）。
+   * 內容與上一筆相同時 saveResearchRun 會自行略過，重新整理頁面不會灌爆紀錄。
+   */
   const refresh = useCallback(() => {
-    void runResearch().then(setReport);
+    void (async () => {
+      const next = await runResearch();
+      setReport(next);
+      setLog(buildTransactionLog(await readTransactions()));
+      await saveResearchRun(next, new Date().toISOString());
+      setRuns(await readResearchRuns());
+    })();
   }, []);
 
   useEffect(refresh, [refresh]);
@@ -258,7 +277,8 @@ export function ResearchPage() {
         <h1 className="research__title">歷史交易研究</h1>
         <p className="research__lede">
           分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。
-          2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析。
+          2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析
+          {report.reentryCount > 0 ? `（另有 ${report.reentryCount} 筆再進場已保留紀錄）` : null}。
         </p>
       </header>
 
@@ -300,47 +320,71 @@ export function ResearchPage() {
         </div>
       </section>
 
-      {report.entryCount === 0 ? (
-        <p className="research__empty">
-          研究期間內沒有建立部位。請先到<strong>資料中心</strong>匯入交易明細。
-        </p>
-      ) : null}
-
-      {report.missingStocks.length > 0 ? (
-        <p className="research__missing">
-          有 {report.missingStocks.length} 檔尚未回補價格資料，這些建立部位無法分析。
-          請按「回補歷史資料」。
-        </p>
-      ) : null}
-
-      <nav className="tabs" aria-label="研究指標">
-        {RESEARCH_METRICS.map((id) => (
+      <nav className="tabs" aria-label="研究檢視">
+        {(['result', 'log', 'flow', 'history'] as const).map((id) => (
           <button
             key={id}
             type="button"
-            className={id === metric ? 'tabs__item tabs__item--active' : 'tabs__item'}
-            aria-current={id === metric ? 'page' : undefined}
-            onClick={() => setMetric(id)}
+            className={id === view ? 'tabs__item tabs__item--active' : 'tabs__item'}
+            aria-current={id === view ? 'page' : undefined}
+            onClick={() => setView(id)}
           >
-            {METRIC_LABEL[id]}
+            {VIEW_LABEL[id]}
           </button>
         ))}
       </nav>
 
-      {(['stock', 'etf'] as const).map((assetClass) => (
-        <AssetSection
-          key={assetClass}
-          assetClass={assetClass}
-          result={report.results[metric][assetClass]}
-          samples={report.samples[metric]}
-          unit={METRIC_UNIT[metric]}
-        />
-      ))}
+      {view === 'log' ? <TransactionLog rows={log} /> : null}
 
-      <p className="research__footnote">
-        候選區間由系統依歷史資料產生，尚未套用到任何判定。是否採用由你決定，
-        且採用後仍可修改或回復。本頁不產生買賣建議。
-      </p>
+      {view === 'flow' ? <ResearchFlow /> : null}
+
+      {view === 'history' ? <ResearchHistory runs={runs} /> : null}
+
+      {view === 'result' ? (
+        <>
+          {report.entryCount === 0 ? (
+            <p className="research__empty">
+              研究期間內沒有建立部位。請先到<strong>資料中心</strong>匯入交易明細。
+            </p>
+          ) : null}
+
+          {report.missingStocks.length > 0 ? (
+            <p className="research__missing">
+              有 {report.missingStocks.length} 檔尚未回補價格資料，這些建立部位無法分析。
+              請按「回補歷史資料」。
+            </p>
+          ) : null}
+
+          <nav className="tabs" aria-label="研究指標">
+            {RESEARCH_METRICS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={id === metric ? 'tabs__item tabs__item--active' : 'tabs__item'}
+                aria-current={id === metric ? 'page' : undefined}
+                onClick={() => setMetric(id)}
+              >
+                {METRIC_LABEL[id]}
+              </button>
+            ))}
+          </nav>
+
+          {(['stock', 'etf'] as const).map((assetClass) => (
+            <AssetSection
+              key={assetClass}
+              assetClass={assetClass}
+              result={report.results[metric][assetClass]}
+              samples={report.samples[metric]}
+              unit={METRIC_UNIT[metric]}
+            />
+          ))}
+
+          <p className="research__footnote">
+            候選區間由系統依歷史資料產生，尚未套用到任何判定。是否採用由你決定，
+            且採用後仍可修改或回復。本頁不產生買賣建議。
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -1,0 +1,45 @@
+name: CI
+
+# 合併前的關卡。deploy-pages.yml 只在 main 上跑，等於驗證與部署綁在一起，
+# 分支要合併進去之後才會第一次被檢查；這個 workflow 補上那段空白，
+# 只檢查、不部署。
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # 前端 vitest 與 worker 的 node:test 都包含在 npm test 內
+      - name: Test
+        run: npm run test
+
+      # 與 deploy-pages.yml 用同一組 base，確保這裡建得起來的東西
+      # 在部署時也建得起來
+      - name: Build
+        run: npm run build -- --base=/${GITHUB_REPOSITORY#*/}/
