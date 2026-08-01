@@ -2,7 +2,7 @@ import { METRIC_LABEL, METRIC_UNIT, RESEARCH_METRICS } from '../../research/runR
 import type { AssetClass } from '../../research/snapshot';
 import type { WalkForwardResult } from '../../research/walkForward';
 import type { ResearchRunRecord } from '../../storage/types';
-import { ASSET_LABEL, BAND_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
+import { ASSET_LABEL, NEUTRAL_BAND_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
 
 const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
@@ -98,7 +98,7 @@ export function ResearchHistory({ runs }: { runs: ResearchRunRecord[] | null }) 
                   <th>P25</th>
                   <th>P75</th>
                   {(['pullback', 'normal', 'overheated'] as const).map((band) => (
-                    <th key={band}>{BAND_LABEL[band]}</th>
+                    <th key={band}>{NEUTRAL_BAND_LABEL[band]}</th>
                   ))}
                 </tr>
               </thead>

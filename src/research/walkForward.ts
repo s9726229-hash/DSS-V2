@@ -1,4 +1,6 @@
+import { bandLabel } from './bandLabels';
 import { computeBaseline, type Baseline } from './outcome';
+import type { ResearchMetric } from './runResearch';
 import type { AssetClass } from './snapshot';
 
 /** 規格的證據門檻：0–4 資料不足、5–9 初步觀察、10 以上才可能值得追蹤。 */
@@ -127,12 +129,6 @@ function bandOf(value: number, p25: number, p75: number): BandId {
 
 const BAND_ORDER: BandId[] = ['pullback', 'normal', 'overheated'];
 
-const BAND_LABEL: Record<BandId, string> = {
-  pullback: '回檔下界',
-  normal: '合理區',
-  overheated: '偏熱上界',
-};
-
 /**
  * expanding walk-forward 驗證。
  *
@@ -143,10 +139,13 @@ const BAND_LABEL: Record<BandId, string> = {
 export function runWalkForward({
   samples,
   assetClass,
+  metric,
   fractions = [0.4, 0.6, 0.8],
 }: {
   samples: readonly MetricSample[];
   assetClass: AssetClass;
+  /** 只用來決定判定原因裡的區間名稱；統計本身與指標無關。 */
+  metric: ResearchMetric;
   fractions?: readonly number[];
 }): WalkForwardResult {
   const usable = samples
@@ -227,6 +226,7 @@ export function runWalkForward({
   const bands = BAND_ORDER.map((band) =>
     summarizeBand({
       band,
+      metric,
       hit: hits.get(band) as { samples: Set<MetricSample>; checkpoints: Set<number> },
       range: ranges.get(band),
       baseline,
@@ -244,12 +244,14 @@ export function runWalkForward({
 
 function summarizeBand({
   band,
+  metric,
   hit,
   range,
   baseline,
   flipped,
 }: {
   band: BandId;
+  metric: ResearchMetric;
   hit: { samples: Set<MetricSample>; checkpoints: Set<number> };
   range: { min: number | null; max: number | null } | undefined;
   baseline: Baseline;
@@ -286,7 +288,7 @@ function summarizeBand({
     flippedCount,
     cleanCount,
     baselineMedian: baseline.median,
-    label: BAND_LABEL[band],
+    label: bandLabel(metric, band),
   });
 
   return {

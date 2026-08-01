@@ -165,8 +165,8 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
     RESEARCH_METRICS.map((metric) => [
       metric,
       {
-        stock: runWalkForward({ samples: samples[metric], assetClass: 'stock' }),
-        etf: runWalkForward({ samples: samples[metric], assetClass: 'etf' }),
+        stock: runWalkForward({ samples: samples[metric], assetClass: 'stock', metric }),
+        etf: runWalkForward({ samples: samples[metric], assetClass: 'etf', metric }),
       },
     ]),
   ) as ResearchReport['results'];

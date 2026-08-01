@@ -75,7 +75,7 @@ describe('檢查點與分位數', () => {
     // 訓練期指標值為 0~9，驗證期為 100 以上；分位數不應被驗證期影響
     const samples = series(20, (index) => (index < 10 ? index : 100 + index), () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.checkpoints).toHaveLength(1);
     expect(result.checkpoints[0].p75).toBeLessThan(100);
@@ -84,7 +84,7 @@ describe('檢查點與分位數', () => {
   it('記錄訓練截止日與訓練、驗證事件數供事後查核', () => {
     const samples = series(20, (index) => index, () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const checkpoint = result.checkpoints[0];
 
     expect(checkpoint.trainingCutoff).toBe(samples[9].entryDate);
@@ -95,7 +95,7 @@ describe('檢查點與分位數', () => {
   it('訓練期樣本不足時不產生該檢查點', () => {
     const samples = series(4, (index) => index, () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.checkpoints).toHaveLength(0);
   });
@@ -106,7 +106,7 @@ describe('檢查點與分位數', () => {
       ...series(20, () => 999, () => 99, { assetClass: 'etf' }),
     ];
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.checkpoints[0].p75).toBeLessThan(999);
   });
@@ -116,7 +116,7 @@ describe('三個候選區間', () => {
   it('以 P25 與 P75 切出回檔下界、合理區與偏熱上界', () => {
     const samples = series(40, (index) => index, () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const ids = result.bands.map((band) => band.band);
 
     expect(ids).toEqual(['pullback', 'normal', 'overheated']);
@@ -132,7 +132,7 @@ describe('三個候選區間', () => {
       (index) => [(-10), 5, 20][index % 3],
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const pullback = result.bands.find((band) => band.band === 'pullback');
     const overheated = result.bands.find((band) => band.band === 'overheated');
 
@@ -145,7 +145,7 @@ describe('證據等級', () => {
   it('完整驗證事件 0 至 4 筆標示為資料不足', () => {
     const samples = series(14, (index) => index, () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const scarce = result.bands.find((band) => band.completeCount <= 4);
 
     expect(scarce?.evidence).toBe('insufficient-data');
@@ -155,7 +155,7 @@ describe('證據等級', () => {
     // 指標循環 0~9，P25 約 2、P75 約 7，合理區約佔四成
     const samples = series(50, (index) => index % 10, (index) => (index % 10 >= 3 && index % 10 <= 5 ? 20 : 0));
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.completeCount).toBeGreaterThanOrEqual(5);
@@ -169,7 +169,7 @@ describe('證據等級', () => {
       index % 10 >= 3 && index % 10 <= 6 ? 20 : 0,
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.4, 0.6, 0.8] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.4, 0.6, 0.8] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.completeCount).toBeGreaterThanOrEqual(10);
@@ -182,7 +182,7 @@ describe('證據等級', () => {
       index % 10 >= 3 && index % 10 <= 6 ? 20 : 0,
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.checkpointsCovered).toBe(1);
@@ -196,7 +196,7 @@ describe('證據等級', () => {
       index % 10 >= 7 ? -30 : 20,
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.4, 0.6, 0.8] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.4, 0.6, 0.8] });
     const overheated = result.bands.find((band) => band.band === 'overheated');
 
     expect(overheated?.evidence).toBe('insufficient-evidence');
@@ -206,7 +206,7 @@ describe('證據等級', () => {
   it('未走完觀察窗的樣本不計入驗證結果', () => {
     const samples = series(40, () => 50, () => 15, { complete: false });
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.bands.every((band) => band.completeCount === 0)).toBe(true);
   });
@@ -220,7 +220,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
     const pullback = result.bands.find((band) => band.band === 'pullback');
     const normal = result.bands.find((band) => band.band === 'normal');
 
@@ -238,7 +238,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
     const pullback = result.bands.find((band) => band.band === 'pullback');
 
     expect(pullback?.completeCount).toBe(11);
@@ -258,7 +258,7 @@ describe('門檻穩定度', () => {
       ...tailRows(2, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
     const pullback = result.bands.find((band) => band.band === 'pullback');
 
     expect(pullback?.completeCount).toBe(13);
@@ -276,7 +276,7 @@ describe('門檻穩定度', () => {
       (index) => (index % 3 === 1 ? 20 : 0),
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.4, 0.6, 0.8] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.4, 0.6, 0.8] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.flippedCount).toBe(0);
@@ -291,7 +291,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
     const pullback = result.bands.find((band) => band.band === 'pullback');
 
     // 非重疊只剩 4 筆，重疊敏感也成立；但歸屬不確定比重疊更根本
@@ -306,7 +306,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.completeCount).toBe(11);
@@ -335,7 +335,7 @@ describe('門檻穩定度', () => {
       }),
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.6, 0.9] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.6, 0.9] });
     const normal = result.bands.find((band) => band.band === 'normal');
     const overheated = result.bands.find((band) => band.band === 'overheated');
 
@@ -354,7 +354,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
 
     expect(result.drift.p25).toEqual({ low: 7, high: 11, span: 4 });
     expect(result.drift.p75).toEqual({ low: 21, high: 50, span: 29 });
@@ -367,7 +367,7 @@ describe('門檻穩定度', () => {
       ...tailRows(4, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.drift.p25).toBeNull();
     expect(result.drift.p75).toBeNull();
@@ -391,7 +391,7 @@ describe('門檻穩定度', () => {
       }),
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5, 0.8] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5, 0.8] });
 
     expect(result.checkpoints).toHaveLength(2);
     expect(result.checkpoints[0].p25).toBe(result.checkpoints[0].p75);
@@ -412,7 +412,7 @@ describe('聯合門檻（翻轉 × 重疊）', () => {
       ...tailRows(3, 15, 0),
     ]);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: DRIFT_FRACTIONS });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: DRIFT_FRACTIONS });
     const pullback = result.bands.find((band) => band.band === 'pullback');
 
     expect(pullback?.completeCount).toBe(12);
@@ -434,7 +434,7 @@ describe('重疊敏感度', () => {
       return index % 2 === 0 ? 40 : -10;
     }).map((row, index) => ({ ...row, overlapsPrevious: index % 2 === 0 }));
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.4, 0.6, 0.8] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.4, 0.6, 0.8] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.evidence).toBe('overlap-sensitive');
@@ -447,7 +447,7 @@ describe('重疊敏感度', () => {
       overlapsPrevious: index % 2 === 0,
     }));
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const normal = result.bands.find((band) => band.band === 'normal');
 
     expect(normal?.completeCount).toBeGreaterThan(0);
@@ -459,7 +459,7 @@ describe('輸出的完整性', () => {
   it('每個區間都附上淘汰或合格的原因', () => {
     const samples = series(40, (index) => index, () => 5);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.bands.every((band) => band.reason.length > 0)).toBe(true);
   });
@@ -467,14 +467,14 @@ describe('輸出的完整性', () => {
   it('附上同類基準供對照', () => {
     const samples = series(40, (index) => index % 10, () => 12);
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
 
     expect(result.baseline.median).toBeCloseTo(12, 6);
     expect(result.bands.every((band) => band.baselineMedian === result.baseline.median)).toBe(true);
   });
 
   it('沒有任何樣本時回傳空結果而非拋出例外', () => {
-    const result = runWalkForward({ samples: [], assetClass: 'etf', fractions: [0.5] });
+    const result = runWalkForward({ samples: [], assetClass: 'etf', metric: 'bias20', fractions: [0.5] });
 
     expect(result.checkpoints).toEqual([]);
     expect(result.baseline.median).toBeNull();
@@ -485,7 +485,7 @@ describe('輸出的完整性', () => {
       index < 20 ? { ...row, metricValue: null } : row,
     );
 
-    const result = runWalkForward({ samples, assetClass: 'stock', fractions: [0.5] });
+    const result = runWalkForward({ samples, assetClass: 'stock', metric: 'bias20', fractions: [0.5] });
     const total = result.bands.reduce((sum, band) => sum + band.completeCount, 0);
 
     expect(total).toBeLessThan(20);

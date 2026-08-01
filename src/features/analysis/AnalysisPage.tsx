@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DistortionEvent } from '../../dss/adjustment';
-import { adjustPrices } from '../../dss/adjustment';
-import type { ChipResult } from '../../dss/chip';
-import { computeChipSnapshot } from '../../dss/chip';
-import type { TechnicalResult } from '../../dss/technical';
-import { computeTechnicalSnapshot } from '../../dss/technical';
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../../market/types';
-import { readCachedDataset } from '../../storage/marketCache';
-import { readHoldingsSnapshot } from '../../storage/portfolio';
+import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
 import { CalculationFlow } from './CalculationFlow';
 import { ChipPanel } from './ChipPanel';
 import { TechnicalPanel } from './TechnicalPanel';
@@ -18,15 +11,6 @@ type Tab = 'status' | 'flow';
 const TAB_LABEL: Record<Tab, string> = {
   status: '個股狀態',
   flow: '計算流程',
-};
-
-export type StockAnalysis = {
-  stockId: string;
-  stockName: string;
-  priceDate: string | null;
-  technical: TechnicalResult;
-  chip: ChipResult;
-  appliedAdjustments: DistortionEvent[];
 };
 
 const EVENT_LABEL: Record<'dividend' | 'split', string> = {
@@ -66,34 +50,6 @@ function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
   );
 }
 
-async function analyseStock(stockId: string, stockName: string): Promise<StockAnalysis> {
-  const [priceCache, institutionalCache, dividendCache, splitCache] = await Promise.all([
-    readCachedDataset('TaiwanStockPrice', stockId),
-    readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId),
-    readCachedDataset('TaiwanStockDividendResult', stockId),
-    readCachedDataset('TaiwanStockSplitPrice', stockId),
-  ]);
-
-  const raw = (priceCache?.payload ?? []) as PriceRow[];
-  const institutional = (institutionalCache?.payload ?? []) as InstitutionalRow[];
-
-  // 先還原再計算，均線與乖離才不會被除權息與分割的帳面跳空拉偏
-  const { prices, appliedEvents } = adjustPrices({
-    prices: raw,
-    dividends: (dividendCache?.payload ?? []) as AdjustmentEventRow[],
-    splits: (splitCache?.payload ?? []) as AdjustmentEventRow[],
-  });
-
-  return {
-    stockId,
-    stockName,
-    priceDate: priceCache?.tradeDate || null,
-    technical: computeTechnicalSnapshot(prices),
-    chip: computeChipSnapshot({ institutional, prices }),
-    appliedAdjustments: appliedEvents,
-  };
-}
-
 export function AnalysisPage() {
   const [tab, setTab] = useState<Tab>('status');
   const [analyses, setAnalyses] = useState<StockAnalysis[] | null>(null);
@@ -102,10 +58,7 @@ export function AnalysisPage() {
     let cancelled = false;
 
     void (async () => {
-      const holdings = await readHoldingsSnapshot();
-      const results = await Promise.all(
-        holdings.map((holding) => analyseStock(holding.stockId, holding.stockName)),
-      );
+      const results = await analyseHoldings();
 
       if (!cancelled) setAnalyses(results);
     })();

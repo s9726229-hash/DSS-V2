@@ -17,7 +17,12 @@ import { readTransactions } from '../../storage/portfolio';
 import type { BandResult, WalkForwardResult } from '../../research/walkForward';
 import type { ResearchRunRecord } from '../../storage/types';
 import { DriftLine } from './DriftLine';
-import { ASSET_LABEL, BAND_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
+import { bandLabel } from '../../research/bandLabels';
+import { readProfile, writeProfile } from '../../profile/profileStore';
+import { emptyProfile, type Profile } from '../../profile/profile';
+import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
+import { ApplyCandidate, type PendingCandidate } from './ApplyCandidate';
+import { ASSET_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
 import { ResearchFlow } from './ResearchFlow';
 import { ResearchHistory } from './ResearchHistory';
@@ -124,13 +129,26 @@ function Checkpoints({ result, unit }: { result: WalkForwardResult; unit: string
   );
 }
 
-function Band({ band, unit }: { band: BandResult; unit: string }) {
+function Band({
+  band,
+  unit,
+  metric,
+  onApply,
+}: {
+  band: BandResult;
+  unit: string;
+  metric: ResearchMetric;
+  onApply: (band: BandResult) => void;
+}) {
   const tone = EVIDENCE_TONE[band.evidence];
+  const label = bandLabel(metric, band.band);
+  // 沒有門檻就沒有東西可以寫進 Profile
+  const applicable = band.range.min !== null || band.range.max !== null;
 
   return (
-    <article className="band" aria-label={BAND_LABEL[band.band]}>
+    <article className="band" aria-label={label}>
       <header className="band__head">
-        <h4 className="band__title">{BAND_LABEL[band.band]}</h4>
+        <h4 className="band__title">{label}</h4>
         <span className={`badge badge--${tone}`}>{EVIDENCE_LABEL[band.evidence]}</span>
       </header>
 
@@ -182,6 +200,16 @@ function Band({ band, unit }: { band: BandResult; unit: string }) {
       </dl>
 
       <p className="band__reason">{band.reason}</p>
+
+      <button
+        type="button"
+        className="band__apply"
+        disabled={!applicable}
+        title={applicable ? undefined : '這個區間還沒有可用門檻'}
+        onClick={() => onApply(band)}
+      >
+        加入 Profile 候選
+      </button>
     </article>
   );
 }
@@ -191,11 +219,15 @@ function AssetSection({
   result,
   samples,
   unit,
+  metric,
+  onApply,
 }: {
   assetClass: AssetClass;
   result: WalkForwardResult;
   samples: ResearchSample[];
   unit: string;
+  metric: ResearchMetric;
+  onApply: (assetClass: AssetClass, band: BandResult) => void;
 }) {
   const scoped = samples.filter((row) => row.assetClass === assetClass);
 
@@ -221,7 +253,13 @@ function AssetSection({
       </h4>
       <div className="bands">
         {result.bands.map((band) => (
-          <Band key={band.band} band={band} unit={unit} />
+          <Band
+            key={band.band}
+            band={band}
+            unit={unit}
+            metric={metric}
+            onApply={(applied) => onApply(assetClass, applied)}
+          />
         ))}
       </div>
     </section>
@@ -233,6 +271,9 @@ export function ResearchPage() {
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [runs, setRuns] = useState<ResearchRunRecord[] | null>(null);
   const [log, setLog] = useState<TransactionLogRow[]>([]);
+  const [profile, setProfile] = useState<Profile>(emptyProfile());
+  const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
+  const [pending, setPending] = useState<PendingCandidate | null>(null);
   const [metric, setMetric] = useState<ResearchMetric>('bias20');
   const [backfilling, setBackfilling] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -246,12 +287,35 @@ export function ResearchPage() {
       const next = await runResearch();
       setReport(next);
       setLog(buildTransactionLog(await readTransactions()));
+      setProfile(await readProfile());
       await saveResearchRun(next, new Date().toISOString());
       setRuns(await readResearchRuns());
     })();
   }, []);
 
   useEffect(refresh, [refresh]);
+
+  // 庫存狀態只為了「套用後會變動哪些標的」的預覽而讀，與研究結果無關
+  useEffect(() => {
+    let cancelled = false;
+    void analyseHoldings().then((results) => {
+      if (!cancelled) setHoldings(results);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 最新一次搜尋紀錄，套用時記下候選是從哪一批研究來的。 */
+  const latestRunId = runs !== null && runs.length > 0 ? runs[0].id : null;
+
+  const confirmApply = useCallback((next: Profile) => {
+    setPending(null);
+    void (async () => {
+      await writeProfile(next);
+      setProfile(next);
+    })();
+  }, []);
 
   const backfill = useCallback(() => {
     setBackfilling(true);
@@ -273,6 +337,16 @@ export function ResearchPage() {
 
   return (
     <div className="research">
+      {pending === null ? null : (
+        <ApplyCandidate
+          candidate={pending}
+          profile={profile}
+          analyses={holdings}
+          onCancel={() => setPending(null)}
+          onConfirm={confirmApply}
+        />
+      )}
+
       <header className="research__head">
         <h1 className="research__title">歷史交易研究</h1>
         <p className="research__lede">
@@ -376,6 +450,8 @@ export function ResearchPage() {
               result={report.results[metric][assetClass]}
               samples={report.samples[metric]}
               unit={METRIC_UNIT[metric]}
+              metric={metric}
+              onApply={(applied, band) => setPending({ metric, assetClass: applied, band, runId: latestRunId })}
             />
           ))}
 

@@ -3,10 +3,15 @@ import type { BandId, EvidenceLevel } from '../../research/walkForward';
 
 export const ASSET_LABEL: Record<AssetClass, string> = { stock: '個股', etf: 'ETF' };
 
-export const BAND_LABEL: Record<BandId, string> = {
-  pullback: '回檔下界',
-  normal: '合理區',
-  overheated: '偏熱上界',
+/**
+ * 搜尋紀錄的表格一列一個指標，欄位卻是三個區間共用的，
+ * 因此表頭不能用任一指標的專屬名稱（見 research/bandLabels）。
+ * 這裡用中性的位置說法，實際名稱在研究結果頁依指標顯示。
+ */
+export const NEUTRAL_BAND_LABEL: Record<BandId, string> = {
+  pullback: '低區',
+  normal: '中區',
+  overheated: '高區',
 };
 
 export const EVIDENCE_LABEL: Record<EvidenceLevel, string> = {

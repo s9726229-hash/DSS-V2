@@ -1,0 +1,106 @@
+.profile {
+  max-width: 1080px;
+}
+
+.profile__head {
+  margin-bottom: var(--gap-5);
+}
+
+.profile__title {
+  margin: 0 0 var(--gap-2);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.profile__lede {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--graphite);
+}
+
+.profile__section {
+  margin-bottom: var(--gap-5);
+}
+
+.profile__section-title {
+  margin: 0 0 var(--gap-2);
+  padding-bottom: var(--gap-1);
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.profile__note {
+  max-width: 72ch;
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.profile__asset {
+  margin-bottom: var(--gap-4);
+}
+
+.profile__asset-title {
+  margin: 0 0 var(--gap-2);
+  color: var(--graphite);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* 門檻表：一列一個指標，左欄順帶說明這兩個數字切出來的區間叫什麼。 */
+.conditions td {
+  vertical-align: top;
+}
+
+.conditions__metric {
+  display: block;
+  color: var(--ink);
+}
+
+.conditions__bands {
+  display: block;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.conditions__value {
+  display: block;
+  font-size: 14px;
+}
+
+.conditions__unset {
+  color: var(--graphite-light);
+  font-size: 12px;
+}
+
+.origin {
+  display: block;
+  margin-top: 2px;
+}
+
+.origin__tag {
+  display: inline-block;
+  margin-right: var(--gap-1);
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--graphite);
+  font-size: 10px;
+}
+
+/* 自訂與「證據不足仍套用」都要看得見，這是使用者自己承擔的部分。 */
+.origin__tag--manual,
+.origin__tag--override {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+  color: var(--attention);
+}
+
+.origin__meta {
+  display: block;
+  color: var(--graphite-light);
+  font-size: 10px;
+}
