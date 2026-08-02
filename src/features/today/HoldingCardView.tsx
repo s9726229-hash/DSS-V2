@@ -5,11 +5,13 @@ import type {
   HoldingCard,
   WatchCard,
 } from '../../dss/holdingCard';
+import type { InvestorChip } from '../../dss/chip';
 import { bandLabel } from '../../research/bandLabels';
 import { METRIC_LABEL, METRIC_UNIT } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
-import { continuityText, JOINT_LABEL, lots, MONTHLY_LINE_LABEL } from '../dssLabels';
+import { ChipBars } from '../ChipBars';
+import { continuityText, JOINT_LABEL, lots, MONTHLY_LINE_LABEL, strengthText } from '../dssLabels';
 import { Sparkline } from './Sparkline';
 
 const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
@@ -57,6 +59,25 @@ function BandChip({ band }: { band: CardBand }) {
       </span>
       {band.unverified ? <span className="band-chip__flag">未驗證</span> : null}
     </div>
+  );
+}
+
+/**
+ * 卡片上的一位法人。
+ *
+ * 期間一定要寫出來：淨額與強度是近 5 日合計，方向只講到最後一天。
+ * 舊版把兩者並排卻不標期間，於是出現「-18709 張（連買 1 日）」這種看似自相矛盾的句子。
+ */
+function InvestorLine({ label, chip }: { label: string; chip: InvestorChip }) {
+  return (
+    <span className="card__investor">
+      <span className="card__investor-name">{label}</span>
+      <span className="card__investor-figure num">
+        近5日 {lots(chip.fiveDayNet)} ≈ {strengthText(chip.strength)}
+      </span>
+      <ChipBars daily={chip.daily} label={label} />
+      <span className="card__investor-recent">{continuityText(chip.continuity)}</span>
+    </span>
   );
 }
 
@@ -129,11 +150,9 @@ function CardFrame({
         <div className="card__readout">
           <span className="card__label micro">籌碼</span>
           {analysis.chip.ok ? (
-            <span className="card__readout-body num">
-              外資 {lots(analysis.chip.snapshot.foreign.fiveDayNet)}（
-              {continuityText(analysis.chip.snapshot.foreign.continuity)}）．投信{' '}
-              {lots(analysis.chip.snapshot.trust.fiveDayNet)}（
-              {continuityText(analysis.chip.snapshot.trust.continuity)}）
+            <span className="card__readout-body">
+              <InvestorLine label="外資" chip={analysis.chip.snapshot.foreign} />
+              <InvestorLine label="投信" chip={analysis.chip.snapshot.trust} />
               <span className="card__tag">{JOINT_LABEL[analysis.chip.snapshot.joint]}</span>
             </span>
           ) : (

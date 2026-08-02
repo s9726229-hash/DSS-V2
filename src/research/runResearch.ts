@@ -18,10 +18,14 @@ export const METRIC_LABEL: Record<ResearchMetric, string> = {
   trustStrength: '投信強度',
 };
 
+/**
+ * 強度的單位其實就是「天」：5 日淨額（股）÷ 5 日平均量（股／日）＝ 日。
+ * 以前印成沒有單位的小數，看起來像個抽象分數，這裡把單位補回去。
+ */
 export const METRIC_UNIT: Record<ResearchMetric, string> = {
   bias20: '%',
-  foreignStrength: '',
-  trustStrength: '',
+  foreignStrength: ' 天量',
+  trustStrength: ' 天量',
 };
 
 /**

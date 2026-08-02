@@ -36,7 +36,27 @@ export function lots(shares: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(0)} 張`;
 }
 
+/**
+ * 強度：5 日淨額 ÷ 5 日平均量，單位是「日」。
+ * 0.36 天量＝這 5 天的淨額大約等於 0.36 個交易日的成交量。
+ *
+ * 小到第二位都進位成 0 時直接寫「約 0」：印成 -0.00 天量看起來像壞掉，
+ * 而且那個負號讓四捨五入的殘渣看起來像有方向的資訊。
+ */
+export function strengthText(strength: number): string {
+  if (Math.abs(strength) < 0.005) return '約 0 天量';
+
+  return `${strength >= 0 ? '+' : ''}${strength.toFixed(2)} 天量`;
+}
+
+/**
+ * 連續性。
+ *
+ * 只有一天時寫「連買 1 日」會與同行的 5 日淨額互相打架——淨額是五天合計，
+ * 連續性只講最後一天，兩個期間並排看起來像自相矛盾。一天就直說是最新一日。
+ */
 export function continuityText({ direction, days }: Continuity): string {
-  if (direction === 'flat' || days === 0) return '無連續';
+  if (direction === 'flat' || days === 0) return '最新一日 持平';
+  if (days === 1) return `最新一日 ${direction === 'buy' ? '買超' : '賣超'}`;
   return `連${direction === 'buy' ? '買' : '賣'} ${days} 日`;
 }

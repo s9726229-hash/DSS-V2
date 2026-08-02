@@ -245,3 +245,28 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 法人每日買賣超的迷你長條：今日 DSS 卡片與技術分析頁共用 */
+.chipbars {
+  height: 22px;
+  width: auto;
+  flex: none;
+  overflow: visible;
+}
+
+.chipbars__zero {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.chipbars__bar--up {
+  fill: var(--signal-up);
+}
+
+.chipbars__bar--down {
+  fill: var(--signal-down);
+}
+
+.chipbars__bar--flat {
+  fill: var(--graphite);
+}

@@ -203,6 +203,55 @@ describe('連續性', () => {
   });
 });
 
+describe('逐日淨額', () => {
+  /*
+   * 5 日合計分不出「連續買五天」與「賣四天最後一天翻多」，
+   * 畫面要畫得出那個差別就必須拿得到逐日資料。
+   */
+  it('保留納入計算的五個交易日，由舊到新', () => {
+    const result = computeChipSnapshot({
+      institutional: [
+        ...rows('Foreign_Investor', {
+          '2026-07-14': -100,
+          '2026-07-15': -100,
+          '2026-07-16': -100,
+          '2026-07-17': -100,
+          '2026-07-18': 300,
+        }),
+        ...rows('Investment_Trust', evenly(DATES, 100)),
+      ],
+      prices: volume(DATES),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.snapshot.foreign.daily.map((day) => day.date)).toEqual(DATES);
+    expect(result.snapshot.foreign.daily.map((day) => day.net)).toEqual([
+      -100, -100, -100, -100, 300,
+    ]);
+    // 合計是 -100，方向卻是最後一日翻買：兩件事必須都看得到
+    expect(result.snapshot.foreign.fiveDayNet).toBe(-100);
+    expect(result.snapshot.foreign.continuity).toEqual({ direction: 'buy', days: 1 });
+  });
+
+  it('只收有對應成交量的交易日，與強度用的期間一致', () => {
+    const extra = ['2026-07-10', ...DATES];
+    const result = computeChipSnapshot({
+      institutional: [
+        ...rows('Foreign_Investor', evenly(extra, 100)),
+        ...rows('Investment_Trust', evenly(extra, 100)),
+      ],
+      // 2026-07-10 沒有價格資料
+      prices: volume(DATES),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.snapshot.foreign.daily.map((day) => day.date)).toEqual(DATES);
+  });
+});
+
 describe('聯合狀態', () => {
   function joint(foreignNet: number, trustNet: number) {
     const result = computeChipSnapshot({

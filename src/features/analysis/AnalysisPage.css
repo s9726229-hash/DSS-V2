@@ -170,7 +170,19 @@
   display: grid;
   align-items: baseline;
   gap: var(--gap-3);
-  grid-template-columns: 5.5em 1fr 4.5em 5em;
+  grid-template-columns: 5.5em 1fr 6em 3.5em 6em;
+}
+
+/* 長條要與同列的文字置中對齊，而不是壓在基線上 */
+.investor__daily {
+  align-self: center;
+  display: flex;
+  justify-content: center;
+}
+
+.investor--header .investor__daily {
+  align-self: baseline;
+  justify-content: center;
 }
 
 .investor--header .investor__label,

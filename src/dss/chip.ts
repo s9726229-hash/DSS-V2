@@ -25,9 +25,19 @@ export type InvestorChip = {
   fiveDayNet: number;
   /** 同期間 5 日平均成交量（股）。 */
   averageVolume: number;
-  /** fiveDayNet / averageVolume，便於不同個股比較。 */
+  /**
+   * fiveDayNet / averageVolume，便於不同個股比較。
+   * 分子是股、分母是股／日，因此單位是「日」：0.36 代表約 0.36 個交易日的成交量。
+   */
   strength: number;
   continuity: Continuity;
+  /**
+   * 納入計算的那 5 個交易日，由舊到新。
+   *
+   * 合計數字看不出「連續買了五天」與「賣四天最後一天翻多」的差別，
+   * 畫面要能把每日走勢攤開，就得拿得到逐日資料。
+   */
+  daily: readonly DailyNet[];
 };
 
 /**
@@ -56,7 +66,7 @@ export type ChipResult =
       lastAvailableDate: string | null;
     };
 
-type DailyNet = { date: string; net: number };
+export type DailyNet = { date: string; net: number };
 
 function dailyNetFor(rows: readonly InstitutionalRow[], name: string): DailyNet[] {
   const byDate = new Map<string, number>();
@@ -104,6 +114,7 @@ function summarize(window: DailyNet[], volumeByDate: Map<string, number>): Inves
     averageVolume,
     strength: averageVolume === 0 ? 0 : fiveDayNet / averageVolume,
     continuity: continuityOf(window),
+    daily: window,
   };
 }
 

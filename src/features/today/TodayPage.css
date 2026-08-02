@@ -189,6 +189,23 @@
   color: var(--attention);
 }
 
+/* 籌碼：兩位法人各一行，欄位對齊才能一眼上下比較 */
+.card__investor {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--gap-2);
+}
+
+.card__investor-name {
+  color: var(--ink);
+}
+
+.card__investor-recent {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .card__tag {
   margin-left: var(--gap-1);
   padding: 0 4px;

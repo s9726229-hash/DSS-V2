@@ -1,5 +1,6 @@
 import type { ChipResult, InvestorChip } from '../../dss/chip';
-import { continuityText, JOINT_LABEL, lots } from '../dssLabels';
+import { ChipBars } from '../ChipBars';
+import { continuityText, JOINT_LABEL, lots, strengthText } from '../dssLabels';
 
 function InvestorRow({ label, chip }: { label: string; chip: InvestorChip }) {
   const tone = chip.fiveDayNet > 0 ? 'up' : chip.fiveDayNet < 0 ? 'down' : undefined;
@@ -10,9 +11,14 @@ function InvestorRow({ label, chip }: { label: string; chip: InvestorChip }) {
       <span className={tone ? `investor__net num investor__net--${tone}` : 'investor__net num'}>
         {lots(chip.fiveDayNet)}
       </span>
-      <span className="investor__strength num" title="5 日淨額 ÷ 5 日平均成交量">
-        {chip.strength >= 0 ? '+' : ''}
-        {chip.strength.toFixed(3)}
+      <span
+        className="investor__strength num"
+        title="5 日淨額 ÷ 5 日平均成交量。單位是天：0.36 天量代表約 0.36 個交易日的成交量。"
+      >
+        {strengthText(chip.strength)}
+      </span>
+      <span className="investor__daily">
+        <ChipBars daily={chip.daily} label={label} />
       </span>
       <span className="investor__continuity">{continuityText(chip.continuity)}</span>
     </div>
@@ -44,11 +50,13 @@ export function ChipPanel({ result }: { result: ChipResult }) {
       <h3 className="panel__title micro">籌碼面</h3>
 
       <div className="panel__investors">
+        {/* 期間寫在標題上：淨額與強度是 5 日合計，連續性只講到最後一天 */}
         <div className="investor investor--header">
           <span className="investor__label micro">身分</span>
-          <span className="investor__net micro">5 日淨額</span>
-          <span className="investor__strength micro">強度</span>
-          <span className="investor__continuity micro">連續性</span>
+          <span className="investor__net micro">近 5 日淨額</span>
+          <span className="investor__strength micro">相當於幾天量</span>
+          <span className="investor__daily micro">每日</span>
+          <span className="investor__continuity micro">最近方向</span>
         </div>
         <InvestorRow label="外資及陸資" chip={snapshot.foreign} />
         <InvestorRow label="投信" chip={snapshot.trust} />
