@@ -206,6 +206,7 @@ function useSync(onFinished: () => void): SyncController {
             updated > 0 ? `${updated} 檔已更新` : null,
             summary.skippedCount > 0 ? `${summary.skippedCount} 檔已是最新` : null,
             failed > 0 ? `${failed} 檔失敗` : null,
+            summary.namedCount > 0 ? `${summary.namedCount} 檔補上名稱` : null,
           ].filter(Boolean);
 
           setMessage(parts.join('．'));
@@ -236,10 +237,19 @@ export function AppShell() {
 
   useEffect(refreshInventory, [refreshInventory]);
 
+  /**
+   * 同步完成後遞增，讓今日 DSS 重算。
+   *
+   * 少了這條線，狀態列會寫著「N 檔已更新」，卡片卻仍停在同步前的資料不足，
+   * 看起來就像同步沒有拿到任何東西。
+   */
+  const [dataVersion, setDataVersion] = useState(0);
+
   /** 同步剛用掉一批額度，這時候的用量數字才有意義。 */
   const onSyncFinished = useCallback(() => {
     refreshInventory();
     usage.refresh();
+    setDataVersion((version) => version + 1);
   }, [refreshInventory, usage]);
 
   const sync = useSync(onSyncFinished);
@@ -288,7 +298,7 @@ export function AppShell() {
           ) : page === 'profile' ? (
             <ProfilePage />
           ) : page === 'today' ? (
-            <TodayPage />
+            <TodayPage dataVersion={dataVersion} onWatchlistChanged={refreshInventory} />
           ) : (
             <PlaceholderPage
               title={PAGES.find((entry) => entry.id === page)?.label ?? ''}

@@ -1,8 +1,9 @@
 import { readCachedDataset, writeCachedDataset } from '../storage/marketCache';
 import { readHoldingsSnapshot } from '../storage/portfolio';
-import { readWatchlist } from '../watchlist/watchlistStore';
+import { needsNameLookup, resolveWatchName } from '../watchlist/watchlist';
+import { readWatchlist, writeWatchlist } from '../watchlist/watchlistStore';
 import { fetchDataset, type DateRange } from './finmindClient';
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from './types';
+import type { AdjustmentEventRow, InstitutionalRow, PriceRow, StockInfoRow } from './types';
 
 /** 價格取近一年，足以計算 MA60 並保留餘裕。 */
 const PRICE_LOOKBACK_DAYS = 365;
@@ -14,6 +15,9 @@ const INSTITUTIONAL_LOOKBACK_DAYS = 20;
 const ADJUSTMENT_LOOKBACK_DAYS = 400;
 
 const ADJUSTMENT_DATASETS = ['TaiwanStockDividendResult', 'TaiwanStockSplitPrice'] as const;
+
+/** 基本資料與日期無關，但閘道一律要求區間，因此給最小的一天。 */
+const STOCK_INFO_LOOKBACK_DAYS = 1;
 
 /** 與 Worker 端快取 TTL 相同：這段時間內重抓只會拿到相同內容。 */
 export const FRESHNESS_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -56,6 +60,8 @@ export type SyncSummary = {
   skippedCount: number;
   /** 未執行同步的原因；正常執行時為 null。 */
   skippedReason: 'nothing-to-sync' | null;
+  /** 這次同步替觀察標的補回名稱的檔數。 */
+  namedCount: number;
 };
 
 export type SyncOptions = {
@@ -173,6 +179,43 @@ async function cacheAdjustmentEvents(stockId: string, now: Date, retrievedAt: st
 }
 
 /**
+ * 補回觀察標的的名稱。
+ *
+ * 價格資料只有 stock_id，中文名稱只能向 TaiwanStockInfo 問，因此這是額外的請求：
+ * 只問「名稱還是代號」的那幾檔，已經有名稱的一次都不會再問。
+ *
+ * 回傳補到名稱的檔數。
+ */
+async function resolveWatchNames(now: Date): Promise<number> {
+  const pending = (await readWatchlist()).entries.filter(needsNameLookup);
+  if (pending.length === 0) return 0;
+
+  const range = rangeEnding(now, STOCK_INFO_LOOKBACK_DAYS);
+  const answers = new Map<string, string | null>();
+
+  for (const entry of pending) {
+    const result = await fetchDataset<StockInfoRow>('TaiwanStockInfo', entry.stockId, range);
+
+    // 取不到就什麼都不做，下次同步再試；只有真的問到回應才判定查無此代號
+    if (!result.ok) continue;
+
+    const name = result.rows.find((row) => row.stock_id === entry.stockId)?.stock_name?.trim();
+    answers.set(entry.stockId, name === undefined || name === '' ? null : name);
+  }
+
+  if (answers.size === 0) return 0;
+
+  // 重新讀一次再寫：同步期間使用者可能改過題材，拿舊清單覆寫會把那些變更吃掉
+  const latest = await readWatchlist();
+  let next = latest;
+  for (const [stockId, name] of answers) next = resolveWatchName(next, stockId, name);
+
+  if (next !== latest) await writeWatchlist(next);
+
+  return [...answers.values()].filter((name) => name !== null).length;
+}
+
+/**
  * 同步最新一份庫存快照與觀察清單中的個股。
  *
  * 規格原本寫的是「沒有庫存時不可發出任何市場資料網路請求」，那時還沒有觀察清單。
@@ -211,6 +254,7 @@ export async function syncHoldings({
       results: [],
       skippedCount: 0,
       skippedReason: 'nothing-to-sync',
+      namedCount: 0,
     };
   }
 
@@ -229,5 +273,6 @@ export async function syncHoldings({
     results,
     skippedCount: results.filter((result) => result.ok && result.skipped).length,
     skippedReason: null,
+    namedCount: await resolveWatchNames(now),
   };
 }

@@ -11,6 +11,9 @@
  * TaiwanStockPriceAdj 需要 FinMind 付費贊助等級，免費帳號會被上游拒絕；
  * 保留在白名單中，日後升級帳號即可直接使用。
  * 免費帳號改以 TaiwanStockPrice 搭配除息與分割事件自行還原。
+ *
+ * TaiwanStockInfo 只用來把股票代號換成中文名稱——價格資料裡沒有名稱。
+ * 它與日期無關，但仍走同一套區間檢查，因此呼叫端給一天即可。
  */
 const ALLOWED_DATASETS = new Map([
   ['TaiwanStockPrice', 400],
@@ -18,6 +21,7 @@ const ALLOWED_DATASETS = new Map([
   ['TaiwanStockDividendResult', 400],
   ['TaiwanStockSplitPrice', 400],
   ['TaiwanStockInstitutionalInvestorsBuySell', 45],
+  ['TaiwanStockInfo', 400],
 ]);
 
 const REQUIRED_PARAMS = ['dataset', 'data_id', 'start_date', 'end_date'];

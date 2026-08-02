@@ -98,7 +98,10 @@ describe('合法請求', () => {
 
 describe('參數驗證', () => {
   const rejected = [
-    ['未知資料集', 'dataset=TaiwanStockInfo&data_id=0050&start_date=2026-01-01&end_date=2026-01-05'],
+    [
+      '未知資料集',
+      'dataset=TaiwanStockDayTrading&data_id=0050&start_date=2026-01-01&end_date=2026-01-05',
+    ],
     ['股號含小寫', 'dataset=TaiwanStockPriceAdj&data_id=abcd&start_date=2026-01-01&end_date=2026-01-05'],
     ['股號過短', 'dataset=TaiwanStockPriceAdj&data_id=005&start_date=2026-01-01&end_date=2026-01-05'],
     ['股號過長', 'dataset=TaiwanStockPriceAdj&data_id=0050123&start_date=2026-01-01&end_date=2026-01-05'],
@@ -121,12 +124,13 @@ describe('參數驗證', () => {
     });
   }
 
-  it('接受自行還原所需的價格、除息與分割資料集', async () => {
+  it('接受自行還原所需的價格、除息與分割資料集，以及查名稱用的基本資料', async () => {
     for (const dataset of [
       'TaiwanStockPrice',
       'TaiwanStockPriceAdj',
       'TaiwanStockDividendResult',
       'TaiwanStockSplitPrice',
+      'TaiwanStockInfo',
     ]) {
       const response = await worker.fetch(
         request(`dataset=${dataset}&data_id=0050&start_date=2026-01-01&end_date=2026-01-05`),

@@ -11,6 +11,11 @@ export type WatchEntry = {
   addedAt: string;
   /** 所屬題材名稱；空陣列代表未分類。 */
   topics: string[];
+  /**
+   * 已經向 FinMind 問過名稱，但那邊沒有這個代號。
+   * 只有真的問到回應才會標記——連線失敗不算，否則斷一次網就會被永久誤判成打錯字。
+   */
+  nameNotFound?: true;
 };
 
 export type Watchlist = {
@@ -44,6 +49,41 @@ export function addWatch(
   return {
     ...list,
     entries: [...list.entries, { stockId, stockName, addedAt: at, topics: [] }],
+  };
+}
+
+/**
+ * 名稱還是代號本身，代表使用者加入時留空、還沒補回真正的名稱。
+ *
+ * 查過而查無的不再問：代號打錯時每次同步都重問一次，會無止盡地吃額度，
+ * 而答案永遠一樣。畫面會標示查無此代號，讓使用者自己修掉。
+ */
+export function needsNameLookup(entry: WatchEntry): boolean {
+  return entry.nameNotFound !== true && entry.stockName.trim() === entry.stockId;
+}
+
+/** 寫回查詢結果；`stockName` 為 null 代表查無此代號。找不到這檔時原樣回傳。 */
+export function resolveWatchName(
+  list: Watchlist,
+  stockId: string,
+  stockName: string | null,
+): Watchlist {
+  if (!list.entries.some((entry) => entry.stockId === stockId)) return list;
+
+  return {
+    ...list,
+    entries: list.entries.map((entry) => {
+      if (entry.stockId !== stockId) return entry;
+      if (stockName === null) return { ...entry, nameNotFound: true };
+
+      // 查到名稱就重建整筆，順手讓 nameNotFound 消失，不留下已經不成立的標記
+      return {
+        stockId: entry.stockId,
+        stockName,
+        addedAt: entry.addedAt,
+        topics: entry.topics,
+      };
+    }),
   };
 }
 

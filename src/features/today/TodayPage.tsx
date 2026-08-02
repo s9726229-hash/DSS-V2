@@ -16,7 +16,21 @@ import { HoldingCardView, WatchCardView } from './HoldingCardView';
 import { WatchlistManager } from './WatchlistManager';
 import './TodayPage.css';
 
-export function TodayPage() {
+/**
+ * 今日 DSS。
+ *
+ * 這一頁與資料狀態列是兩個各自持有狀態的區塊，因此兩個方向都要接線：
+ * `dataVersion` 讓同步完成後的新資料進得來，`onWatchlistChanged` 讓新加入的
+ * 觀察標的傳得出去（否則狀態列不知道有東西可同步，同步鈕會一直是停用的）。
+ */
+export function TodayPage({
+  dataVersion,
+  onWatchlistChanged,
+}: {
+  /** 每次同步完成後遞增；變動即重算。 */
+  dataVersion: number;
+  onWatchlistChanged: () => void;
+}) {
   const [view, setView] = useState<TodayView | null>(null);
   const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
   const [managing, setManaging] = useState(false);
@@ -30,7 +44,7 @@ export function TodayPage() {
     void readWatchlist().then(setWatchlist);
   }, []);
 
-  useEffect(refresh, [refresh]);
+  useEffect(refresh, [refresh, dataVersion]);
 
   /** 每次變更都立即寫入並重算，避免畫面與儲存內容不同步。 */
   const commit = useCallback(
@@ -39,9 +53,10 @@ export function TodayPage() {
       void (async () => {
         await writeWatchlist(next);
         refresh();
+        onWatchlistChanged();
       })();
     },
-    [refresh],
+    [refresh, onWatchlistChanged],
   );
 
   if (view === null || watchlist === null) {

@@ -49,7 +49,7 @@ export function WatchlistManager({
     <div className="manager">
       <p className="manager__note">
         加入的股票會在下次同步時一併取得價格與法人資料，每檔約 4 次 FinMind 請求。
-        題材分類只影響顯示分組，不影響任何計算。
+        名稱留空的話，下次同步會一併帶回來。題材分類只影響顯示分組，不影響任何計算。
       </p>
 
       <div className="manager__row">
@@ -137,7 +137,14 @@ export function WatchlistManager({
             {watchlist.entries.map((entry) => (
               <tr key={entry.stockId}>
                 <td>
-                  <span className="num">{entry.stockId}</span> {entry.stockName}
+                  <span className="num">{entry.stockId}</span>{' '}
+                  {entry.nameNotFound ? (
+                    <span className="manager__hint">查無此代號，請確認是否打錯</span>
+                  ) : entry.stockName === entry.stockId ? (
+                    <span className="manager__hint">名稱待下次同步帶回</span>
+                  ) : (
+                    entry.stockName
+                  )}
                 </td>
                 <td>
                   {watchlist.topics.length === 0 ? (

@@ -4,7 +4,8 @@ export type FinMindDataset =
   | 'TaiwanStockPriceAdj'
   | 'TaiwanStockDividendResult'
   | 'TaiwanStockSplitPrice'
-  | 'TaiwanStockInstitutionalInvestorsBuySell';
+  | 'TaiwanStockInstitutionalInvestorsBuySell'
+  | 'TaiwanStockInfo';
 
 export type PriceRow = {
   date: string;
@@ -26,6 +27,15 @@ export type InstitutionalRow = {
   name: 'Foreign_Investor' | 'Foreign_Dealer_Self' | 'Investment_Trust' | 'Dealer_self' | string;
   buy: number;
   sell: number;
+};
+
+/**
+ * 個股基本資料。價格資料只有 stock_id，中文名稱只能從這裡取得。
+ * 同一檔可能有多列（上市與興櫃等），因此取用時要比對 stock_id 而不是直接取第一列。
+ */
+export type StockInfoRow = {
+  stock_id: string;
+  stock_name: string;
 };
 
 /** 除權息與分割共用的結構：還原係數為 after_price / before_price。 */

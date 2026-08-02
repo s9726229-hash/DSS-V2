@@ -2,7 +2,7 @@ import { deleteDB } from 'idb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAME } from '../storage/database';
 import { addWatch, emptyWatchlist } from '../watchlist/watchlist';
-import { writeWatchlist } from '../watchlist/watchlistStore';
+import { readWatchlist, writeWatchlist } from '../watchlist/watchlistStore';
 import { readCachedDataset } from '../storage/marketCache';
 import { importHoldingsSnapshot } from '../storage/portfolio';
 import { syncHoldings } from './sync';
@@ -79,6 +79,74 @@ describe('只有觀察清單、沒有庫存時', () => {
 
     expect(result.skippedReason).toBeNull();
     expect(result.results.map((row) => row.stockId)).toEqual(['2454']);
+  });
+});
+
+describe('觀察標的的名稱', () => {
+  const at = NOW.toISOString();
+
+  /** 名稱等於代號代表使用者加入時留空。 */
+  async function watching(stockId: string, stockName: string) {
+    await writeWatchlist(addWatch(emptyWatchlist(), { stockId, stockName, at }));
+  }
+
+  it('只有代號時向 TaiwanStockInfo 補回名稱', async () => {
+    await watching('2330', '2330');
+    stubFetch((dataset) =>
+      successBody(
+        dataset === 'TaiwanStockInfo' ? [{ stock_id: '2330', stock_name: '台積電' }] : [PRICE_ROW],
+      ),
+    );
+
+    const result = await syncHoldings({ now: NOW });
+
+    expect(result.namedCount).toBe(1);
+    expect((await readWatchlist()).entries[0].stockName).toBe('台積電');
+  });
+
+  it('已經有名稱時完全不問，不浪費額度', async () => {
+    await watching('2454', '聯發科');
+    const calls = stubFetch();
+
+    await syncHoldings({ now: NOW });
+
+    expect(calls.filter((call) => call.dataset === 'TaiwanStockInfo')).toHaveLength(0);
+  });
+
+  /*
+   * 斷線或限流時如果標成查無此代號，使用者會看到自己明明打對的代號被指為打錯，
+   * 而且從此不再重試。只有真的問到回應才判定。
+   */
+  it('查詢失敗時不標記查無此代號，下次同步會再試', async () => {
+    await watching('2330', '2330');
+    stubFetch((dataset) =>
+      dataset === 'TaiwanStockInfo'
+        ? new Response(JSON.stringify({ error: 'rate limited', upstreamStatus: 402 }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        : successBody([PRICE_ROW]),
+    );
+
+    const result = await syncHoldings({ now: NOW });
+    const entry = (await readWatchlist()).entries[0];
+
+    expect(result.namedCount).toBe(0);
+    expect(entry.nameNotFound).toBeUndefined();
+    expect(entry.stockName).toBe('2330');
+  });
+
+  it('確實查無此代號時記下來，之後不再重複詢問', async () => {
+    await watching('9999', '9999');
+    const calls = stubFetch((dataset) => successBody(dataset === 'TaiwanStockInfo' ? [] : [PRICE_ROW]));
+
+    await syncHoldings({ now: NOW });
+
+    expect((await readWatchlist()).entries[0].nameNotFound).toBe(true);
+
+    await syncHoldings({ now: NOW, force: true });
+
+    expect(calls.filter((call) => call.dataset === 'TaiwanStockInfo')).toHaveLength(1);
   });
 });
 

@@ -4,7 +4,53 @@ import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATABASE_NAME } from '../storage/database';
 import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
+import { addWatch, emptyWatchlist } from '../watchlist/watchlist';
+import { writeWatchlist } from '../watchlist/watchlistStore';
 import { AppShell } from './AppShell';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 技術面至少要 60 筆才會有結果，籌碼面則要 5 個有對應價格的交易日。 */
+function marketRows(): { prices: unknown[]; chips: unknown[] } {
+  const dates = Array.from({ length: 61 }, (_, index) =>
+    new Date(Date.UTC(2026, 4, 1) + index * DAY_MS).toISOString().slice(0, 10),
+  );
+
+  return {
+    prices: dates.map((date) => ({
+      date,
+      stock_id: '2330',
+      open: 100,
+      max: 101,
+      min: 99,
+      close: 100,
+      Trading_Volume: 1000,
+    })),
+    chips: dates.slice(-5).flatMap((date) => [
+      { date, stock_id: '2330', name: 'Foreign_Investor', buy: 200, sell: 100 },
+      { date, stock_id: '2330', name: 'Investment_Trust', buy: 150, sell: 100 },
+    ]),
+  };
+}
+
+/** 依 dataset 回應對應內容，模擬 Worker。 */
+function marketResponse(input: string): Response {
+  const dataset = new URL(String(input)).searchParams.get('dataset');
+  const { prices, chips } = marketRows();
+  const data =
+    dataset === 'TaiwanStockPrice'
+      ? prices
+      : dataset === 'TaiwanStockInstitutionalInvestorsBuySell'
+        ? chips
+        : dataset === 'TaiwanStockInfo'
+          ? [{ stock_id: '2330', stock_name: '台積電', industry_category: '半導體業', type: 'twse' }]
+          : [];
+
+  return new Response(JSON.stringify({ msg: 'success', status: 200, data }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
 
 beforeEach(async () => {
   await deleteDB(DATABASE_NAME);
@@ -105,6 +151,68 @@ describe('AppShell', () => {
       expect(screen.getByRole('status')).toHaveTextContent('1 檔已更新');
     });
     expect(fetchMock).toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  /*
+   * 狀態列與今日 DSS 各自持有狀態，兩邊沒有互通時會出現同一種災情：
+   * 使用者按了同步卻「沒有數據」。以下兩條分別鎖住兩個方向的傳遞。
+   */
+  it('剛加入觀察標的後，不必重新整理就能同步', async () => {
+    render(<AppShell />);
+
+    const syncButton = await screen.findByRole('button', { name: '同步市場資料' });
+    await waitFor(() => expect(syncButton).toBeDisabled());
+
+    await userEvent.click(await screen.findByRole('button', { name: '管理觀察清單' }));
+    await userEvent.type(screen.getByLabelText('股票代號'), '2330');
+    await userEvent.click(screen.getByRole('button', { name: '加入觀察' }));
+
+    await waitFor(() => expect(syncButton).toBeEnabled());
+  });
+
+  it('同步完成後，今日 DSS 的卡片立即重算，不必重新整理', async () => {
+    await writeWatchlist(
+      addWatch(emptyWatchlist(), {
+        stockId: '2330',
+        stockName: '台積電',
+        at: '2026-07-28T02:00:00.000Z',
+      }),
+    );
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => marketResponse(input)));
+
+    render(<AppShell />);
+
+    // 同步之前快取是空的，卡片必須誠實說資料不足
+    expect(await screen.findByText(/股價資料只有 0 筆/)).toBeInTheDocument();
+
+    const button = await screen.findByRole('button', { name: '同步市場資料' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+
+    expect(await screen.findByText('資料完整')).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('觀察標的只有代號時，同步會把名稱補回來', async () => {
+    await writeWatchlist(
+      addWatch(emptyWatchlist(), {
+        stockId: '2330',
+        stockName: '2330',
+        at: '2026-07-28T02:00:00.000Z',
+      }),
+    );
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => marketResponse(input)));
+
+    render(<AppShell />);
+
+    const button = await screen.findByRole('button', { name: '同步市場資料' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+
+    expect(await screen.findByText('台積電')).toBeInTheDocument();
 
     vi.unstubAllGlobals();
   });
