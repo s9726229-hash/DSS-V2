@@ -10,15 +10,16 @@ import { bandLabel } from '../../research/bandLabels';
 import { METRIC_LABEL, METRIC_UNIT, type ResearchMetric } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
-import { ChipBars } from '../ChipBars';
+import { computeFlow, FLOW_BASELINE_DAYS } from '../../dss/flow';
+import { FlowChart } from '../FlowChart';
 import {
   ALERT_LABEL,
-  continuityText,
-  JOINT_LABEL,
+  FLOW_CHANGE_LABEL,
+  FLOW_CHANGE_TONE,
+  INVESTOR_LABEL,
   lots,
   MONTHLY_LINE_LABEL,
   RECOVERY_LABEL,
-  strengthText,
 } from '../dssLabels';
 import { Sparkline } from './Sparkline';
 
@@ -154,18 +155,32 @@ function StatusLine({ core }: { core: CardCore }) {
 /**
  * 卡片上的一位法人。
  *
- * 期間一定要寫出來：淨額與強度是近 5 日合計，方向只講到最後一天。
- * 舊版把兩者並排卻不標期間，於是出現「-18709 張（連買 1 日）」這種看似自相矛盾的句子。
+ * 每天要讀的是「今日相對近期是增加、減少還是轉向」，所以方向變化排在最前面，
+ * 兩個被比較的數字緊接在後——期間一定要標，否則今日與近期平均並排會看起來自相矛盾。
  */
 function InvestorLine({ label, chip }: { label: string; chip: InvestorChip }) {
+  const flow = computeFlow(chip.series);
+
+  if (flow === null) {
+    return (
+      <span className="card__investor card__investor--missing">
+        <span className="card__investor-name">{label}</span>
+        <span>法人資料不足 6 日，無法與近期比較</span>
+      </span>
+    );
+  }
+
   return (
     <span className="card__investor">
       <span className="card__investor-name">{label}</span>
-      <span className="card__investor-figure num">
-        近5日 {lots(chip.fiveDayNet)} ≈ {strengthText(chip.strength)}
+      <span className={`card__investor-change card__investor-change--${FLOW_CHANGE_TONE[flow.change]}`}>
+        {FLOW_CHANGE_LABEL[flow.change]}
       </span>
-      <ChipBars daily={chip.daily} label={label} />
-      <span className="card__investor-recent">{continuityText(chip.continuity)}</span>
+      <span className="card__investor-figure num">
+        今日 {lots(flow.today)}／前五日均 {lots(flow.baseline)}
+        {flow.ratio === null ? '' : `／${flow.ratio.toFixed(2)}倍`}
+      </span>
+      <FlowChart series={chip.series} baselineDays={FLOW_BASELINE_DAYS} label={label} />
     </span>
   );
 }
@@ -184,9 +199,8 @@ function ChipRow({ core }: { core: CardCore }) {
 
   return (
     <div className="card__chips">
-      <InvestorLine label="外資" chip={chip.snapshot.foreign} />
-      <InvestorLine label="投信" chip={chip.snapshot.trust} />
-      <span className="card__joint">{JOINT_LABEL[chip.snapshot.joint]}</span>
+      <InvestorLine label={INVESTOR_LABEL.foreign} chip={chip.snapshot.foreign} />
+      <InvestorLine label={INVESTOR_LABEL.trust} chip={chip.snapshot.trust} />
     </div>
   );
 }
@@ -280,14 +294,16 @@ export function WatchCardView({ card }: { card: WatchCard }) {
           note={bias?.band === null || bias === undefined ? null : bandLabel('bias20', bias.band)}
         />
       }
+      /* 籌碼改看方向變化後，卡片不再放強度——它退到技術分析頁與研究頁 */
       boxes={
         <>
-          {card.bands
-            .filter((band) => band.metric !== 'bias20')
-            .map((band) => (
-              <MetricBox key={band.metric} band={band} />
-            ))}
           <PlainBox label="加入觀察" value={card.addedAt.slice(0, 10)} />
+          <PlainBox
+            label="收盤"
+            value={
+              card.analysis.technical.ok ? price(card.analysis.technical.snapshot.close) : '—'
+            }
+          />
         </>
       }
       details={
@@ -318,9 +334,11 @@ export function HoldingCardView({ card }: { card: HoldingCard }) {
       }
       boxes={
         <>
-          {card.bands.map((band) => (
-            <MetricBox key={band.metric} band={band} />
-          ))}
+          {card.bands
+            .filter((band) => band.metric === 'bias20')
+            .map((band) => (
+              <MetricBox key={band.metric} band={band} />
+            ))}
           <PlainBox
             label="持有天數"
             value={card.heldDays === null ? '—' : `${card.heldDays} 天`}

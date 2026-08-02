@@ -158,56 +158,82 @@
   color: var(--signal-down);
 }
 
-/* ── 法人列 ─────────────────────────────────── */
+/* ── 法人流向 ───────────────────────────────── */
 
-.panel__investors {
+.flow {
+  padding: var(--gap-2) 0;
+  border-bottom: 1px solid var(--panel-sunken);
+}
+
+.flow__head {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   gap: var(--gap-2);
 }
 
-.investor {
-  display: grid;
-  align-items: baseline;
-  gap: var(--gap-3);
-  grid-template-columns: 5.5em 1fr 6em 3.5em 6em;
+.flow__name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* 長條要與同列的文字置中對齊，而不是壓在基線上 */
-.investor__daily {
-  align-self: center;
+/* 方向只描述法人在買還是在賣，不表示好壞 */
+.flow__change {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.flow__change--up {
+  color: var(--signal-up);
+}
+
+.flow__change--down {
+  color: var(--signal-down);
+}
+
+.flow__change--flat {
+  color: var(--graphite);
+}
+
+.flow__pending {
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.flow__figures {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  padding: var(--gap-1) 0;
+  gap: var(--gap-1) var(--gap-4);
 }
 
-.investor--header .investor__daily {
-  align-self: baseline;
-  justify-content: center;
+.flow__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-1);
+  font-size: 13px;
 }
 
-.investor--header .investor__label,
-.investor--header span {
+.flow__label {
   color: var(--graphite-light);
 }
 
-.investor__label {
-  font-size: 13px;
-}
-
-.investor__net,
-.investor__strength {
-  font-size: 13px;
-  text-align: right;
-}
-
-.investor__strength {
+.flow__tier {
   color: var(--graphite);
+  font-size: 11px;
 }
 
-.investor__continuity {
-  color: var(--graphite);
-  font-size: 12px;
-  text-align: right;
+.flow__legend {
+  margin: 2px 0 0;
+  color: var(--graphite-light);
+  text-transform: none;
+}
+
+/* 既有的 5 日淨額與強度：研究與 Profile 仍在用，但不是每天要讀的東西 */
+.flow__legacy {
+  margin: var(--gap-1) 0 0;
+  color: var(--graphite-light);
+  font-size: 11px;
 }
 
 /* 三條均線的相對位置 */

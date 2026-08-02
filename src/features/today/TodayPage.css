@@ -163,7 +163,8 @@
   display: grid;
   padding-bottom: var(--gap-2);
   gap: var(--gap-1);
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  /* 上限讓方塊在只剩兩格時不會被拉成兩塊大空白 */
+  grid-template-columns: repeat(auto-fit, minmax(84px, 150px));
 }
 
 .metric {
@@ -226,24 +227,40 @@
   display: grid;
   align-items: center;
   gap: var(--gap-2);
-  grid-template-columns: 2.4em minmax(0, 1fr) auto auto;
+  grid-template-columns: 2.4em 4.5em minmax(0, 1fr) auto;
+}
+
+.card__investor--missing {
+  grid-template-columns: 2.4em minmax(0, 1fr);
+  color: var(--attention);
 }
 
 .card__investor-name {
   color: var(--ink);
 }
 
-.card__investor-recent {
+/* 每天要讀的就是這一句，字級比旁邊的數字大一階 */
+.card__investor-change {
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
-  text-align: right;
 }
 
-.card__joint {
-  align-self: flex-start;
-  padding: 0 4px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  font-size: 10px;
+.card__investor-change--up {
+  color: var(--signal-up);
+}
+
+.card__investor-change--down {
+  color: var(--signal-down);
+}
+
+.card__investor-change--flat {
+  color: var(--graphite);
+}
+
+/* 走勢圖在卡片上只是輔助，寬度固定，不跟著文字長短跳動 */
+.card__investor .flowchart {
+  width: 96px;
 }
 
 /* ── 明細 ───────────────────────────────────── */

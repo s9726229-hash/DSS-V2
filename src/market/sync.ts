@@ -8,8 +8,14 @@ import type { AdjustmentEventRow, InstitutionalRow, PriceRow, StockInfoRow } fro
 /** 價格取近一年，足以計算 MA60 並保留餘裕。 */
 const PRICE_LOOKBACK_DAYS = 365;
 
-/** 法人只需最近 5 個交易日，取 20 個日曆日以涵蓋連假。 */
-const INSTITUTIONAL_LOOKBACK_DAYS = 20;
+/**
+ * 法人資料。
+ *
+ * 強度只需 5 個交易日，但方向判斷要再往前 5 天當基準，走勢圖還要更長，
+ * 因此直接取閘道允許的上限 45 個日曆日（約 30 個交易日）。
+ * 區間變長不會增加請求次數——同一檔仍然只問一次。
+ */
+const INSTITUTIONAL_LOOKBACK_DAYS = 45;
 
 /** 還原事件需涵蓋整段價格歷史，才能判斷均線窗口內是否有跳空。 */
 const ADJUSTMENT_LOOKBACK_DAYS = 400;

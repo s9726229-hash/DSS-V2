@@ -32,12 +32,19 @@ export type InvestorChip = {
   strength: number;
   continuity: Continuity;
   /**
-   * 納入計算的那 5 個交易日，由舊到新。
+   * 納入強度計算的那 5 個交易日，由舊到新。
    *
    * 合計數字看不出「連續買了五天」與「賣四天最後一天翻多」的差別，
    * 畫面要能把每日走勢攤開，就得拿得到逐日資料。
    */
   daily: readonly DailyNet[];
+  /**
+   * 所有能對應到成交量的交易日，由舊到新。
+   *
+   * 方向判斷要拿今日與前 5 日比，走勢圖還要更長，5 天不夠用。
+   * 強度仍只用最後 5 天，兩者刻意分開，免得改了圖表長度就動到既有指標。
+   */
+  series: readonly DailyNet[];
 };
 
 /**
@@ -104,7 +111,11 @@ function continuityOf(window: DailyNet[]): Continuity {
   return { direction, days };
 }
 
-function summarize(window: DailyNet[], volumeByDate: Map<string, number>): InvestorChip {
+function summarize(
+  window: DailyNet[],
+  series: DailyNet[],
+  volumeByDate: Map<string, number>,
+): InvestorChip {
   const fiveDayNet = window.reduce((sum, day) => sum + day.net, 0);
   const averageVolume =
     window.reduce((sum, day) => sum + (volumeByDate.get(day.date) as number), 0) / window.length;
@@ -115,6 +126,7 @@ function summarize(window: DailyNet[], volumeByDate: Map<string, number>): Inves
     strength: averageVolume === 0 ? 0 : fiveDayNet / averageVolume,
     continuity: continuityOf(window),
     daily: window,
+    series,
   };
 }
 
@@ -143,10 +155,12 @@ export function computeChipSnapshot({
 
   // 只採用能對應到成交量的交易日，避免用不同期間的量做正規化
   const usable = (daily: DailyNet[]): DailyNet[] =>
-    daily.filter((day) => volumeByDate.has(day.date)).slice(-CHIP_WINDOW_DAYS);
+    daily.filter((day) => volumeByDate.has(day.date));
 
-  const foreignWindow = usable(foreignDaily);
-  const trustWindow = usable(trustDaily);
+  const foreignSeries = usable(foreignDaily);
+  const trustSeries = usable(trustDaily);
+  const foreignWindow = foreignSeries.slice(-CHIP_WINDOW_DAYS);
+  const trustWindow = trustSeries.slice(-CHIP_WINDOW_DAYS);
 
   if (foreignWindow.length < CHIP_WINDOW_DAYS || trustWindow.length < CHIP_WINDOW_DAYS) {
     const seen = [...foreignDaily, ...trustDaily].map((day) => day.date).sort();
@@ -158,8 +172,8 @@ export function computeChipSnapshot({
     };
   }
 
-  const foreign = summarize(foreignWindow, volumeByDate);
-  const trust = summarize(trustWindow, volumeByDate);
+  const foreign = summarize(foreignWindow, foreignSeries, volumeByDate);
+  const trust = summarize(trustWindow, trustSeries, volumeByDate);
 
   return {
     ok: true,

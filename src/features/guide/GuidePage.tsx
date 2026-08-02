@@ -130,12 +130,36 @@ export function GuidePage() {
         <h2 className="guide__section-title">籌碼面</h2>
         <dl className="guide__list guide__list--grid">
           <Entry
-            term="外資及陸資"
-            meaning="官方講的「外資及陸資」，統計時不含外資自營商。"
+            term="外資"
+            meaning="官方的「外資及陸資」，統計時不含外資自營商。"
             detailLabel="為什麼"
-            detail="外資自營商是獨立身分，不併入外資計算。"
+            detail="外資自營商是獨立身分，不併入外資計算。實測你的持股，這一項的數字全部是 0。"
           />
           <Entry term="投信" meaning="國內的投信法人，跟外資完全分開算，不會合併看。" />
+          <Entry
+            term="今日／前五日均"
+            meaning="今天這一天的買賣超，跟前面五天的平均比。前五天不包含今天。"
+            detailLabel="為什麼"
+            detail="今天若算進平均，等於自己墊高自己的比較基準，變化會被自己稀釋掉。"
+          />
+          <Entry
+            term="方向變化"
+            meaning="先看今天是買還是賣，再跟近期比力道。所以會寫成「買超增加」「賣超減少」「由買轉賣」這種話。"
+            detailLabel="為什麼"
+            detail="直接把今日除以近期平均，遇到買轉賣只會得到一個負數，看不出方向翻了。先判方向、再比力道才講得清楚。"
+          />
+          <Entry
+            term="力道 N 倍"
+            meaning="今天的量是近期平均的幾倍。1.43 倍就是比平常多四成。"
+            detailLabel="怎麼算"
+            detail="兩邊都取絕對值再相除，所以反轉時也算得出倍數。近期平均接近零時沒有東西可比，會寫「無法比較」而不是填 0。"
+          />
+          <Entry
+            term="中性"
+            meaning="買賣超小到沒有意義時，不講方向，直接說中性。"
+            detailLabel="怎麼算"
+            detail="門檻取「近期平均的一成」與「固定張數下限」之中較大的那個。只用比例的話，平均接近零時中性帶會窄到幾乎不存在。"
+          />
           <Entry
             term="5 日淨額"
             meaning="最近 5 個交易日，買進和賣出張數的差，正值代表買超。"

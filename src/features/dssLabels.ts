@@ -1,4 +1,5 @@
 import type { Continuity, JointChipState } from '../dss/chip';
+import type { FlowChange, FlowStrength } from '../dss/flow';
 import type { MonthlyLineState, RecoveryState, TechnicalAlert } from '../dss/technical';
 
 /**
@@ -29,6 +30,67 @@ export const JOINT_LABEL: Record<JointChipState, string> = {
   divergent: '外資與投信分歧',
   'no-consensus': '無共識',
 };
+
+/** 法人身分別的顯示名稱。改口徑要連同這裡一起改，別讓畫面與計算各講各的。 */
+export const INVESTOR_LABEL = {
+  foreign: '外資',
+  trust: '投信',
+} as const;
+
+/**
+ * 方向變化。
+ *
+ * 這是每天真正要讀的一句話，所以寫成完整敘述而不是代號：
+ * 「買超增加」要看得出是延續，「買轉賣」要看得出是轉向。
+ */
+export const FLOW_CHANGE_LABEL: Record<FlowChange, string> = {
+  'buy-up': '買超增加',
+  'buy-down': '買超減少',
+  'buy-flat': '買超持平',
+  'sell-up': '賣超增加',
+  'sell-down': '賣超減少',
+  'sell-flat': '賣超持平',
+  'buy-to-sell': '由買轉賣',
+  'sell-to-buy': '由賣轉買',
+  'to-neutral': '轉為中性',
+  'neutral-to-buy': '中性轉買',
+  'neutral-to-sell': '中性轉賣',
+  'neutral-stay': '維持中性',
+};
+
+/**
+ * 方向變化的色調。
+ *
+ * 台股慣例紅漲綠跌，但這裡表示的是法人的買賣方向，不是股價漲跌——
+ * 買超側用紅、賣超側用綠，中性不上色。這只描述方向，不表示好壞。
+ */
+export const FLOW_CHANGE_TONE: Record<FlowChange, 'up' | 'down' | 'flat'> = {
+  'buy-up': 'up',
+  'buy-down': 'up',
+  'buy-flat': 'up',
+  'sell-up': 'down',
+  'sell-down': 'down',
+  'sell-flat': 'down',
+  'buy-to-sell': 'down',
+  'sell-to-buy': 'up',
+  'to-neutral': 'flat',
+  'neutral-to-buy': 'up',
+  'neutral-to-sell': 'down',
+  'neutral-stay': 'flat',
+};
+
+export const FLOW_STRENGTH_LABEL: Record<FlowStrength, string> = {
+  weaker: '明顯減弱',
+  similar: '與近期接近',
+  stronger: '增加',
+  'much-stronger': '大幅增加',
+};
+
+/** 力道比例。基準沒有方向時無從比較，寫明而不是填 0。 */
+export function ratioText(ratio: number | null): string {
+  if (ratio === null) return '近期無明確方向，無法比較';
+  return `${ratio.toFixed(2)} 倍`;
+}
 
 /** 法人張數。股轉張，帶正負號。 */
 export function lots(shares: number): string {

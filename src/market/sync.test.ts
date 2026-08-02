@@ -184,7 +184,7 @@ describe('有庫存時', () => {
     expect(calls.filter((call) => call.dataset === 'TaiwanStockInstitutionalInvestorsBuySell')).toHaveLength(2);
   });
 
-  it('價格請求近一年、法人請求近 20 天', async () => {
+  it('價格請求近一年、法人請求近 45 天', async () => {
     const calls = stubFetch();
 
     await syncHoldings({ now: NOW });
@@ -194,7 +194,8 @@ describe('有庫存時', () => {
 
     expect(price.searchParams.get('end_date')).toBe('2026-07-28');
     expect(price.searchParams.get('start_date')).toBe('2025-07-28');
-    expect(chip.searchParams.get('start_date')).toBe('2026-07-08');
+    // 方向判斷要拿今日與前五日比，走勢圖還要更長，因此取閘道允許的上限
+    expect(chip.searchParams.get('start_date')).toBe('2026-06-13');
   });
 
   it('把原始回應寫入市場快取', async () => {

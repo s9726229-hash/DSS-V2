@@ -1,27 +1,73 @@
 import type { ChipResult, InvestorChip } from '../../dss/chip';
-import { ChipBars } from '../ChipBars';
-import { continuityText, JOINT_LABEL, lots, strengthText } from '../dssLabels';
+import { computeFlow, FLOW_BASELINE_DAYS } from '../../dss/flow';
+import { FlowChart } from '../FlowChart';
+import {
+  continuityText,
+  FLOW_CHANGE_LABEL,
+  FLOW_CHANGE_TONE,
+  FLOW_STRENGTH_LABEL,
+  INVESTOR_LABEL,
+  JOINT_LABEL,
+  lots,
+  ratioText,
+  strengthText,
+} from '../dssLabels';
 
-function InvestorRow({ label, chip }: { label: string; chip: InvestorChip }) {
-  const tone = chip.fiveDayNet > 0 ? 'up' : chip.fiveDayNet < 0 ? 'down' : undefined;
+/**
+ * 一位法人的完整讀數。
+ *
+ * 順序就是閱讀順序：先一句話講今日相對近期是什麼情況，再給被比較的兩個數字，
+ * 最後是走勢圖。5 日淨額與強度是既有指標，退到最後一行——它們仍由研究與
+ * Profile 使用，只是不再是每天要讀的東西。
+ */
+function InvestorBlock({ label, chip }: { label: string; chip: InvestorChip }) {
+  const flow = computeFlow(chip.series);
 
   return (
-    <div className="investor">
-      <span className="investor__label">{label}</span>
-      <span className={tone ? `investor__net num investor__net--${tone}` : 'investor__net num'}>
-        {lots(chip.fiveDayNet)}
-      </span>
-      <span
-        className="investor__strength num"
-        title="5 日淨額 ÷ 5 日平均成交量。單位是天：0.36 天量代表約 0.36 個交易日的成交量。"
-      >
-        {strengthText(chip.strength)}
-      </span>
-      <span className="investor__daily">
-        <ChipBars daily={chip.daily} label={label} />
-      </span>
-      <span className="investor__continuity">{continuityText(chip.continuity)}</span>
-    </div>
+    <section className="flow" aria-label={label}>
+      <header className="flow__head">
+        <h4 className="flow__name">{label}</h4>
+        {flow === null ? (
+          <span className="flow__pending">法人資料不足 6 日，無法與近期比較</span>
+        ) : (
+          <span className={`flow__change flow__change--${FLOW_CHANGE_TONE[flow.change]}`}>
+            {FLOW_CHANGE_LABEL[flow.change]}
+          </span>
+        )}
+      </header>
+
+      {flow === null ? null : (
+        <>
+          <div className="flow__figures">
+            <span className="flow__figure">
+              <span className="flow__label micro">今日</span>
+              <span className="num">{lots(flow.today)}</span>
+            </span>
+            <span className="flow__figure">
+              <span className="flow__label micro">前五日均</span>
+              <span className="num">{lots(flow.baseline)}</span>
+            </span>
+            <span className="flow__figure">
+              <span className="flow__label micro">力道</span>
+              <span className="num">{ratioText(flow.ratio)}</span>
+              {flow.strength === null ? null : (
+                <span className="flow__tier">{FLOW_STRENGTH_LABEL[flow.strength]}</span>
+              )}
+            </span>
+          </div>
+
+          <FlowChart series={chip.series} baselineDays={FLOW_BASELINE_DAYS} label={label} />
+          <p className="flow__legend micro">
+            每日買賣超，虛線為前 {FLOW_BASELINE_DAYS} 日平均．分級門檻為市場慣例，未經驗證
+          </p>
+        </>
+      )}
+
+      <p className="flow__legacy">
+        近 5 日 {lots(chip.fiveDayNet)}．{strengthText(chip.strength)}．
+        {continuityText(chip.continuity)}
+      </p>
+    </section>
   );
 }
 
@@ -49,18 +95,8 @@ export function ChipPanel({ result }: { result: ChipResult }) {
     <section className="panel" aria-label="籌碼面">
       <h3 className="panel__title micro">籌碼面</h3>
 
-      <div className="panel__investors">
-        {/* 期間寫在標題上：淨額與強度是 5 日合計，連續性只講到最後一天 */}
-        <div className="investor investor--header">
-          <span className="investor__label micro">身分</span>
-          <span className="investor__net micro">近 5 日淨額</span>
-          <span className="investor__strength micro">相當於幾天量</span>
-          <span className="investor__daily micro">每日</span>
-          <span className="investor__continuity micro">最近方向</span>
-        </div>
-        <InvestorRow label="外資及陸資" chip={snapshot.foreign} />
-        <InvestorRow label="投信" chip={snapshot.trust} />
-      </div>
+      <InvestorBlock label={INVESTOR_LABEL.foreign} chip={snapshot.foreign} />
+      <InvestorBlock label={INVESTOR_LABEL.trust} chip={snapshot.trust} />
 
       <div className="panel__states">
         <span className="tag">{JOINT_LABEL[snapshot.joint]}</span>

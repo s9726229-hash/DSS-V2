@@ -103,8 +103,8 @@ describe('有完整資料時', () => {
     render(<AnalysisPage />);
 
     const chip = await screen.findByRole('region', { name: '籌碼面' });
-    expect(within(chip).getByText('外資及陸資')).toBeInTheDocument();
-    expect(within(chip).getByText('投信')).toBeInTheDocument();
+    expect(within(chip).getByRole('region', { name: '外資' })).toBeInTheDocument();
+    expect(within(chip).getByRole('region', { name: '投信' })).toBeInTheDocument();
   });
 
   it('外資買超、投信賣超時顯示為分歧', async () => {
