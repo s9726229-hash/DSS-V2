@@ -86,115 +86,147 @@
   color: var(--attention);
 }
 
-.card__position {
-  display: grid;
-  padding: var(--gap-3) 0 var(--gap-2);
-  gap: var(--gap-2) var(--gap-3);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
+/* ── 大數字 ─────────────────────────────────── */
 
-.card__figure {
+/*
+ * 卡片上唯一放大的讀數。
+ * 十幾個數字全部同一個字級時眼睛沒有落點，因此只留一個進入點，其餘一律小字。
+ */
+.card__lead {
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 1px;
+  padding: var(--gap-3) 0 var(--gap-2);
 }
 
-.card__label {
-  color: var(--graphite-light);
+.card__lead-value {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
-.card__value {
-  font-size: 14px;
-}
-
-.card__value--up {
+.card__lead-value--up {
   color: var(--signal-up);
 }
 
-.card__value--down {
+.card__lead-value--down {
   color: var(--signal-down);
 }
 
-/* ── Profile 判定 ───────────────────────────── */
-
-.card__bands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gap-1);
-  padding: var(--gap-2) 0;
-  border-top: 1px solid var(--panel-sunken);
+.card__lead-label {
+  color: var(--graphite-light);
 }
 
-.band-chip {
-  display: flex;
-  align-items: baseline;
-  gap: var(--gap-1);
-  padding: 2px var(--gap-2);
-  border: 1px solid var(--calibrate);
-  border-radius: 2px;
-  background: var(--calibrate-bg);
+.card__lead-note {
+  color: var(--graphite);
   font-size: 11px;
 }
 
-/* 未分類與資料不足都不是結論，維持中性，不要看起來像判定。 */
-.band-chip--muted {
-  border-color: var(--rule);
-  background: var(--panel-sunken);
-  color: var(--graphite-light);
+/* ── 狀態句 ─────────────────────────────────── */
+
+.card__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 0;
+  padding-bottom: var(--gap-2);
+  gap: var(--gap-1);
+  font-size: 12px;
 }
 
-.band-chip__metric {
-  color: var(--graphite);
-}
-
-.band-chip--muted .band-chip__metric {
-  color: var(--graphite-light);
-}
-
-.band-chip__state {
+.card__status-main {
   font-weight: 600;
 }
 
-.band-chip__flag {
+.card__status-note {
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--graphite);
+  font-size: 10px;
+}
+
+/* 提醒與回穩不同性質：提醒要跳出來，回穩只是描述狀態 */
+.card__status-note--alert {
+  border-color: var(--attention);
+  color: var(--attention);
+}
+
+.card__status--missing {
+  color: var(--attention);
+}
+
+/* ── 指標方塊 ───────────────────────────────── */
+
+.card__metrics {
+  display: grid;
+  padding-bottom: var(--gap-2);
+  gap: var(--gap-1);
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  padding: var(--gap-1) var(--gap-2);
+  border-radius: 3px;
+  background: var(--panel-sunken);
+  gap: 1px;
+}
+
+.metric__label {
+  color: var(--graphite-light);
+}
+
+.metric__value {
+  font-size: 14px;
+}
+
+.metric__state {
+  color: var(--graphite);
+  font-size: 10px;
+}
+
+/* 資料不足是資料狀態不是判定，用 amber 與紅綠分開 */
+.metric--missing .metric__value {
+  color: var(--graphite-light);
+}
+
+.metric--missing .metric__state {
+  color: var(--attention);
+}
+
+.metric__flag {
+  margin-left: 3px;
   padding: 0 3px;
   border: 1px solid var(--attention);
   border-radius: 2px;
   color: var(--attention);
-  font-size: 10px;
 }
 
-/* ── 技術與籌碼列 ───────────────────────────── */
+/* ── 籌碼列 ─────────────────────────────────── */
 
-.card__readouts {
+.card__chips {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-1);
   padding-top: var(--gap-2);
   border-top: 1px solid var(--panel-sunken);
-}
-
-.card__readout {
-  display: flex;
-  align-items: baseline;
-  gap: var(--gap-2);
-}
-
-.card__readout-body {
-  flex: 1;
+  gap: 2px;
   color: var(--graphite);
   font-size: 11px;
 }
 
-.card__readout-body--missing {
+.card__chips--missing {
   color: var(--attention);
 }
 
-/* 籌碼：兩位法人各一行，欄位對齊才能一眼上下比較 */
+/* 兩位法人欄位對齊，才能一眼上下比較 */
 .card__investor {
   display: grid;
-  grid-template-columns: 2.4em minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--gap-2);
+  grid-template-columns: 2.4em minmax(0, 1fr) auto auto;
 }
 
 .card__investor-name {
@@ -202,17 +234,64 @@
 }
 
 .card__investor-recent {
-  text-align: right;
   white-space: nowrap;
+  text-align: right;
 }
 
-.card__tag {
-  margin-left: var(--gap-1);
+.card__joint {
+  align-self: flex-start;
   padding: 0 4px;
   border: 1px solid var(--rule-strong);
   border-radius: 2px;
-  color: var(--graphite);
   font-size: 10px;
+}
+
+/* ── 明細 ───────────────────────────────────── */
+
+/*
+ * 成本與均線每天都在，卻只在要加減碼時才看。收起不是刪除：
+ * 點一下就在原地展開，不必跳到別頁。
+ */
+.card__details {
+  margin-top: var(--gap-2);
+  padding-top: var(--gap-1);
+  border-top: 1px solid var(--panel-sunken);
+}
+
+.card__details-summary {
+  color: var(--graphite-light);
+  cursor: pointer;
+  font-size: 11px;
+  list-style: none;
+}
+
+.card__details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.card__details-summary::before {
+  content: '▸ ';
+}
+
+.card__details[open] .card__details-summary::before {
+  content: '▾ ';
+}
+
+.card__details-body {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--gap-1);
+  gap: 1px;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.card__gain {
+  color: var(--signal-up);
+}
+
+.card__loss {
+  color: var(--signal-down);
 }
 
 /* ── 分區與題材 ─────────────────────────────── */
@@ -266,19 +345,6 @@
   margin: 0;
   color: var(--graphite-light);
   font-size: 12px;
-}
-
-/* 觀察卡的摘要層：只有加入日期，沒有成本與損益。 */
-.card__watch {
-  display: flex;
-  align-items: baseline;
-  gap: var(--gap-2);
-  padding: var(--gap-2) 0;
-}
-
-.card__untagged {
-  color: var(--graphite-light);
-  font-size: 11px;
 }
 
 /* ── 管理觀察清單 ───────────────────────────── */
@@ -392,11 +458,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--gap-3);
-}
-
-.card__summary-body {
-  flex: 1;
-  min-width: 0;
 }
 
 .spark {

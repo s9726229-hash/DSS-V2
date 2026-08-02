@@ -217,6 +217,38 @@ describe('AppShell', () => {
     vi.unstubAllGlobals();
   });
 
+  /*
+   * 卡片上十幾個數字全都同一個字級時，眼睛沒有落點。改版後只留一個放大的讀數，
+   * 成本這類只在加減碼時才看的數字收進明細——收起不是刪除，點開仍在同一張卡上。
+   */
+  it('持股卡以報酬率為落點，成本明細預設收起', async () => {
+    await importHoldingsSnapshot(
+      [
+        {
+          stockId: '0050',
+          stockName: '元大台灣50',
+          tradeType: '現股',
+          quantity: 1000,
+          costPrice: 100,
+          currentPrice: 105,
+        },
+      ],
+      '2026-07-28',
+      '2026-07-28T02:00:00.000Z',
+    );
+
+    render(<AppShell />);
+
+    expect(await screen.findByText('+5.00%')).toBeInTheDocument();
+
+    const cost = screen.getByText(/成本 100\.00/);
+    expect(cost).not.toBeVisible();
+
+    await userEvent.click(screen.getByText('明細'));
+
+    expect(cost).toBeVisible();
+  });
+
   it('有交易資料時狀態列顯示交易涵蓋的最後日期', async () => {
     await importTransactions(
       [

@@ -1,3 +1,4 @@
+import type { InvestorChip } from '../../dss/chip';
 import type {
   CardBand,
   CardCore,
@@ -5,19 +6,33 @@ import type {
   HoldingCard,
   WatchCard,
 } from '../../dss/holdingCard';
-import type { InvestorChip } from '../../dss/chip';
 import { bandLabel } from '../../research/bandLabels';
-import { METRIC_LABEL, METRIC_UNIT } from '../../research/runResearch';
+import { METRIC_LABEL, METRIC_UNIT, type ResearchMetric } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
 import { ChipBars } from '../ChipBars';
-import { continuityText, JOINT_LABEL, lots, MONTHLY_LINE_LABEL, strengthText } from '../dssLabels';
+import {
+  ALERT_LABEL,
+  continuityText,
+  JOINT_LABEL,
+  lots,
+  MONTHLY_LINE_LABEL,
+  RECOVERY_LABEL,
+  strengthText,
+} from '../dssLabels';
 import { Sparkline } from './Sparkline';
 
 const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
   complete: '資料完整',
   partial: '部分資料',
   none: '資料不足',
+};
+
+/** 方塊裡的指標標籤要短，長標籤會把四格擠成兩行。 */
+const BOX_LABEL: Record<ResearchMetric, string> = {
+  bias20: '20MA 乖離',
+  foreignStrength: '外資',
+  trustStrength: '投信',
 };
 
 function money(value: number): string {
@@ -31,34 +46,108 @@ function price(value: number): string {
 /** 台股慣例紅漲綠跌。這裡只表示方向，不表示好壞。 */
 function tone(value: number | null): string {
   if (value === null || value === 0) return '';
-  return value > 0 ? ' card__value--up' : ' card__value--down';
+  return value > 0 ? ' card__lead-value--up' : ' card__lead-value--down';
 }
 
 /**
- * Profile 判定。
+ * 卡片上唯一的大數字。
  *
- * Profile 還沒設門檻時顯示「未分類」而不是猜一個——沒有門檻就沒有判定。
- * 門檻若來自手動設定，加註未驗證，避免看起來像研究出來的結論。
+ * 一張卡上十幾個數字都用同樣的字級時，眼睛沒有落點，掃過去等於沒看。
+ * 因此只留一個放大的讀數當進入點，其餘一律維持小字。
  */
-function BandChip({ band }: { band: CardBand }) {
+function LeadReadout({
+  value,
+  label,
+  numeric,
+  note,
+}: {
+  value: string;
+  label: string;
+  /** 決定紅綠方向；沒有方向意義時給 null。 */
+  numeric: number | null;
+  note: string | null;
+}) {
+  return (
+    <div className="card__lead">
+      <span className={`card__lead-value num${tone(numeric)}`}>{value}</span>
+      <span className="card__lead-label micro">{label}</span>
+      {note === null ? null : <span className="card__lead-note num">{note}</span>}
+    </div>
+  );
+}
+
+/**
+ * 指標方塊。
+ *
+ * 判定狀態只在真的有門檻時才寫。沒有門檻就沒有判定——但也不能留白，
+ * 否則看起來像「沒事」，所以明說是還沒設門檻。資料不足優先於一切。
+ */
+function MetricBox({ band }: { band: CardBand }) {
   if (band.value === null) {
     return (
-      <div className="band-chip band-chip--muted">
-        <span className="band-chip__metric">{METRIC_LABEL[band.metric]}</span>
-        <span className="band-chip__state">資料不足</span>
+      <div className="metric metric--missing">
+        <span className="metric__label micro">{BOX_LABEL[band.metric]}</span>
+        <span className="metric__value num">—</span>
+        <span className="metric__state">資料不足</span>
       </div>
     );
   }
 
   return (
-    <div className={band.band === null ? 'band-chip band-chip--muted' : 'band-chip'}>
-      <span className="band-chip__metric">{METRIC_LABEL[band.metric]}</span>
-      <span className="band-chip__value num">{percent(band.value, METRIC_UNIT[band.metric])}</span>
-      <span className="band-chip__state">
-        {band.band === null ? '未分類' : bandLabel(band.metric, band.band)}
+    <div className="metric">
+      <span className="metric__label micro">{BOX_LABEL[band.metric]}</span>
+      <span className="metric__value num">{percent(band.value, METRIC_UNIT[band.metric])}</span>
+      <span className="metric__state">
+        {band.band === null ? '未設門檻' : bandLabel(band.metric, band.band)}
+        {band.unverified ? <span className="metric__flag">未驗證</span> : null}
       </span>
-      {band.unverified ? <span className="band-chip__flag">未驗證</span> : null}
     </div>
+  );
+}
+
+/** 天數、日期這類沒有門檻可判定的資訊，用同一個方塊外觀但不假裝有狀態。 */
+function PlainBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric">
+      <span className="metric__label micro">{label}</span>
+      <span className="metric__value num">{value}</span>
+      <span className="metric__state">—</span>
+    </div>
+  );
+}
+
+/**
+ * 技術面的一句話。
+ *
+ * 月線狀態、回穩與提醒原本散在標籤與內文裡，要拼起來才知道現在是什麼情況。
+ * 算不出來時整句改成缺多少筆資料，並用 amber 標示——那是資料狀態，不是跌。
+ */
+function StatusLine({ core }: { core: CardCore }) {
+  const { technical } = core.analysis;
+
+  if (!technical.ok) {
+    return (
+      <p className="card__status card__status--missing">
+        股價資料只有 {technical.available} 筆，需要 {technical.required} 筆才算得出均線
+      </p>
+    );
+  }
+
+  const { monthlyLineState, recoveryState, alerts } = technical.snapshot;
+
+  return (
+    <p className="card__status">
+      <span className="card__status-main">{MONTHLY_LINE_LABEL[monthlyLineState]}</span>
+      {/* 回穩是狀態描述，提醒才需要跳出來，兩者不共用同一個顏色 */}
+      {recoveryState === null ? null : (
+        <span className="card__status-note">{RECOVERY_LABEL[recoveryState]}</span>
+      )}
+      {alerts.map((alert) => (
+        <span className="card__status-note card__status-note--alert" key={alert}>
+          {ALERT_LABEL[alert]}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -81,19 +170,49 @@ function InvestorLine({ label, chip }: { label: string; chip: InvestorChip }) {
   );
 }
 
-/** 識別列、Profile 判定列與技術籌碼列由兩種卡共用；差別只在中間的摘要。 */
+function ChipRow({ core }: { core: CardCore }) {
+  const { chip } = core.analysis;
+
+  if (!chip.ok) {
+    return (
+      <div className="card__chips card__chips--missing">
+        法人資料未就緒
+        {chip.lastAvailableDate === null ? '' : `，最後可用日期 ${chip.lastAvailableDate}`}
+      </div>
+    );
+  }
+
+  return (
+    <div className="card__chips">
+      <InvestorLine label="外資" chip={chip.snapshot.foreign} />
+      <InvestorLine label="投信" chip={chip.snapshot.trust} />
+      <span className="card__joint">{JOINT_LABEL[chip.snapshot.joint]}</span>
+    </div>
+  );
+}
+
+/**
+ * 兩種卡共用的骨架：識別、大數字、狀態句、指標方塊、法人、可收合的明細。
+ *
+ * 明細預設收起是因為成本與均線這類數字每天都在，卻只在要加減碼時才看；
+ * 它們留在卡上會把真正每天要掃的東西擠掉。收起不是刪除，點一下就在原地展開。
+ */
 function CardFrame({
   core,
   tags,
   dataTitle,
-  children,
+  lead,
+  boxes,
+  details,
 }: {
   core: CardCore;
   tags: string[];
   dataTitle: string;
-  children: React.ReactNode;
+  lead: React.ReactNode;
+  boxes: React.ReactNode;
+  details: React.ReactNode;
 }) {
-  const { analysis } = core;
+  const { technical } = core.analysis;
 
   return (
     <article className="card" aria-label={`${core.stockId} ${core.stockName}`}>
@@ -117,72 +236,66 @@ function CardFrame({
       </header>
 
       <div className="card__summary">
-        <div className="card__summary-body">{children}</div>
-        <Sparkline series={analysis.trend} />
+        {lead}
+        <Sparkline series={core.analysis.trend} />
       </div>
 
-      <div className="card__bands">
-        {core.bands.map((band) => (
-          <BandChip key={band.metric} band={band} />
-        ))}
-      </div>
+      <StatusLine core={core} />
 
-      <div className="card__readouts">
-        <div className="card__readout">
-          <span className="card__label micro">技術</span>
-          {analysis.technical.ok ? (
-            <span className="card__readout-body num">
-              MA5 {price(analysis.technical.snapshot.ma5)}．MA20{' '}
-              {price(analysis.technical.snapshot.ma20)}．MA60{' '}
-              {price(analysis.technical.snapshot.ma60)}
-              <span className="card__tag">
-                {MONTHLY_LINE_LABEL[analysis.technical.snapshot.monthlyLineState]}
-              </span>
+      <div className="card__metrics">{boxes}</div>
+
+      <ChipRow core={core} />
+
+      <details className="card__details">
+        <summary className="card__details-summary">明細</summary>
+        <div className="card__details-body num">
+          {details}
+          {technical.ok ? (
+            <span className="card__detail">
+              MA5 {price(technical.snapshot.ma5)}．MA20 {price(technical.snapshot.ma20)}．MA60{' '}
+              {price(technical.snapshot.ma60)}
             </span>
-          ) : (
-            <span className="card__readout-body card__readout-body--missing">
-              股價資料只有 {analysis.technical.available} 筆，需要{' '}
-              {analysis.technical.required} 筆
-            </span>
-          )}
+          ) : null}
         </div>
-
-        <div className="card__readout">
-          <span className="card__label micro">籌碼</span>
-          {analysis.chip.ok ? (
-            <span className="card__readout-body">
-              <InvestorLine label="外資" chip={analysis.chip.snapshot.foreign} />
-              <InvestorLine label="投信" chip={analysis.chip.snapshot.trust} />
-              <span className="card__tag">{JOINT_LABEL[analysis.chip.snapshot.joint]}</span>
-            </span>
-          ) : (
-            <span className="card__readout-body card__readout-body--missing">
-              法人資料未就緒
-              {analysis.chip.lastAvailableDate === null
-                ? ''
-                : `，最後可用日期 ${analysis.chip.lastAvailableDate}`}
-            </span>
-          )}
-        </div>
-      </div>
+      </details>
     </article>
   );
 }
 
 /** 觀察卡刻意不顯示成本、損益與持有天數——規格要求那些只屬於持股卡。 */
 export function WatchCardView({ card }: { card: WatchCard }) {
+  // 沒有損益可看，改用乖離率當落點；它同時是三個判定指標裡最直觀的一個
+  const bias = card.bands.find((band) => band.metric === 'bias20');
+
   return (
     <CardFrame
       core={card}
       tags={card.topics}
       dataTitle={`市場資料 ${card.priceDate ?? '未取得'}`}
-    >
-      <div className="card__watch">
-        <span className="card__label micro">加入觀察</span>
-        <span className="card__value num">{card.addedAt.slice(0, 10)}</span>
-        {card.topics.length === 0 ? <span className="card__untagged">未分類</span> : null}
-      </div>
-    </CardFrame>
+      lead={
+        <LeadReadout
+          value={bias === undefined || bias.value === null ? '—' : percent(bias.value, '%')}
+          label={METRIC_LABEL.bias20}
+          numeric={bias?.value ?? null}
+          note={bias?.band === null || bias === undefined ? null : bandLabel('bias20', bias.band)}
+        />
+      }
+      boxes={
+        <>
+          {card.bands
+            .filter((band) => band.metric !== 'bias20')
+            .map((band) => (
+              <MetricBox key={band.metric} band={band} />
+            ))}
+          <PlainBox label="加入觀察" value={card.addedAt.slice(0, 10)} />
+        </>
+      }
+      details={
+        <span className="card__detail">
+          {card.topics.length === 0 ? '未分類' : `題材 ${card.topics.join('、')}`}
+        </span>
+      }
+    />
   );
 }
 
@@ -194,43 +307,35 @@ export function HoldingCardView({ card }: { card: HoldingCard }) {
       core={card}
       tags={[card.tradeType]}
       dataTitle={`市場資料 ${card.priceDate ?? '未取得'}．庫存快照 ${card.snapshotDate}`}
-    >
-
-      {/* 持股摘要：損益一律用券商快照自己的成本與現價，與技術指標的還原價分開 */}
-      <div className="card__position">
-        <div className="card__figure">
-          <span className="card__label micro">庫存現價</span>
-          <span className="card__value num">{price(card.currentPrice)}</span>
-        </div>
-        <div className="card__figure">
-          <span className="card__label micro">成本</span>
-          <span className="card__value num">{price(card.costPrice)}</span>
-        </div>
-        <div className="card__figure">
-          <span className="card__label micro">股數</span>
-          <span className="card__value num">{money(card.quantity)}</span>
-        </div>
-        <div className="card__figure">
-          <span className="card__label micro">未實現損益</span>
-          <span className={`card__value num${tone(position.unrealized)}`}>
+      lead={
+        <LeadReadout
+          value={percent(position.returnPercent, '%')}
+          label="報酬率"
+          numeric={position.returnPercent}
+          /* 損益一律用券商快照的成本與現價，與技術指標的還原價分屬兩個尺度 */
+          note={`庫存現價 ${price(card.currentPrice)}`}
+        />
+      }
+      boxes={
+        <>
+          {card.bands.map((band) => (
+            <MetricBox key={band.metric} band={band} />
+          ))}
+          <PlainBox
+            label="持有天數"
+            value={card.heldDays === null ? '—' : `${card.heldDays} 天`}
+          />
+        </>
+      }
+      details={
+        <span className="card__detail">
+          成本 {price(card.costPrice)}．股數 {money(card.quantity)}．未實現{' '}
+          <span className={position.unrealized >= 0 ? 'card__gain' : 'card__loss'}>
             {position.unrealized >= 0 ? '+' : ''}
             {money(position.unrealized)}
           </span>
-        </div>
-        <div className="card__figure">
-          <span className="card__label micro">報酬率</span>
-          <span className={`card__value num${tone(position.returnPercent)}`}>
-            {percent(position.returnPercent, '%')}
-          </span>
-        </div>
-        <div className="card__figure">
-          <span className="card__label micro">持有天數</span>
-          <span className="card__value num">
-            {card.heldDays === null ? '—' : `${card.heldDays} 天`}
-          </span>
-        </div>
-      </div>
-
-    </CardFrame>
+        </span>
+      }
+    />
   );
 }
