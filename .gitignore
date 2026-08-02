@@ -32,3 +32,6 @@ Thumbs.db
 *.local
 .idea/
 .vscode/
+
+# Codex 隔離工作區
+.worktrees/
