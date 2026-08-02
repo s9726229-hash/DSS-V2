@@ -71,9 +71,9 @@ export function AnalysisPage() {
   return (
     <div className="analysis">
       <header className="analysis__head">
-        <h1 className="analysis__title">技術分析</h1>
+        <h1 className="analysis__title">完整分析</h1>
         <p className="analysis__lede">
-          依最近一個交易日的收盤資料計算。技術面與籌碼面各自獨立呈現，不合併為單一評分，也不產生買賣建議。
+          逐檔查看原始數字、趨勢與計算依據。資料依最近一個交易日的收盤資料計算，不產生買賣建議。
         </p>
       </header>
 

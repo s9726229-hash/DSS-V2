@@ -5,7 +5,6 @@ import { GuidePage } from '../features/guide/GuidePage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { TodayPage } from '../features/today/TodayPage';
 import { ResearchPage } from '../features/research/ResearchPage';
-import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { syncHoldings } from '../market/sync';
 import { fetchFinMindUsage, type UsageResult } from '../market/usageClient';
 import { readInventory, type Inventory } from '../storage/inventory';
@@ -15,23 +14,15 @@ import { readHoldingsSnapshot } from '../storage/portfolio';
 import './AppShell.css';
 
 const PAGES = [
-  { id: 'today', label: '今日 DSS' },
-  { id: 'analysis', label: '技術分析' },
-  { id: 'guide', label: '判讀說明' },
-  { id: 'research', label: '歷史交易研究' },
-  { id: 'profile', label: 'Profile' },
+  { id: 'today', label: '今日總覽' },
+  { id: 'analysis', label: '完整分析' },
+  { id: 'guide', label: '系統怎麼算' },
+  { id: 'research', label: '歷史研究' },
+  { id: 'profile', label: '目前規則' },
   { id: 'data', label: '資料中心' },
-  { id: 'settings', label: '設定' },
 ] as const;
 
 type PageId = (typeof PAGES)[number]['id'];
-
-const PLACEHOLDER_COPY: Record<
-  Exclude<PageId, 'data' | 'analysis' | 'guide' | 'research' | 'profile' | 'today'>,
-  string
-> = {
-  settings: '偏好設定。所有設定只存在這台電腦。',
-};
 
 function StatusReading({
   label,
@@ -299,12 +290,7 @@ export function AppShell() {
             <ProfilePage />
           ) : page === 'today' ? (
             <TodayPage dataVersion={dataVersion} onWatchlistChanged={refreshInventory} />
-          ) : (
-            <PlaceholderPage
-              title={PAGES.find((entry) => entry.id === page)?.label ?? ''}
-              description={PLACEHOLDER_COPY[page]}
-            />
-          )}
+          ) : null}
         </main>
       </div>
     </div>

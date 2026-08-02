@@ -2,7 +2,7 @@
 
 ## V1 — 資訊架構與白話 UI
 
-狀態：設計已核准，尚未實作。
+狀態：實作中。
 
 範圍：
 
@@ -20,6 +20,12 @@
 
 - 執行既有自動測試、型別檢查與正式版本製作。
 - 在瀏覽器確認每個側欄目的地、今日 DSS 的詳細頁、系統怎麼算、歷史研究與規則標記。
+
+已完成：
+
+- 側欄改為六個完成頁面：今日總覽、完整分析、系統怎麼算、歷史研究、目前規則、資料中心；設定暫時頁面已隱藏。
+- 六個頁面首段改為白話用途說明。
+- `npx.cmd vitest run src/app/AppShell.test.tsx src/features/analysis/AnalysisPage.test.tsx src/features/research/ResearchPage.test.tsx` 通過（45 項）。
 
 ## V0 — 已驗證可運作的基線
 

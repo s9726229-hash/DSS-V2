@@ -57,21 +57,22 @@ beforeEach(async () => {
 });
 
 describe('AppShell', () => {
-  it('顯示五個主頁導覽', () => {
+  it('顯示 V1 的六個完成頁面導覽', () => {
     render(<AppShell />);
 
     const nav = screen.getByRole('navigation');
-    for (const label of ['今日 DSS', '歷史交易研究', 'Profile', '資料中心', '設定']) {
+    for (const label of ['今日總覽', '完整分析', '系統怎麼算', '歷史研究', '目前規則', '資料中心']) {
       expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument();
     }
+    expect(within(nav).queryByRole('button', { name: '設定' })).not.toBeInTheDocument();
   });
 
-  // 今日 DSS 要先讀庫存與 Profile 才畫得出卡片，因此標題是非同步出現的
-  it('預設顯示今日 DSS', async () => {
+  // 今日總覽要先讀庫存與 Profile 才畫得出卡片，因此標題是非同步出現的
+  it('預設顯示今日總覽', async () => {
     render(<AppShell />);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: '今日 DSS' }),
+      await screen.findByRole('heading', { level: 1, name: '今日總覽' }),
     ).toBeInTheDocument();
   });
 

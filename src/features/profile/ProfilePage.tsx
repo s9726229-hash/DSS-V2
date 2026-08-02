@@ -250,9 +250,9 @@ export function ProfilePage() {
       ) : null}
 
       <header className="profile__head">
-        <h1 className="profile__title">Profile</h1>
+        <h1 className="profile__title">目前規則</h1>
         <p className="profile__lede">
-          判讀庫存與觀察標的時使用的門檻。門檻只影響現在的判讀，
+          目前套用在個股與 ETF 的判讀門檻。門檻只影響現在的判讀，
           不會改動交易紀錄、研究樣本或歷史快照，也不代表未來報酬。
         </p>
       </header>
