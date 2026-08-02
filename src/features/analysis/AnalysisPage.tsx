@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { DistortionEvent } from '../../dss/adjustment';
 import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
-import { CalculationFlow } from './CalculationFlow';
 import { ChipPanel } from './ChipPanel';
 import { TechnicalPanel } from './TechnicalPanel';
 import './AnalysisPage.css';
-
-type Tab = 'status' | 'flow';
-
-const TAB_LABEL: Record<Tab, string> = {
-  status: '個股狀態',
-  flow: '計算流程',
-};
 
 const EVENT_LABEL: Record<'dividend' | 'split', string> = {
   dividend: '除權息',
@@ -51,7 +43,6 @@ function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
 }
 
 export function AnalysisPage() {
-  const [tab, setTab] = useState<Tab>('status');
   const [analyses, setAnalyses] = useState<StockAnalysis[] | null>(null);
 
   useEffect(() => {
@@ -77,24 +68,7 @@ export function AnalysisPage() {
         </p>
       </header>
 
-      <nav className="tabs" aria-label="技術分析檢視">
-        {(['status', 'flow'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={id === tab ? 'tabs__item tabs__item--active' : 'tabs__item'}
-            aria-current={id === tab ? 'page' : undefined}
-            onClick={() => setTab(id)}
-          >
-            {TAB_LABEL[id]}
-          </button>
-        ))}
-      </nav>
-
-      {tab === 'flow' ? <CalculationFlow /> : null}
-
-      {tab === 'status' ? (
-        <>
+      <>
           {analyses === null ? <p className="analysis__loading">讀取中…</p> : null}
 
           {analyses !== null && analyses.length === 0 ? (
@@ -125,8 +99,7 @@ export function AnalysisPage() {
               </div>
             </section>
           ))}
-        </>
-      ) : null}
+      </>
     </div>
   );
 }

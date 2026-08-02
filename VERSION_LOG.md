@@ -28,6 +28,8 @@
 - `npx.cmd vitest run src/app/AppShell.test.tsx src/features/analysis/AnalysisPage.test.tsx src/features/research/ResearchPage.test.tsx` 通過（45 項）。
 - 系統怎麼算改為資料總流程、今天卡片流程、歷史研究流程與系統限制四段；技術名詞預設收合。
 - `npx.cmd vitest run src/features/guide/GuidePage.test.tsx` 通過（11 項）。
+- 完整分析與歷史研究不再顯示計算流程分頁；兩張流程圖只在系統怎麼算呈現。
+- `npx.cmd vitest run src/features/analysis/AnalysisPage.test.tsx src/features/research/ResearchPage.test.tsx` 通過（25 項）。
 
 ## V0 — 已驗證可運作的基線
 

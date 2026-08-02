@@ -24,17 +24,15 @@ import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
 import { ApplyCandidate, type PendingCandidate } from './ApplyCandidate';
 import { ASSET_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
-import { ResearchFlow } from './ResearchFlow';
 import { ResearchHistory } from './ResearchHistory';
 import { TransactionLog } from './TransactionLog';
 import './ResearchPage.css';
 
-type View = 'result' | 'log' | 'flow' | 'history';
+type View = 'result' | 'log' | 'history';
 
 const VIEW_LABEL: Record<View, string> = {
   result: '研究結果',
   log: '交易歷史',
-  flow: '計算流程',
   history: '搜尋紀錄',
 };
 
@@ -395,7 +393,7 @@ export function ResearchPage() {
       </section>
 
       <nav className="tabs" aria-label="研究檢視">
-        {(['result', 'log', 'flow', 'history'] as const).map((id) => (
+        {(['result', 'log', 'history'] as const).map((id) => (
           <button
             key={id}
             type="button"
@@ -409,8 +407,6 @@ export function ResearchPage() {
       </nav>
 
       {view === 'log' ? <TransactionLog rows={log} /> : null}
-
-      {view === 'flow' ? <ResearchFlow /> : null}
 
       {view === 'history' ? <ResearchHistory runs={runs} /> : null}
 

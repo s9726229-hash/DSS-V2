@@ -1,5 +1,4 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { InstitutionalRow, PriceRow } from '../../market/types';
@@ -172,38 +171,12 @@ describe('權息與分割還原', () => {
   });
 });
 
-describe('計算流程分頁', () => {
-  it('預設顯示個股狀態，不顯示流程圖', async () => {
+describe('完整分析的分頁', () => {
+  it('不再顯示已移至系統怎麼算的計算流程', async () => {
     render(<AnalysisPage />);
 
     await screen.findByText(/尚未匯入庫存/);
+    expect(screen.queryByRole('button', { name: '計算流程' })).not.toBeInTheDocument();
     expect(screen.queryByText('讀取本機已存的資料')).not.toBeInTheDocument();
-  });
-
-  it('切到計算流程會顯示流程圖，標出技術面／籌碼面的資料門檻', async () => {
-    const user = userEvent.setup();
-    render(<AnalysisPage />);
-    await screen.findByText(/尚未匯入庫存/);
-
-    await user.click(screen.getByRole('button', { name: '計算流程' }));
-
-    expect(screen.getByText('讀取本機已存的資料')).toBeInTheDocument();
-    expect(screen.getByText('還原權息與分割')).toBeInTheDocument();
-    expect(screen.getByText('技術面結果')).toBeInTheDocument();
-    expect(screen.getByText('籌碼面結果')).toBeInTheDocument();
-    expect(screen.getByText('資料不足')).toBeInTheDocument();
-    expect(screen.getByText('法人未就緒')).toBeInTheDocument();
-    expect(screen.queryByText(/尚未匯入庫存/)).not.toBeInTheDocument();
-  });
-
-  it('切回個股狀態會恢復原本內容', async () => {
-    const user = userEvent.setup();
-    render(<AnalysisPage />);
-    await screen.findByText(/尚未匯入庫存/);
-
-    await user.click(screen.getByRole('button', { name: '計算流程' }));
-    await user.click(screen.getByRole('button', { name: '個股狀態' }));
-
-    expect(await screen.findByText(/尚未匯入庫存/)).toBeInTheDocument();
   });
 });
