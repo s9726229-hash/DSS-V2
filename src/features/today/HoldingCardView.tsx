@@ -277,6 +277,7 @@ function CardFrame({
   lead,
   boxes,
   details,
+  onOpenDetail,
 }: {
   core: CardCore;
   tags: string[];
@@ -284,11 +285,28 @@ function CardFrame({
   lead: React.ReactNode;
   boxes: React.ReactNode;
   details: React.ReactNode;
+  /** 未提供時整張卡不可點——管理觀察清單時要讓位給拖曳。 */
+  onOpenDetail?: () => void;
 }) {
   const { technical } = core.analysis;
 
+  /*
+   * 卡片裡本來就有摘要、按鈕與核取方塊，整張包成 <button> 是無效的 HTML。
+   * 因此改成在卡片上掛 onClick，並忽略來自互動元素的點擊；
+   * 鍵盤使用者走標題列那顆「詳情」按鈕。
+   */
+  const openFromCard = (event: React.MouseEvent) => {
+    if (onOpenDetail === undefined) return;
+    if ((event.target as HTMLElement).closest('button, summary, input, label, a')) return;
+    onOpenDetail();
+  };
+
   return (
-    <article className="card" aria-label={`${core.stockId} ${core.stockName}`}>
+    <article
+      className={onOpenDetail === undefined ? 'card' : 'card card--clickable'}
+      aria-label={`${core.stockId} ${core.stockName}`}
+      onClick={openFromCard}
+    >
       <header className="card__head">
         <div className="card__identity">
           <span className="card__id num">{core.stockId}</span>
@@ -300,12 +318,24 @@ function CardFrame({
             </span>
           ))}
         </div>
-        <span
-          className={`card__completeness card__completeness--${core.completeness}`}
-          title={dataTitle}
-        >
-          {COMPLETENESS_LABEL[core.completeness]}
-        </span>
+        <div className="card__head-right">
+          <span
+            className={`card__completeness card__completeness--${core.completeness}`}
+            title={dataTitle}
+          >
+            {COMPLETENESS_LABEL[core.completeness]}
+          </span>
+          {onOpenDetail === undefined ? null : (
+            <button
+              type="button"
+              className="card__detail-open"
+              onClick={onOpenDetail}
+              aria-label={`${core.stockId} ${core.stockName} 詳情`}
+            >
+              詳情
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="card__summary">
@@ -336,7 +366,13 @@ function CardFrame({
 }
 
 /** 觀察卡刻意不顯示成本、損益與持有天數——規格要求那些只屬於持股卡。 */
-export function WatchCardView({ card }: { card: WatchCard }) {
+export function WatchCardView({
+  card,
+  onOpenDetail,
+}: {
+  card: WatchCard;
+  onOpenDetail?: () => void;
+}) {
   // 沒有損益可看，改用乖離率當落點；它同時是三個判定指標裡最直觀的一個
   const bias = card.bands.find((band) => band.metric === 'bias20');
 
@@ -345,6 +381,7 @@ export function WatchCardView({ card }: { card: WatchCard }) {
       core={card}
       tags={card.topics}
       dataTitle={`市場資料 ${card.priceDate ?? '未取得'}`}
+      onOpenDetail={onOpenDetail}
       lead={
         <LeadReadout
           value={bias === undefined || bias.value === null ? '—' : percent(bias.value, '%')}
@@ -373,7 +410,13 @@ export function WatchCardView({ card }: { card: WatchCard }) {
   );
 }
 
-export function HoldingCardView({ card }: { card: HoldingCard }) {
+export function HoldingCardView({
+  card,
+  onOpenDetail,
+}: {
+  card: HoldingCard;
+  onOpenDetail?: () => void;
+}) {
   const { position } = card;
 
   return (
@@ -381,6 +424,7 @@ export function HoldingCardView({ card }: { card: HoldingCard }) {
       core={card}
       tags={[card.tradeType]}
       dataTitle={`市場資料 ${card.priceDate ?? '未取得'}．庫存快照 ${card.snapshotDate}`}
+      onOpenDetail={onOpenDetail}
       lead={
         <LeadReadout
           value={percent(position.returnPercent, '%')}

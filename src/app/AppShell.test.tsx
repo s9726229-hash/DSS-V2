@@ -249,6 +249,73 @@ describe('AppShell', () => {
     expect(cost).toBeVisible();
   });
 
+  /*
+   * 規格 L257：點擊圖卡在右側滑出詳情面板，持股另顯示成本與損益，
+   * 且不把持倉資料混入 DSS 判讀——所以持倉必須是獨立一區並自己說明。
+   */
+  it('點擊持股卡滑出詳情，持倉獨立成區且標明不參與判讀', async () => {
+    await importHoldingsSnapshot(
+      [
+        {
+          stockId: '0050',
+          stockName: '元大台灣50',
+          tradeType: '現股',
+          quantity: 1000,
+          costPrice: 100,
+          currentPrice: 105,
+        },
+      ],
+      '2026-07-28',
+      '2026-07-28T02:00:00.000Z',
+    );
+
+    render(<AppShell />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /0050 元大台灣50 詳情/ }));
+
+    const panel = await screen.findByRole('dialog', { name: /0050 元大台灣50 詳情/ });
+    expect(within(panel).getByRole('region', { name: '持倉' })).toBeInTheDocument();
+    expect(within(panel).getByText(/不參與 DSS 判讀/)).toBeInTheDocument();
+    expect(within(panel).getByRole('region', { name: 'DSS 原因' })).toBeInTheDocument();
+  });
+
+  it('觀察卡的詳情不出現持倉資料', async () => {
+    await writeWatchlist(
+      addWatch(emptyWatchlist(), {
+        stockId: '2330',
+        stockName: '台積電',
+        at: '2026-07-28T02:00:00.000Z',
+      }),
+    );
+
+    render(<AppShell />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /2330 台積電 詳情/ }));
+
+    const panel = await screen.findByRole('dialog', { name: /2330 台積電 詳情/ });
+    expect(within(panel).queryByRole('region', { name: '持倉' })).not.toBeInTheDocument();
+    expect(within(panel).getByRole('region', { name: '觀察' })).toBeInTheDocument();
+  });
+
+  it('按 Esc 可關閉詳情，鍵盤使用者不會被困住', async () => {
+    await writeWatchlist(
+      addWatch(emptyWatchlist(), {
+        stockId: '2330',
+        stockName: '台積電',
+        at: '2026-07-28T02:00:00.000Z',
+      }),
+    );
+
+    render(<AppShell />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /2330 台積電 詳情/ }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('有交易資料時狀態列顯示交易涵蓋的最後日期', async () => {
     await importTransactions(
       [

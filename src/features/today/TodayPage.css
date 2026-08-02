@@ -539,3 +539,182 @@
   color: var(--rule);
   cursor: not-allowed;
 }
+
+/* ── 詳情面板 ───────────────────────────────── */
+
+/*
+ * 規格：點擊圖卡在右側滑出詳情。
+ * 面板是模態的，所以背景要能點掉，Esc 也要能關——滑出的面板若只給滑鼠用，
+ * 鍵盤使用者會被困在後面的頁面上。
+ */
+.detail__scrim {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  inset: 0;
+  background: rgb(17 20 24 / 28%);
+}
+
+.detail {
+  display: flex;
+  width: min(460px, 100%);
+  flex-direction: column;
+  border-left: 1px solid var(--rule-strong);
+  background: var(--paper);
+  animation: detail-slide 160ms ease-out;
+}
+
+@keyframes detail-slide {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+.detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-3) var(--gap-4);
+  border-bottom: 1px solid var(--rule);
+  gap: var(--gap-3);
+}
+
+.detail__id {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.detail__name {
+  margin-left: var(--gap-2);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.detail__body {
+  overflow-y: auto;
+  padding: 0 var(--gap-4) var(--gap-5);
+}
+
+.detail__block {
+  padding: var(--gap-3) 0;
+  border-bottom: 1px solid var(--panel-sunken);
+}
+
+/* 持倉獨立一區：規格要求不把持倉資料混入 DSS 判讀 */
+.detail__block--position {
+  margin-top: var(--gap-2);
+  padding: var(--gap-3);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 4px;
+  background: var(--panel-sunken);
+}
+
+.detail__title {
+  margin: 0 0 var(--gap-2);
+}
+
+.detail__row {
+  display: grid;
+  align-items: baseline;
+  padding: 2px 0;
+  gap: var(--gap-2);
+  grid-template-columns: 6em minmax(0, 1fr);
+}
+
+.detail__label {
+  color: var(--graphite-light);
+}
+
+.detail__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-2);
+  font-size: 13px;
+}
+
+.detail__muted {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.detail__reasons {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding-left: var(--gap-4);
+  gap: 3px;
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.detail__reasons strong {
+  margin: 0 2px;
+  color: var(--ink);
+}
+
+.detail__reason--attention {
+  color: var(--attention);
+}
+
+.detail__missing {
+  margin: 0;
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.detail__spark {
+  padding: var(--gap-2) 0;
+}
+
+/* 詳情裡的走勢圖比卡片上大，才看得出形狀 */
+.detail__spark .spark {
+  width: 100%;
+  height: 96px;
+}
+
+.detail__flow {
+  padding-top: var(--gap-2);
+}
+
+.detail__flow .flowchart {
+  height: 44px;
+}
+
+.detail__note {
+  margin: var(--gap-2) 0 0;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.card--clickable {
+  cursor: pointer;
+}
+
+.card__head-right {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-2);
+}
+
+.card__detail-open {
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  background: none;
+  color: var(--graphite);
+  font-size: 10px;
+}
+
+.card__detail-open:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .detail {
+    width: 100%;
+  }
+}

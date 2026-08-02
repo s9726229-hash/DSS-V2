@@ -12,6 +12,7 @@ import {
   type Watchlist,
 } from '../../watchlist/watchlist';
 import { readWatchlist, writeWatchlist } from '../../watchlist/watchlistStore';
+import { CardDetail } from './CardDetail';
 import { HoldingCardView, WatchCardView } from './HoldingCardView';
 import { WatchlistManager } from './WatchlistManager';
 import './TodayPage.css';
@@ -38,6 +39,8 @@ export function TodayPage({
   const [dragging, setDragging] = useState<{ stockId: string; from: string | null } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null | undefined>(undefined);
   const [tab, setTab] = useState<'holdings' | 'watches' | null>(null);
+  /** 詳情面板要顯示的標的；null 代表沒有開啟。 */
+  const [detail, setDetail] = useState<{ kind: 'holding' | 'watch'; stockId: string } | null>(null);
 
   const refresh = useCallback(() => {
     void loadTodayView().then(setView);
@@ -70,6 +73,21 @@ export function TodayPage({
   const active = tab ?? (view.holdings.length > 0 ? 'holdings' : 'watches');
 
   const byId = new Map<string, WatchCard>(view.watches.map((card) => [card.stockId, card]));
+
+  /*
+   * 由代號回頭取卡片，而不是把卡片本身存進狀態：
+   * 同步或改題材之後 view 會重算，存下來的舊物件會變成看不見的過期資料。
+   */
+  const selected = (() => {
+    if (detail === null) return null;
+
+    const card =
+      detail.kind === 'holding'
+        ? view.holdings.find((row) => row.stockId === detail.stockId)
+        : byId.get(detail.stockId);
+
+    return card === undefined ? null : { card, kind: detail.kind };
+  })();
   const noThresholds =
     view.holdings.length + view.watches.length > 0 &&
     [...view.holdings, ...view.watches].every((card) =>
@@ -129,7 +147,11 @@ export function TodayPage({
           ) : (
             <div className="today__grid">
               {view.holdings.map((card) => (
-                <HoldingCardView key={card.stockId} card={card} />
+                <HoldingCardView
+                  key={card.stockId}
+                  card={card}
+                  onOpenDetail={() => setDetail({ kind: 'holding', stockId: card.stockId })}
+                />
               ))}
             </div>
           )}
@@ -246,7 +268,15 @@ export function TodayPage({
                           setDropTarget(undefined);
                         }}
                       >
-                        <WatchCardView card={card} />
+                        <WatchCardView
+                          card={card}
+                          /* 管理模式要讓位給拖曳，此時整張卡不可點 */
+                          onOpenDetail={
+                            managing
+                              ? undefined
+                              : () => setDetail({ kind: 'watch', stockId: card.stockId })
+                          }
+                        />
                       </div>
                     );
                   })}
@@ -256,6 +286,10 @@ export function TodayPage({
           ))
         )}
       </section>
+
+      {selected === null ? null : (
+        <CardDetail card={selected.card} kind={selected.kind} onClose={() => setDetail(null)} />
+      )}
     </div>
   );
 }
