@@ -3,7 +3,13 @@ import { readHoldingsSnapshot } from '../storage/portfolio';
 import { needsNameLookup, resolveWatchName } from '../watchlist/watchlist';
 import { readWatchlist, writeWatchlist } from '../watchlist/watchlistStore';
 import { fetchDataset, type DateRange } from './finmindClient';
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow, StockInfoRow } from './types';
+import type {
+  AdjustmentEventRow,
+  InstitutionalRow,
+  MarginRow,
+  PriceRow,
+  StockInfoRow,
+} from './types';
 
 /** 價格取近一年，足以計算 MA60 並保留餘裕。 */
 const PRICE_LOOKBACK_DAYS = 365;
@@ -156,9 +162,35 @@ async function syncStock(
     retrievedAt,
   });
 
+  await cacheMargin(stockId, now, retrievedAt);
+
   await cacheAdjustmentEvents(stockId, now, retrievedAt);
 
   return { stockId, stockName, ok: true, skipped: false, priceDate, institutionalDate };
+}
+
+/**
+ * 融資餘額。
+ *
+ * 與法人同一段期間，方向判斷才對得起來。取不到時不視為同步失敗——
+ * 融資是附加的第三條序列，缺了它價格與法人仍然可用。
+ */
+async function cacheMargin(stockId: string, now: Date, retrievedAt: string): Promise<void> {
+  const result = await fetchDataset<MarginRow>(
+    'TaiwanStockMarginPurchaseShortSale',
+    stockId,
+    rangeEnding(now, INSTITUTIONAL_LOOKBACK_DAYS),
+  );
+
+  if (!result.ok) return;
+
+  await writeCachedDataset({
+    dataset: 'TaiwanStockMarginPurchaseShortSale',
+    stockId,
+    rows: result.rows,
+    tradeDate: latestDate(result.rows),
+    retrievedAt,
+  });
 }
 
 /**

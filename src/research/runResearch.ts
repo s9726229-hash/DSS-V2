@@ -1,6 +1,12 @@
 import { adjustPrices } from '../dss/adjustment';
-import { flowAxis } from '../dss/flow';
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../market/types';
+import { computeFlow, flowAxis } from '../dss/flow';
+import { MARGIN_FLOW_THRESHOLDS } from '../dss/margin';
+import type {
+  AdjustmentEventRow,
+  InstitutionalRow,
+  MarginRow,
+  PriceRow,
+} from '../market/types';
 import { readCachedDataset } from '../storage/marketCache';
 import { readTransactions } from '../storage/portfolio';
 import { computeEntryOutcome } from './outcome';
@@ -9,14 +15,20 @@ import { buildEntrySnapshot, classifyAsset, type AssetClass } from './snapshot';
 import { runWalkForward, type MetricSample, type WalkForwardResult } from './walkForward';
 
 /** 規格 v1 的三個研究分頁。 */
-export type ResearchMetric = 'bias20' | 'foreignFlow' | 'trustFlow';
+export type ResearchMetric = 'bias20' | 'foreignFlow' | 'trustFlow' | 'marginFlow';
 
-export const RESEARCH_METRICS: ResearchMetric[] = ['bias20', 'foreignFlow', 'trustFlow'];
+export const RESEARCH_METRICS: ResearchMetric[] = [
+  'bias20',
+  'foreignFlow',
+  'trustFlow',
+  'marginFlow',
+];
 
 export const METRIC_LABEL: Record<ResearchMetric, string> = {
   bias20: '20MA 乖離率',
   foreignFlow: '外資流向',
   trustFlow: '投信流向',
+  marginFlow: '融資流向',
 };
 
 /**
@@ -27,6 +39,7 @@ export const METRIC_UNIT: Record<ResearchMetric, string> = {
   bias20: '%',
   foreignFlow: ' 倍',
   trustFlow: ' 倍',
+  marginFlow: ' 倍',
 };
 
 /**
@@ -57,16 +70,18 @@ export type ResearchReport = {
 };
 
 async function loadStockData(stockId: string) {
-  const [price, chip, dividend, split] = await Promise.all([
+  const [price, chip, dividend, split, margin] = await Promise.all([
     readCachedDataset('TaiwanStockPrice', stockId),
     readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId),
     readCachedDataset('TaiwanStockDividendResult', stockId),
     readCachedDataset('TaiwanStockSplitPrice', stockId),
+    readCachedDataset('TaiwanStockMarginPurchaseShortSale', stockId),
   ]);
 
   return {
     rawPrices: (price?.payload ?? []) as PriceRow[],
     institutional: (chip?.payload ?? []) as InstitutionalRow[],
+    margin: (margin?.payload ?? []) as MarginRow[],
     dividends: (dividend?.payload ?? []) as AdjustmentEventRow[],
     splits: (split?.payload ?? []) as AdjustmentEventRow[],
   };
@@ -107,6 +122,7 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
     bias20: [],
     foreignFlow: [],
     trustFlow: [],
+    marginFlow: [],
   };
 
   const previous = new Map<string, string>();
@@ -116,7 +132,9 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
   let completeCount = 0;
 
   for (const entry of entries) {
-    const { rawPrices, institutional, dividends, splits } = await loadStockData(entry.stockId);
+    const { rawPrices, institutional, margin, dividends, splits } = await loadStockData(
+      entry.stockId,
+    );
 
     if (rawPrices.length === 0) {
       missingStocks.add(entry.stockId);
@@ -126,6 +144,7 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
       entry,
       prices: rawPrices,
       institutional,
+      margin,
       dividends,
       splits,
     });
@@ -163,6 +182,11 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
     samples.trustFlow.push({
       ...base,
       metricValue: snapshot.chip.ok ? flowAxis(snapshot.chip.snapshot.trust) : null,
+    });
+    samples.marginFlow.push({
+      ...base,
+      // 融資有自己的中性門檻：法人的 500 張會把多數融資變化誤判為中性
+      metricValue: computeFlow(snapshot.margin, MARGIN_FLOW_THRESHOLDS)?.signedRatio ?? null,
     });
   }
 

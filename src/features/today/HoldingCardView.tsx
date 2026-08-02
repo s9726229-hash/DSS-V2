@@ -1,4 +1,4 @@
-import type { InvestorChip } from '../../dss/chip';
+import type { DailyNet } from '../../dss/chip';
 import type {
   CardBand,
   CardCore,
@@ -10,13 +10,21 @@ import { bandLabel } from '../../research/bandLabels';
 import { METRIC_LABEL, METRIC_UNIT, type ResearchMetric } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
-import { computeFlow, FLOW_BASELINE_DAYS } from '../../dss/flow';
+import {
+  computeFlow,
+  DEFAULT_FLOW_THRESHOLDS,
+  FLOW_BASELINE_DAYS,
+  type FlowChange,
+  type FlowThresholds,
+} from '../../dss/flow';
+import { MARGIN_FLOW_THRESHOLDS } from '../../dss/margin';
 import { FlowChart } from '../FlowChart';
 import {
   ALERT_LABEL,
   FLOW_CHANGE_LABEL,
   FLOW_CHANGE_TONE,
   INVESTOR_LABEL,
+  MARGIN_CHANGE_LABEL,
   lots,
   MONTHLY_LINE_LABEL,
   RECOVERY_LABEL,
@@ -34,6 +42,7 @@ const BOX_LABEL: Record<ResearchMetric, string> = {
   bias20: '20MA 乖離',
   foreignFlow: '外資流向',
   trustFlow: '投信流向',
+  marginFlow: '融資流向',
 };
 
 function money(value: number): string {
@@ -153,19 +162,36 @@ function StatusLine({ core }: { core: CardCore }) {
 }
 
 /**
- * 卡片上的一位法人。
+ * 卡片上的一條序列。
  *
  * 每天要讀的是「今日相對近期是增加、減少還是轉向」，所以方向變化排在最前面，
  * 兩個被比較的數字緊接在後——期間一定要標，否則今日與近期平均並排會看起來自相矛盾。
+ *
+ * 外資、投信、融資共用這一個元件；差別只在門檻、用語與要不要上紅綠。
  */
-function InvestorLine({ label, chip }: { label: string; chip: InvestorChip }) {
-  const flow = computeFlow(chip.series);
+function FlowLine({
+  label,
+  series,
+  thresholds,
+  changeLabel,
+  toned,
+  measure = '買賣超',
+}: {
+  label: string;
+  series: readonly DailyNet[];
+  thresholds: FlowThresholds;
+  changeLabel: Record<FlowChange, string>;
+  /** 融資增減不是股價方向，也不是無爭議的多空訊號，因此不上紅綠。 */
+  toned: boolean;
+  measure?: string;
+}) {
+  const flow = computeFlow(series, thresholds);
 
   if (flow === null) {
     return (
       <span className="card__investor card__investor--missing">
         <span className="card__investor-name">{label}</span>
-        <span>法人資料不足 6 日，無法與近期比較</span>
+        <span>資料不足 6 日，無法與近期比較</span>
       </span>
     );
   }
@@ -173,34 +199,67 @@ function InvestorLine({ label, chip }: { label: string; chip: InvestorChip }) {
   return (
     <span className="card__investor">
       <span className="card__investor-name">{label}</span>
-      <span className={`card__investor-change card__investor-change--${FLOW_CHANGE_TONE[flow.change]}`}>
-        {FLOW_CHANGE_LABEL[flow.change]}
+      <span
+        className={
+          toned
+            ? `card__investor-change card__investor-change--${FLOW_CHANGE_TONE[flow.change]}`
+            : 'card__investor-change card__investor-change--flat'
+        }
+      >
+        {changeLabel[flow.change]}
       </span>
       <span className="card__investor-figure num">
         今日 {lots(flow.today)}／前五日均 {lots(flow.baseline)}
         {flow.ratio === null ? '' : `／${flow.ratio.toFixed(2)}倍`}
       </span>
-      <FlowChart series={chip.series} baselineDays={FLOW_BASELINE_DAYS} label={label} />
+      <FlowChart
+        series={series}
+        baselineDays={FLOW_BASELINE_DAYS}
+        label={label}
+        measure={measure}
+      />
     </span>
   );
 }
 
 function ChipRow({ core }: { core: CardCore }) {
-  const { chip } = core.analysis;
-
-  if (!chip.ok) {
-    return (
-      <div className="card__chips card__chips--missing">
-        法人資料未就緒
-        {chip.lastAvailableDate === null ? '' : `，最後可用日期 ${chip.lastAvailableDate}`}
-      </div>
-    );
-  }
+  const { chip, margin } = core.analysis;
 
   return (
     <div className="card__chips">
-      <InvestorLine label={INVESTOR_LABEL.foreign} chip={chip.snapshot.foreign} />
-      <InvestorLine label={INVESTOR_LABEL.trust} chip={chip.snapshot.trust} />
+      {chip.ok ? (
+        <>
+          <FlowLine
+            label={INVESTOR_LABEL.foreign}
+            series={chip.snapshot.foreign.series}
+            thresholds={DEFAULT_FLOW_THRESHOLDS}
+            changeLabel={FLOW_CHANGE_LABEL}
+            toned
+          />
+          <FlowLine
+            label={INVESTOR_LABEL.trust}
+            series={chip.snapshot.trust.series}
+            thresholds={DEFAULT_FLOW_THRESHOLDS}
+            changeLabel={FLOW_CHANGE_LABEL}
+            toned
+          />
+        </>
+      ) : (
+        <span className="card__chips--missing">
+          法人資料未就緒
+          {chip.lastAvailableDate === null ? '' : `，最後可用日期 ${chip.lastAvailableDate}`}
+        </span>
+      )}
+
+      {/* 融資與法人是不同資料來源，法人取不到時它仍然可能有值 */}
+      <FlowLine
+        label={INVESTOR_LABEL.margin}
+        series={margin}
+        thresholds={MARGIN_FLOW_THRESHOLDS}
+        changeLabel={MARGIN_CHANGE_LABEL}
+        toned={false}
+        measure="餘額增減"
+      />
     </div>
   );
 }

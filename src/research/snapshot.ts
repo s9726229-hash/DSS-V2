@@ -1,7 +1,13 @@
 import { adjustPrices, type DistortionEvent } from '../dss/adjustment';
-import { computeChipSnapshot, type ChipResult } from '../dss/chip';
+import { computeChipSnapshot, type ChipResult, type DailyNet } from '../dss/chip';
+import { marginDailyChange } from '../dss/margin';
 import { computeTechnicalSnapshot, type TechnicalResult } from '../dss/technical';
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../market/types';
+import type {
+  AdjustmentEventRow,
+  InstitutionalRow,
+  MarginRow,
+  PriceRow,
+} from '../market/types';
 import type { PositionEvent } from './positions';
 
 /**
@@ -28,6 +34,8 @@ export type EntrySnapshot = {
   assetClass: AssetClass;
   technical: TechnicalResult;
   chip: ChipResult;
+  /** 建立部位當日（含）以前的融資餘額每日增減，單位為股。 */
+  margin: DailyNet[];
   /** 建立部位當日以前實際套用的還原事件，供研究頁說明資料來源。 */
   appliedAdjustments: DistortionEvent[];
   dataQuality: EntryDataQuality;
@@ -52,12 +60,14 @@ export function buildEntrySnapshot({
   entry,
   prices,
   institutional,
+  margin = [],
   dividends,
   splits,
 }: {
   entry: PositionEvent;
   prices: readonly PriceRow[];
   institutional: readonly InstitutionalRow[];
+  margin?: readonly MarginRow[];
   dividends: readonly AdjustmentEventRow[];
   splits: readonly AdjustmentEventRow[];
 }): EntrySnapshot {
@@ -76,11 +86,15 @@ export function buildEntrySnapshot({
   const technical = computeTechnicalSnapshot(pricesUpTo);
   const chip = computeChipSnapshot({ institutional: institutionalUpTo, prices: pricesUpTo });
 
+  // 融資與法人一樣要截斷到進場日，否則會用到當時還看不到的資料
+  const marginSeries = marginDailyChange(upTo(margin, date));
+
   return {
     entry,
     assetClass: classifyAsset(entry.stockId),
     technical,
     chip,
+    margin: marginSeries,
     appliedAdjustments: appliedEvents,
     dataQuality: {
       priceRows: pricesUpTo.length,

@@ -1,5 +1,6 @@
 import type { StockAnalysis } from '../dss/analyseHoldings';
-import { flowAxis } from '../dss/flow';
+import { computeFlow, flowAxis } from '../dss/flow';
+import { MARGIN_FLOW_THRESHOLDS } from '../dss/margin';
 import { RESEARCH_METRICS, type ResearchMetric } from '../research/runResearch';
 import { classifyAsset, type AssetClass } from '../research/snapshot';
 import type { BandId } from '../research/walkForward';
@@ -25,6 +26,10 @@ export type ProfilePreviewRow = {
 export function metricValue(analysis: StockAnalysis, metric: ResearchMetric): number | null {
   if (metric === 'bias20') {
     return analysis.technical.ok ? analysis.technical.snapshot.bias20 : null;
+  }
+
+  if (metric === 'marginFlow') {
+    return computeFlow(analysis.margin, MARGIN_FLOW_THRESHOLDS)?.signedRatio ?? null;
   }
 
   if (!analysis.chip.ok) return null;

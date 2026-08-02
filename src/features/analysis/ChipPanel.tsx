@@ -1,5 +1,12 @@
-import type { ChipResult, InvestorChip } from '../../dss/chip';
-import { computeFlow, FLOW_BASELINE_DAYS } from '../../dss/flow';
+import type { ChipResult, DailyNet, InvestorChip } from '../../dss/chip';
+import {
+  computeFlow,
+  DEFAULT_FLOW_THRESHOLDS,
+  FLOW_BASELINE_DAYS,
+  type FlowChange,
+  type FlowThresholds,
+} from '../../dss/flow';
+import { MARGIN_FLOW_THRESHOLDS } from '../../dss/margin';
 import { FlowChart } from '../FlowChart';
 import {
   continuityText,
@@ -8,6 +15,7 @@ import {
   FLOW_STRENGTH_LABEL,
   INVESTOR_LABEL,
   JOINT_LABEL,
+  MARGIN_CHANGE_LABEL,
   lots,
   ratioText,
   strengthText,
@@ -20,18 +28,42 @@ import {
  * 最後是走勢圖。5 日淨額與強度是既有指標，退到最後一行——它們仍由研究與
  * Profile 使用，只是不再是每天要讀的東西。
  */
-function InvestorBlock({ label, chip }: { label: string; chip: InvestorChip }) {
-  const flow = computeFlow(chip.series);
+function FlowBlock({
+  label,
+  series,
+  thresholds = DEFAULT_FLOW_THRESHOLDS,
+  changeLabel = FLOW_CHANGE_LABEL,
+  toned = true,
+  measure = '買賣超',
+  footer = null,
+}: {
+  label: string;
+  series: readonly DailyNet[];
+  thresholds?: FlowThresholds;
+  changeLabel?: Record<FlowChange, string>;
+  /** 融資增減不是股價方向，也不是無爭議的多空訊號，因此不上紅綠。 */
+  toned?: boolean;
+  /** 這條序列量的是什麼；融資量的是餘額增減。 */
+  measure?: string;
+  footer?: React.ReactNode;
+}) {
+  const flow = computeFlow(series, thresholds);
 
   return (
     <section className="flow" aria-label={label}>
       <header className="flow__head">
         <h4 className="flow__name">{label}</h4>
         {flow === null ? (
-          <span className="flow__pending">法人資料不足 6 日，無法與近期比較</span>
+          <span className="flow__pending">資料不足 6 日，無法與近期比較</span>
         ) : (
-          <span className={`flow__change flow__change--${FLOW_CHANGE_TONE[flow.change]}`}>
-            {FLOW_CHANGE_LABEL[flow.change]}
+          <span
+            className={
+              toned
+                ? `flow__change flow__change--${FLOW_CHANGE_TONE[flow.change]}`
+                : 'flow__change flow__change--flat'
+            }
+          >
+            {changeLabel[flow.change]}
           </span>
         )}
       </header>
@@ -56,26 +88,39 @@ function InvestorBlock({ label, chip }: { label: string; chip: InvestorChip }) {
             </span>
           </div>
 
-          <FlowChart series={chip.series} baselineDays={FLOW_BASELINE_DAYS} label={label} />
+          <FlowChart
+            series={series}
+            baselineDays={FLOW_BASELINE_DAYS}
+            label={label}
+            measure={measure}
+          />
           <p className="flow__legend micro">
-            每日買賣超，虛線為前 {FLOW_BASELINE_DAYS} 日平均．分級門檻為市場慣例，未經驗證
+            每日{measure}，虛線為前 {FLOW_BASELINE_DAYS} 日平均．分級門檻為市場慣例，未經驗證
           </p>
         </>
       )}
 
-      <p className="flow__legacy">
-        近 5 日 {lots(chip.fiveDayNet)}．{strengthText(chip.strength)}．
-        {continuityText(chip.continuity)}
-      </p>
+      {footer}
     </section>
   );
 }
 
-export function ChipPanel({ result }: { result: ChipResult }) {
-  if (!result.ok) {
-    return (
-      <section className="panel panel--pending" aria-label="籌碼面">
-        <h3 className="panel__title micro">籌碼面</h3>
+/** 既有的 5 日淨額與強度：研究與 Profile 已改用流向，但規格仍要求顯示，退到最後一行。 */
+function LegacyLine({ chip }: { chip: InvestorChip }) {
+  return (
+    <p className="flow__legacy">
+      近 5 日 {lots(chip.fiveDayNet)}．{strengthText(chip.strength)}．
+      {continuityText(chip.continuity)}
+    </p>
+  );
+}
+
+export function ChipPanel({ result, margin }: { result: ChipResult; margin: readonly DailyNet[] }) {
+  return (
+    <section className="panel" aria-label="籌碼面">
+      <h3 className="panel__title micro">籌碼面</h3>
+
+      {!result.ok ? (
         <p className="panel__pending">
           法人資料未就緒。
           <br />
@@ -85,23 +130,39 @@ export function ChipPanel({ result }: { result: ChipResult }) {
               : '尚無可用資料'}
           </span>
         </p>
-      </section>
-    );
-  }
+      ) : null}
 
-  const { snapshot } = result;
+      {result.ok ? (
+        <>
+          <FlowBlock
+            label={INVESTOR_LABEL.foreign}
+            series={result.snapshot.foreign.series}
+            footer={<LegacyLine chip={result.snapshot.foreign} />}
+          />
+          <FlowBlock
+            label={INVESTOR_LABEL.trust}
+            series={result.snapshot.trust.series}
+            footer={<LegacyLine chip={result.snapshot.trust} />}
+          />
+        </>
+      ) : null}
 
-  return (
-    <section className="panel" aria-label="籌碼面">
-      <h3 className="panel__title micro">籌碼面</h3>
+      {/* 融資與法人是不同資料來源，法人取不到時它仍然可能有值 */}
+      <FlowBlock
+        label={INVESTOR_LABEL.margin}
+        series={margin}
+        thresholds={MARGIN_FLOW_THRESHOLDS}
+        changeLabel={MARGIN_CHANGE_LABEL}
+        toned={false}
+        measure="餘額增減"
+      />
 
-      <InvestorBlock label={INVESTOR_LABEL.foreign} chip={snapshot.foreign} />
-      <InvestorBlock label={INVESTOR_LABEL.trust} chip={snapshot.trust} />
-
-      <div className="panel__states">
-        <span className="tag">{JOINT_LABEL[snapshot.joint]}</span>
-        <span className="tag tag--quiet num">資料日 {snapshot.lastDate}</span>
-      </div>
+      {result.ok ? (
+        <div className="panel__states">
+          <span className="tag">{JOINT_LABEL[result.snapshot.joint]}</span>
+          <span className="tag tag--quiet num">資料日 {result.snapshot.lastDate}</span>
+        </div>
+      ) : null}
 
       <p className="panel__note">籌碼與技術獨立呈現，不合併計分，也不覆寫技術面結果。</p>
     </section>

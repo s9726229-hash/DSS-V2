@@ -35,6 +35,7 @@ export const JOINT_LABEL: Record<JointChipState, string> = {
 export const INVESTOR_LABEL = {
   foreign: '外資',
   trust: '投信',
+  margin: '融資',
 } as const;
 
 /**
@@ -77,6 +78,28 @@ export const FLOW_CHANGE_TONE: Record<FlowChange, 'up' | 'down' | 'flat'> = {
   'neutral-to-buy': 'up',
   'neutral-to-sell': 'down',
   'neutral-stay': 'flat',
+};
+
+/**
+ * 融資的方向變化。
+ *
+ * 融資看的是餘額增減，不是誰在買賣，所以不能寫「買超增加」。
+ * 也刻意不上紅綠：融資增加不是股價方向，更不是無爭議的多空訊號，
+ * 依專案規則飽和色只留給市場方向與資料狀態。
+ */
+export const MARGIN_CHANGE_LABEL: Record<FlowChange, string> = {
+  'buy-up': '增加擴大',
+  'buy-down': '增加趨緩',
+  'buy-flat': '持續增加',
+  'sell-up': '減少擴大',
+  'sell-down': '減少趨緩',
+  'sell-flat': '持續減少',
+  'buy-to-sell': '由增轉減',
+  'sell-to-buy': '由減轉增',
+  'to-neutral': '轉為持平',
+  'neutral-to-buy': '持平轉增',
+  'neutral-to-sell': '持平轉減',
+  'neutral-stay': '維持持平',
 };
 
 export const FLOW_STRENGTH_LABEL: Record<FlowStrength, string> = {

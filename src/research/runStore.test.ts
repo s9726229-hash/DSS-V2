@@ -70,8 +70,13 @@ function report(overrides: Partial<ResearchReport> = {}): ResearchReport {
     chipCount: 18,
     completeCount: 16,
     missingStocks: [],
-    samples: { bias20: [], foreignFlow: [], trustFlow: [] },
-    results: { bias20: results, foreignFlow: results, trustFlow: results },
+    samples: { bias20: [], foreignFlow: [], trustFlow: [], marginFlow: [] },
+    results: {
+      bias20: results,
+      foreignFlow: results,
+      trustFlow: results,
+      marginFlow: results,
+    },
     ...overrides,
   };
 }

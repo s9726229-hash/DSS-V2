@@ -62,6 +62,7 @@ function analysis(overrides: {
     stockName: '測試股',
     priceDate: '2026-07-31',
     appliedAdjustments: [],
+    margin: [],
     trend: { points: [], min: 0, max: 1, drawable: false },
     technical: technicalOk
       ? ({

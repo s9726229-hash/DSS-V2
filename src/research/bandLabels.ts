@@ -27,6 +27,12 @@ export const BAND_LABEL: Record<ResearchMetric, Record<BandId, string>> = {
     normal: '中性',
     overheated: '買超側',
   },
+  /* 融資量的是餘額增減，不是誰在買賣，因此不能沿用買超／賣超的講法。 */
+  marginFlow: {
+    pullback: '減少側',
+    normal: '中性',
+    overheated: '增加側',
+  },
 };
 
 export function bandLabel(metric: ResearchMetric, band: BandId): string {

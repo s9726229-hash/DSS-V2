@@ -224,7 +224,7 @@ describe('搜尋紀錄分頁', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '搜尋紀錄' }));
 
-    expect(screen.getByText(/每次結果變動都會自動留下一筆/)).toBeInTheDocument();
+    expect(await screen.findByText(/每次結果變動都會自動留下一筆/)).toBeInTheDocument();
   });
 
   it('研究執行後保存該次搜尋，並在紀錄中列出各指標與類別', async () => {

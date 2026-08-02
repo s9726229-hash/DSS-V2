@@ -18,15 +18,18 @@ export function FlowChart({
   series,
   baselineDays,
   label,
+  measure = '買賣超',
 }: {
   series: readonly DailyNet[];
   /** 均線的取樣天數；不足這個天數的前段不畫線，不用短期均值假裝成同一條。 */
   baselineDays: number;
   label: string;
+  /** 這條序列量的是什麼。融資量的是餘額增減，不是買賣超。 */
+  measure?: string;
 }) {
   // 規格：不得只用圖形隱藏資料不足
   if (series.length < 2) {
-    return <p className="flowchart__empty">法人資料不足 2 日，無法繪製走勢</p>;
+    return <p className="flowchart__empty">資料不足 2 日，無法繪製走勢</p>;
   }
 
   const width = series.length * 8;
@@ -72,7 +75,7 @@ export function FlowChart({
        * 長條會被拉成一塊塊色塊，看起來像壞掉而不是圖表。
        */
       style={{ maxWidth: `${series.length * 14}px` }}
-      aria-label={`${label}最近 ${series.length} 個交易日每日買賣超，最新一日 ${last.date} ${lots(
+      aria-label={`${label}最近 ${series.length} 個交易日每日${measure}，最新一日 ${last.date} ${lots(
         last.net,
       )}`}
     >

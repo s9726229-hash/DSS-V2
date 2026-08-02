@@ -22,6 +22,7 @@ const ALLOWED_DATASETS = new Map([
   ['TaiwanStockSplitPrice', 400],
   ['TaiwanStockInstitutionalInvestorsBuySell', 45],
   ['TaiwanStockInfo', 400],
+  ['TaiwanStockMarginPurchaseShortSale', 45],
 ]);
 
 const REQUIRED_PARAMS = ['dataset', 'data_id', 'start_date', 'end_date'];

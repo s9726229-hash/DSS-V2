@@ -1,8 +1,14 @@
-import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../market/types';
+import type {
+  AdjustmentEventRow,
+  InstitutionalRow,
+  MarginRow,
+  PriceRow,
+} from '../market/types';
 import { readCachedDataset } from '../storage/marketCache';
 import { readHoldingsSnapshot } from '../storage/portfolio';
 import { adjustPrices, type DistortionEvent } from './adjustment';
-import { computeChipSnapshot, type ChipResult } from './chip';
+import { computeChipSnapshot, type ChipResult, type DailyNet } from './chip';
+import { marginDailyChange } from './margin';
 import { computeTechnicalSnapshot, type TechnicalResult } from './technical';
 import { buildTrendSeries, type TrendSeries } from './trend';
 
@@ -19,17 +25,21 @@ export type StockAnalysis = {
   technical: TechnicalResult;
   chip: ChipResult;
   appliedAdjustments: DistortionEvent[];
+  /** 融資餘額的每日增減（股），由舊到新。沒有資料時是空陣列。 */
+  margin: DailyNet[];
   /** 迷你趨勢圖用的收盤與 MA20 序列，取還原後的價格。 */
   trend: TrendSeries;
 };
 
 export async function analyseStock(stockId: string, stockName: string): Promise<StockAnalysis> {
-  const [priceCache, institutionalCache, dividendCache, splitCache] = await Promise.all([
-    readCachedDataset('TaiwanStockPrice', stockId),
-    readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId),
-    readCachedDataset('TaiwanStockDividendResult', stockId),
-    readCachedDataset('TaiwanStockSplitPrice', stockId),
-  ]);
+  const [priceCache, institutionalCache, dividendCache, splitCache, marginCache] =
+    await Promise.all([
+      readCachedDataset('TaiwanStockPrice', stockId),
+      readCachedDataset('TaiwanStockInstitutionalInvestorsBuySell', stockId),
+      readCachedDataset('TaiwanStockDividendResult', stockId),
+      readCachedDataset('TaiwanStockSplitPrice', stockId),
+      readCachedDataset('TaiwanStockMarginPurchaseShortSale', stockId),
+    ]);
 
   const raw = (priceCache?.payload ?? []) as PriceRow[];
   const institutional = (institutionalCache?.payload ?? []) as InstitutionalRow[];
@@ -48,6 +58,7 @@ export async function analyseStock(stockId: string, stockName: string): Promise<
     technical: computeTechnicalSnapshot(prices),
     chip: computeChipSnapshot({ institutional, prices }),
     appliedAdjustments: appliedEvents,
+    margin: marginDailyChange((marginCache?.payload ?? []) as MarginRow[]),
     trend: buildTrendSeries(prices),
   };
 }

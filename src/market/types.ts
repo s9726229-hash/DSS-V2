@@ -5,7 +5,8 @@ export type FinMindDataset =
   | 'TaiwanStockDividendResult'
   | 'TaiwanStockSplitPrice'
   | 'TaiwanStockInstitutionalInvestorsBuySell'
-  | 'TaiwanStockInfo';
+  | 'TaiwanStockInfo'
+  | 'TaiwanStockMarginPurchaseShortSale';
 
 export type PriceRow = {
   date: string;
@@ -27,6 +28,19 @@ export type InstitutionalRow = {
   name: 'Foreign_Investor' | 'Foreign_Dealer_Self' | 'Investment_Trust' | 'Dealer_self' | string;
   buy: number;
   sell: number;
+};
+
+/**
+ * 融資融券餘額。
+ *
+ * 單位是**張**，與法人資料的股差一千倍。混用不會有任何錯誤訊息，
+ * 只會安靜地算出離譜的結果，因此進入共用計算前一律先換算成股。
+ */
+export type MarginRow = {
+  date: string;
+  stock_id: string;
+  MarginPurchaseTodayBalance: number;
+  MarginPurchaseYesterdayBalance: number;
 };
 
 /**

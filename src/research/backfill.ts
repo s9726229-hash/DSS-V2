@@ -83,9 +83,14 @@ export function planBackfill(entries: readonly PositionEvent[], now: Date): Back
       });
     }
 
-    // 法人：以建立部位日期為中心切段，相近者合併
+    /*
+     * 法人與融資：以建立部位日期為中心切段，相近者合併。
+     * 兩者的期間需求一樣（進場日與前 5 個交易日），所以共用同一組區段；
+     * 但它們是兩個資料集，每一段都要各發一次請求。
+     */
     for (const chunk of chunkChipRanges(dates, today)) {
       requests.push({ dataset: 'TaiwanStockInstitutionalInvestorsBuySell', stockId, ...chunk });
+      requests.push({ dataset: 'TaiwanStockMarginPurchaseShortSale', stockId, ...chunk });
     }
   }
 

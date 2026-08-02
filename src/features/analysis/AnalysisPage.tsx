@@ -121,7 +121,7 @@ export function AnalysisPage() {
 
               <div className="stock__panels">
                 <TechnicalPanel result={analysis.technical} />
-                <ChipPanel result={analysis.chip} />
+                <ChipPanel result={analysis.chip} margin={analysis.margin} />
               </div>
             </section>
           ))}

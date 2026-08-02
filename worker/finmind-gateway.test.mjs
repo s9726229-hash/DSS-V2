@@ -124,13 +124,14 @@ describe('參數驗證', () => {
     });
   }
 
-  it('接受自行還原所需的價格、除息與分割資料集，以及查名稱用的基本資料', async () => {
+  it('接受價格、除息分割、基本資料與融資餘額', async () => {
     for (const dataset of [
       'TaiwanStockPrice',
       'TaiwanStockPriceAdj',
       'TaiwanStockDividendResult',
       'TaiwanStockSplitPrice',
       'TaiwanStockInfo',
+      'TaiwanStockMarginPurchaseShortSale',
     ]) {
       const response = await worker.fetch(
         request(`dataset=${dataset}&data_id=0050&start_date=2026-01-01&end_date=2026-01-05`),
