@@ -81,11 +81,11 @@ describe('候選套用', () => {
   it('三個指標各自獨立', () => {
     const profile = applyCandidate(
       applyCandidate(emptyProfile(), candidate()),
-      candidate({ metric: 'foreignStrength', range: { min: null, max: 0.2 } }),
+      candidate({ metric: 'foreignFlow', range: { min: null, max: 0.2 } }),
     );
 
     expect(readEntry(profile, 'stock', 'bias20').lower?.value).toBe(-1.5);
-    expect(readEntry(profile, 'stock', 'foreignStrength').lower?.value).toBe(0.2);
+    expect(readEntry(profile, 'stock', 'foreignFlow').lower?.value).toBe(0.2);
   });
 
   it('再次套用同一個邊界會覆蓋，並換上新的來源批次', () => {

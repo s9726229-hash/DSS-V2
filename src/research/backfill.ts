@@ -15,8 +15,11 @@ const PRICE_LOOKAHEAD_DAYS = 100;
 const PRICE_MAX_RANGE_DAYS = 400;
 const CHIP_MAX_RANGE_DAYS = 45;
 
-/** 5 日籌碼需要建立部位前數個交易日，取 14 個日曆日以涵蓋連假。 */
-const CHIP_LOOKBACK_DAYS = 14;
+/**
+ * 流向要拿進場日與前 5 個交易日比，共需 6 個交易日。
+ * 取 21 個日曆日：14 天碰到連假會縮到只剩五、六個交易日，那些樣本就算不出流向。
+ */
+const CHIP_LOOKBACK_DAYS = 21;
 
 export type BackfillRequest = {
   dataset: FinMindDataset;

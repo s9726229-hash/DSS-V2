@@ -1,4 +1,5 @@
 import { adjustPrices } from '../dss/adjustment';
+import { flowAxis } from '../dss/flow';
 import type { AdjustmentEventRow, InstitutionalRow, PriceRow } from '../market/types';
 import { readCachedDataset } from '../storage/marketCache';
 import { readTransactions } from '../storage/portfolio';
@@ -8,24 +9,24 @@ import { buildEntrySnapshot, classifyAsset, type AssetClass } from './snapshot';
 import { runWalkForward, type MetricSample, type WalkForwardResult } from './walkForward';
 
 /** 規格 v1 的三個研究分頁。 */
-export type ResearchMetric = 'bias20' | 'foreignStrength' | 'trustStrength';
+export type ResearchMetric = 'bias20' | 'foreignFlow' | 'trustFlow';
 
-export const RESEARCH_METRICS: ResearchMetric[] = ['bias20', 'foreignStrength', 'trustStrength'];
+export const RESEARCH_METRICS: ResearchMetric[] = ['bias20', 'foreignFlow', 'trustFlow'];
 
 export const METRIC_LABEL: Record<ResearchMetric, string> = {
   bias20: '20MA 乖離率',
-  foreignStrength: '外資及陸資強度',
-  trustStrength: '投信強度',
+  foreignFlow: '外資流向',
+  trustFlow: '投信流向',
 };
 
 /**
- * 強度的單位其實就是「天」：5 日淨額（股）÷ 5 日平均量（股／日）＝ 日。
- * 以前印成沒有單位的小數，看起來像個抽象分數，這裡把單位補回去。
+ * 流向是「今日淨額 ÷ 前五日平均絕對值」，所以單位是倍：
+ * −1.43 倍代表今天在賣，量是近期平均的 1.43 倍。
  */
 export const METRIC_UNIT: Record<ResearchMetric, string> = {
   bias20: '%',
-  foreignStrength: ' 天量',
-  trustStrength: ' 天量',
+  foreignFlow: ' 倍',
+  trustFlow: ' 倍',
 };
 
 /**
@@ -104,8 +105,8 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
 
   const samples: Record<ResearchMetric, ResearchSample[]> = {
     bias20: [],
-    foreignStrength: [],
-    trustStrength: [],
+    foreignFlow: [],
+    trustFlow: [],
   };
 
   const previous = new Map<string, string>();
@@ -155,13 +156,13 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
       ...base,
       metricValue: snapshot.technical.ok ? snapshot.technical.snapshot.bias20 : null,
     });
-    samples.foreignStrength.push({
+    samples.foreignFlow.push({
       ...base,
-      metricValue: snapshot.chip.ok ? snapshot.chip.snapshot.foreign.strength : null,
+      metricValue: snapshot.chip.ok ? flowAxis(snapshot.chip.snapshot.foreign) : null,
     });
-    samples.trustStrength.push({
+    samples.trustFlow.push({
       ...base,
-      metricValue: snapshot.chip.ok ? snapshot.chip.snapshot.trust.strength : null,
+      metricValue: snapshot.chip.ok ? flowAxis(snapshot.chip.snapshot.trust) : null,
     });
   }
 

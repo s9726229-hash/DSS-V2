@@ -75,7 +75,7 @@ describe('手動調整門檻', () => {
 
   it('清除不存在的邊界不會出錯', () => {
     expect(() =>
-      clearBoundary(emptyProfile(), { assetClass: 'etf', metric: 'trustStrength', side: 'upper' }),
+      clearBoundary(emptyProfile(), { assetClass: 'etf', metric: 'trustFlow', side: 'upper' }),
     ).not.toThrow();
   });
 
@@ -95,14 +95,14 @@ describe('手動調整門檻', () => {
   it('個股與 ETF、各指標互不影響', () => {
     const profile = setManualBoundary(withCandidate(), {
       assetClass: 'etf',
-      metric: 'foreignStrength',
+      metric: 'foreignFlow',
       side: 'lower',
       value: 0.1,
       at: AT,
     });
 
     expect(readEntry(profile, 'stock', 'bias20').lower?.value).toBe(-1.5);
-    expect(readEntry(profile, 'etf', 'foreignStrength').lower?.value).toBe(0.1);
+    expect(readEntry(profile, 'etf', 'foreignFlow').lower?.value).toBe(0.1);
   });
 });
 
@@ -158,7 +158,7 @@ describe('未驗證標示', () => {
   it('只要有一個手動邊界就算含未驗證門檻', () => {
     const profile = setManualBoundary(withCandidate(), {
       assetClass: 'etf',
-      metric: 'trustStrength',
+      metric: 'trustFlow',
       side: 'upper',
       value: 1,
       at: AT,

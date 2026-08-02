@@ -10,6 +10,30 @@ import {
   positionResult,
 } from './holdingCard';
 
+/**
+ * 產生一組每日淨額，讓流向軸剛好等於指定的值。
+ *
+ * 前五日固定，今日 = 目標比值 × 前五日平均，於是
+ * 今日 ÷ |前五日平均| 就是目標值。基準取一萬張，確保穩穩高於中性門檻。
+ */
+const FLOW_BASE = 10_000 * 1000;
+
+function flowSeries(signedRatio: number) {
+  const dates = [
+    '2026-07-24',
+    '2026-07-25',
+    '2026-07-28',
+    '2026-07-29',
+    '2026-07-30',
+    '2026-07-31',
+  ];
+
+  return dates.map((date, index) => ({
+    date,
+    net: index < 5 ? FLOW_BASE : signedRatio * FLOW_BASE,
+  }));
+}
+
 function holding(overrides: Partial<HoldingSnapshotRecord> = {}): HoldingSnapshotRecord {
   return {
     id: 'h-1',
@@ -55,8 +79,8 @@ function analysis(overrides: {
           ok: true,
           snapshot: {
             lastDate: '2026-07-31',
-            foreign: { strength: 0.4 },
-            trust: { strength: -0.1 },
+            foreign: { strength: 0.4, series: flowSeries(0.4) },
+            trust: { strength: -0.1, series: flowSeries(-0.1) },
           },
         } as unknown as StockAnalysis['chip'])
       : ({

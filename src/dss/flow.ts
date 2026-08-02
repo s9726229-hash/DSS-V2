@@ -1,4 +1,4 @@
-import type { DailyNet } from './chip';
+import type { DailyNet, InvestorChip } from './chip';
 
 /** 基準取前 5 個交易日，加上今日共需 6 筆。 */
 export const FLOW_BASELINE_DAYS = 5;
@@ -70,6 +70,14 @@ export type FlowResult = {
   change: FlowChange;
   /** 今日絕對值 ÷ 前五日平均絕對值；基準沒有方向時為 null。 */
   ratio: number | null;
+  /**
+   * 今日淨額 ÷ 前五日平均絕對值，保留正負號。
+   *
+   * 顯示一律用 `change` 那句話——帶正負號的除法講不出「買轉賣」。
+   * 但研究需要的是一條可排序的連續軸：負值是今天在賣、正值是今天在買，
+   * 絕對值是相對近期的規模。這個欄位只給研究與 Profile 判定用。
+   */
+  signedRatio: number | null;
   strength: FlowStrength | null;
   /**
    * 實際參與判斷的那 6 天（前五日＋今日），由舊到新。
@@ -134,8 +142,8 @@ export function computeFlow(
   );
 
   // 基準沒有方向時，「幾倍」沒有意義，也不能除以零
-  const ratio =
-    baselineDirection === 'neutral' ? null : Math.abs(today) / Math.abs(baseline);
+  const signedRatio = baselineDirection === 'neutral' ? null : today / Math.abs(baseline);
+  const ratio = signedRatio === null ? null : Math.abs(signedRatio);
   const strength = ratio === null ? null : strengthOf(ratio, thresholds);
 
   const change = ((): FlowChange => {
@@ -151,5 +159,29 @@ export function computeFlow(
     return sameDirectionChange(todayDirection, strength as FlowStrength);
   })();
 
-  return { today, baseline, todayDirection, baselineDirection, change, ratio, strength, window };
+  return {
+    today,
+    baseline,
+    todayDirection,
+    baselineDirection,
+    change,
+    ratio,
+    signedRatio,
+    strength,
+    window,
+  };
+}
+
+/**
+ * 研究與 Profile 判定用的那條軸。
+ *
+ * 顯示走的是 `computeFlow` 的 `change` 那句話；這裡回傳的是同一次計算的
+ * 帶號比值，讓 walk-forward 有一個可排序的連續數值。資料不足或近期沒有
+ * 明確方向時回 null——不足就是不足，不以 0 代替。
+ */
+export function flowAxis(
+  chip: InvestorChip,
+  thresholds: FlowThresholds = DEFAULT_FLOW_THRESHOLDS,
+): number | null {
+  return computeFlow(chip.series, thresholds)?.signedRatio ?? null;
 }

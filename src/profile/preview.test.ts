@@ -3,6 +3,30 @@ import type { StockAnalysis } from '../dss/analyseHoldings';
 import { applyCandidate, emptyProfile, type Profile } from './profile';
 import { metricValue, previewProfileChange } from './preview';
 
+/**
+ * 產生一組每日淨額，讓流向軸剛好等於指定的值。
+ *
+ * 前五日固定，今日 = 目標比值 × 前五日平均，於是
+ * 今日 ÷ |前五日平均| 就是目標值。基準取一萬張，確保穩穩高於中性門檻。
+ */
+const FLOW_BASE = 10_000 * 1000;
+
+function flowSeries(signedRatio: number) {
+  const dates = [
+    '2026-07-24',
+    '2026-07-25',
+    '2026-07-28',
+    '2026-07-29',
+    '2026-07-30',
+    '2026-07-31',
+  ];
+
+  return dates.map((date, index) => ({
+    date,
+    net: index < 5 ? FLOW_BASE : signedRatio * FLOW_BASE,
+  }));
+}
+
 function analysis(overrides: {
   stockId: string;
   stockName?: string;
@@ -39,7 +63,10 @@ function analysis(overrides: {
     chip: chipOk
       ? ({
           ok: true,
-          snapshot: { foreign: { strength: foreign }, trust: { strength: trust } },
+          snapshot: {
+            foreign: { strength: foreign, series: flowSeries(foreign) },
+            trust: { strength: trust, series: flowSeries(trust) },
+          },
         } as unknown as StockAnalysis['chip'])
       : ({
           ok: false,
@@ -70,14 +97,14 @@ describe('指標取值', () => {
   it('籌碼面可用時外資與投信各自取值，不合併', () => {
     const row = analysis({ stockId: '2330', foreign: 0.8, trust: -0.2 });
 
-    expect(metricValue(row, 'foreignStrength')).toBe(0.8);
-    expect(metricValue(row, 'trustStrength')).toBe(-0.2);
+    expect(metricValue(row, 'foreignFlow')).toBe(0.8);
+    expect(metricValue(row, 'trustFlow')).toBe(-0.2);
   });
 
   it('資料不足時回傳 null，不以零代替', () => {
     expect(metricValue(analysis({ stockId: '2330', technicalOk: false }), 'bias20')).toBeNull();
     expect(
-      metricValue(analysis({ stockId: '2330', chipOk: false }), 'foreignStrength'),
+      metricValue(analysis({ stockId: '2330', chipOk: false }), 'foreignFlow'),
     ).toBeNull();
   });
 });
@@ -165,7 +192,7 @@ describe('套用預覽', () => {
   it('三個指標分別檢查，同一檔可能同時出現多列', () => {
     const withChip = applyCandidate(profileWith(-1.5, 15.78), {
       assetClass: 'stock',
-      metric: 'foreignStrength',
+      metric: 'foreignFlow',
       band: 'normal',
       range: { min: 0, max: 0.5 },
       runId: 'run:test',
@@ -180,6 +207,6 @@ describe('套用預覽', () => {
       next: withChip,
     });
 
-    expect(rows.map((row) => row.metric).sort()).toEqual(['bias20', 'foreignStrength']);
+    expect(rows.map((row) => row.metric).sort()).toEqual(['bias20', 'foreignFlow']);
   });
 });

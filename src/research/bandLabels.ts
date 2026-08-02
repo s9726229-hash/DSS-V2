@@ -17,12 +17,12 @@ export const BAND_LABEL: Record<ResearchMetric, Record<BandId, string>> = {
     normal: '合理區',
     overheated: '偏熱上界',
   },
-  foreignStrength: {
+  foreignFlow: {
     pullback: '賣超側',
     normal: '中性',
     overheated: '買超側',
   },
-  trustStrength: {
+  trustFlow: {
     pullback: '賣超側',
     normal: '中性',
     overheated: '買超側',

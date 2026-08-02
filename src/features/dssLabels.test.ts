@@ -23,9 +23,10 @@ describe('強度的寫法', () => {
     expect(strengthText(-0.006)).toBe('-0.01 天量');
   });
 
-  it('研究頁與 Profile 的門檻用同一個單位，不會兩處各講各的', () => {
-    expect(METRIC_UNIT.foreignStrength).toBe(' 天量');
-    expect(METRIC_UNIT.trustStrength).toBe(' 天量');
+  /* 流向是「今日 ÷ 前五日平均絕對值」，單位是倍——與強度的「天量」是兩回事。 */
+  it('流向在研究頁與 Profile 用同一個單位，不會兩處各講各的', () => {
+    expect(METRIC_UNIT.foreignFlow).toBe(' 倍');
+    expect(METRIC_UNIT.trustFlow).toBe(' 倍');
   });
 });
 

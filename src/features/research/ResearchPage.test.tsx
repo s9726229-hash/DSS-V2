@@ -102,7 +102,7 @@ describe('有建立部位時', () => {
     render(<ResearchPage />);
 
     const tabs = await screen.findByRole('navigation', { name: '研究指標' });
-    for (const label of ['20MA 乖離率', '外資及陸資強度', '投信強度']) {
+    for (const label of ['20MA 乖離率', '外資流向', '投信流向']) {
       expect(within(tabs).getByRole('button', { name: label })).toBeInTheDocument();
     }
   });
@@ -116,9 +116,9 @@ describe('有建立部位時', () => {
       'page',
     );
 
-    await userEvent.click(within(tabs).getByRole('button', { name: '投信強度' }));
+    await userEvent.click(within(tabs).getByRole('button', { name: '投信流向' }));
 
-    expect(within(tabs).getByRole('button', { name: '投信強度' })).toHaveAttribute(
+    expect(within(tabs).getByRole('button', { name: '投信流向' })).toHaveAttribute(
       'aria-current',
       'page',
     );

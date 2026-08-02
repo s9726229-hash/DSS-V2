@@ -1,4 +1,5 @@
 import type { StockAnalysis } from '../dss/analyseHoldings';
+import { flowAxis } from '../dss/flow';
 import { RESEARCH_METRICS, type ResearchMetric } from '../research/runResearch';
 import { classifyAsset, type AssetClass } from '../research/snapshot';
 import type { BandId } from '../research/walkForward';
@@ -28,9 +29,9 @@ export function metricValue(analysis: StockAnalysis, metric: ResearchMetric): nu
 
   if (!analysis.chip.ok) return null;
 
-  return metric === 'foreignStrength'
-    ? analysis.chip.snapshot.foreign.strength
-    : analysis.chip.snapshot.trust.strength;
+  return flowAxis(
+    metric === 'foreignFlow' ? analysis.chip.snapshot.foreign : analysis.chip.snapshot.trust,
+  );
 }
 
 export function previewProfileChange({

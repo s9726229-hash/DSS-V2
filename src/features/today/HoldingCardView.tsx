@@ -32,8 +32,8 @@ const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
 /** 方塊裡的指標標籤要短，長標籤會把四格擠成兩行。 */
 const BOX_LABEL: Record<ResearchMetric, string> = {
   bias20: '20MA 乖離',
-  foreignStrength: '外資',
-  trustStrength: '投信',
+  foreignFlow: '外資流向',
+  trustFlow: '投信流向',
 };
 
 function money(value: number): string {
@@ -294,16 +294,15 @@ export function WatchCardView({ card }: { card: WatchCard }) {
           note={bias?.band === null || bias === undefined ? null : bandLabel('bias20', bias.band)}
         />
       }
-      /* 籌碼改看方向變化後，卡片不再放強度——它退到技術分析頁與研究頁 */
+      /* 乖離率已經是大數字，方塊只放另外兩個判定指標，不重複 */
       boxes={
         <>
+          {card.bands
+            .filter((band) => band.metric !== 'bias20')
+            .map((band) => (
+              <MetricBox key={band.metric} band={band} />
+            ))}
           <PlainBox label="加入觀察" value={card.addedAt.slice(0, 10)} />
-          <PlainBox
-            label="收盤"
-            value={
-              card.analysis.technical.ok ? price(card.analysis.technical.snapshot.close) : '—'
-            }
-          />
         </>
       }
       details={
@@ -334,11 +333,9 @@ export function HoldingCardView({ card }: { card: HoldingCard }) {
       }
       boxes={
         <>
-          {card.bands
-            .filter((band) => band.metric === 'bias20')
-            .map((band) => (
-              <MetricBox key={band.metric} band={band} />
-            ))}
+          {card.bands.map((band) => (
+            <MetricBox key={band.metric} band={band} />
+          ))}
           <PlainBox
             label="持有天數"
             value={card.heldDays === null ? '—' : `${card.heldDays} 天`}
