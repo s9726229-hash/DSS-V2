@@ -26,6 +26,8 @@
 - 側欄改為六個完成頁面：今日總覽、完整分析、系統怎麼算、歷史研究、目前規則、資料中心；設定暫時頁面已隱藏。
 - 六個頁面首段改為白話用途說明。
 - `npx.cmd vitest run src/app/AppShell.test.tsx src/features/analysis/AnalysisPage.test.tsx src/features/research/ResearchPage.test.tsx` 通過（45 項）。
+- 系統怎麼算改為資料總流程、今天卡片流程、歷史研究流程與系統限制四段；技術名詞預設收合。
+- `npx.cmd vitest run src/features/guide/GuidePage.test.tsx` 通過（11 項）。
 
 ## V0 — 已驗證可運作的基線
 

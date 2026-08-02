@@ -1,4 +1,6 @@
 import './GuidePage.css';
+import { CalculationFlow } from '../analysis/CalculationFlow';
+import { ResearchFlow } from '../research/ResearchFlow';
 
 function Entry({
   term,
@@ -28,19 +30,18 @@ function Entry({
 }
 
 const JUMP_LINKS = [
-  { href: '#premise', label: '計算前提' },
-  { href: '#technical', label: '技術面' },
-  { href: '#chip', label: '籌碼面' },
-  { href: '#nots', label: '本系統不做的事' },
+  { href: '#today-flow', label: '今天的卡片' },
+  { href: '#research-flow', label: '歷史研究' },
+  { href: '#nots', label: '系統限制' },
 ];
 
 export function GuidePage() {
   return (
     <div className="guide">
       <header className="guide__head">
-        <h1 className="guide__title">判讀說明</h1>
+        <h1 className="guide__title">系統怎麼算</h1>
         <p className="guide__lede">
-          技術分析頁上每個數字與狀態是什麼意思、怎麼算出來的。所有狀態只描述資料事實，不代表買賣建議。
+          了解資料如何一路變成今天看到的判讀。所有狀態只描述資料事實，不代表買賣建議。
         </p>
         <nav className="guide__jump" aria-label="快速跳轉">
           {JUMP_LINKS.map((link) => (
@@ -50,6 +51,34 @@ export function GuidePage() {
           ))}
         </nav>
       </header>
+
+      <section className="guide__section guide__flow-section" aria-label="資料到判讀的總流程">
+        <h2 className="guide__section-title">資料怎麼一路變成判讀</h2>
+        <ol className="guide__flow-steps">
+          <li>匯入：庫存與交易歷史只留在這台電腦。</li>
+          <li>同步：中介服務取得允許使用的市場資料，瀏覽器不會取得 API Key。</li>
+          <li>整理：有資料時先排除配息與分割造成的帳面跳動；不足就直接顯示資料不足。</li>
+          <li>計算今天：技術面與法人流向分開計算，不混成單一分數。</li>
+          <li>研究歷史：反覆用較早資料檢查候選門檻，結果是證據，不是預測。</li>
+          <li>套用規則：只有你確認的規則，才會把候選門檻變成目前卡片的標籤。</li>
+        </ol>
+      </section>
+
+      <section className="guide__section guide__flow-section" id="today-flow" aria-label="今天的卡片怎麼來">
+        <h2 className="guide__section-title">今天的卡片怎麼來</h2>
+        <p className="guide__flow-lede">先讀取本機資料，再分開算技術面與籌碼面；資料不夠時，不會硬算出結果。</p>
+        <CalculationFlow />
+      </section>
+
+      <section className="guide__section guide__flow-section" id="research-flow" aria-label="歷史研究怎麼來">
+        <h2 className="guide__section-title">歷史研究怎麼來</h2>
+        <p className="guide__flow-lede">研究只用當時可取得的資料，確認候選門檻是否值得繼續追蹤。</p>
+        <ResearchFlow />
+      </section>
+
+      <details className="guide__terms">
+        <summary>名詞補充</summary>
+        <p className="guide__terms-lede">想了解指標、資料前提與籌碼名詞時，再展開閱讀。</p>
 
       <section className="guide__section" id="premise" aria-label="計算前提">
         <h2 className="guide__section-title">計算前提</h2>
@@ -203,9 +232,14 @@ export function GuidePage() {
         </dl>
       </section>
 
-      <section className="guide__section guide__section--nots" id="nots" aria-label="本系統不做的事">
-        <h2 className="guide__section-title">本系統不做的事</h2>
+      </details>
+
+      <section className="guide__section guide__section--nots" id="nots" aria-label="系統不做什麼">
+        <h2 className="guide__section-title">系統不做什麼</h2>
         <ul className="guide__nots">
+          <li>不使用盤中價格，所有判讀採最近一個收盤交易日。</li>
+          <li>不產生自動交易指令。</li>
+          <li>不把 API Key 放進瀏覽器。</li>
           <li>不因單一均線穿越顯示買進或賣出。</li>
           <li>不把技術面與籌碼面合併成單一分數或燈號。</li>
           <li>不以籌碼狀態覆寫或升級技術面結果。</li>

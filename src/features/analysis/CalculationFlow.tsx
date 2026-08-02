@@ -14,7 +14,7 @@ export function CalculationFlow() {
   return (
     <div className="flow">
       <p className="flow__lede">
-        技術分析頁的每一檔股票都照這個順序計算。名詞定義請看<strong>判讀說明</strong>。
+        完整分析的每一檔股票都照這個順序計算。名詞定義請看<strong>系統怎麼算</strong>。
       </p>
 
       <div className="flowchart__scroll">
