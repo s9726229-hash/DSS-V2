@@ -2,7 +2,7 @@
 
 ## V1 — 資訊架構與白話 UI
 
-狀態：實作中。
+狀態：完成。
 
 範圍：
 
@@ -30,6 +30,10 @@
 - `npx.cmd vitest run src/features/guide/GuidePage.test.tsx` 通過（11 項）。
 - 完整分析與歷史研究不再顯示計算流程分頁；兩張流程圖只在系統怎麼算呈現。
 - `npx.cmd vitest run src/features/analysis/AnalysisPage.test.tsx src/features/research/ResearchPage.test.tsx` 通過（25 項）。
+- `npm.cmd run typecheck` 通過。
+- `npm.cmd test` 通過：前端 492 項、中介服務 52 項。
+- `npm.cmd run build` 通過；本次沒有重現 V0 曾遇到的本機 Node 24 建置異常。
+- 瀏覽器驗收通過：六個導覽目的地、兩張流程圖、操作頁無流程分頁，且沒有主控台錯誤。
 
 ## V0 — 已驗證可運作的基線
 
