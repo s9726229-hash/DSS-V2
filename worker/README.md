@@ -34,7 +34,7 @@ GET /api/finmind/data?dataset=<資料集>&data_id=<股號>&start_date=<起>&end_
 
 ### CORS
 
-僅允許 `http://127.0.0.1:5173`、`http://localhost:5173`、
+僅允許 `http://127.0.0.1:5173`、`http://127.0.0.1:5174`、`http://localhost:5173`、
 `https://s9726229-hash.github.io`。其他來源不會取得
 `Access-Control-Allow-Origin`。沒有 `Origin` 的請求（例如 curl）仍可取得資料。
 

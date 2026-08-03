@@ -1,5 +1,24 @@
 # DSS V2 版本紀錄
 
+## V1.1 — 本機 Worker CORS 修正
+
+狀態：完成。
+
+範圍：
+
+- 允許本機 Vite 預覽的 `http://127.0.0.1:5174` 呼叫 FinMind Worker。
+
+範圍外：
+
+- 不修改 FinMind Secret、資料集、資料計算、資料保存或個股／ETF 規則。
+
+驗證：
+
+- Worker CORS 測試先失敗，再於加入白名單後通過。
+- `node --test worker/finmind-gateway.test.mjs worker/finmind-usage.test.mjs` 通過（52 項）。
+- 已部署正式 Worker，並以 `Origin: http://127.0.0.1:5174` 確認回傳正確的 CORS 標頭。
+- 瀏覽器端到端同步完成，未再出現同步失敗或主控台錯誤。
+
 ## V1 — 資訊架構與白話 UI
 
 狀態：完成。
