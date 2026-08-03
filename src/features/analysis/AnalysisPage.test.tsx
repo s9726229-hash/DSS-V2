@@ -106,6 +106,12 @@ describe('有完整資料時', () => {
     expect(within(chip).getByRole('region', { name: '投信' })).toBeInTheDocument();
   });
 
+  it('以可重用的完整分析內容呈現技術與籌碼資料', async () => {
+    render(<AnalysisPage />);
+
+    expect(await screen.findByRole('region', { name: '完整分析內容' })).toBeInTheDocument();
+  });
+
   it('外資買超、投信賣超時顯示為分歧', async () => {
     render(<AnalysisPage />);
 
@@ -162,6 +168,7 @@ describe('權息與分割還原', () => {
     expect(await screen.findByText('已還原權息與分割')).toBeInTheDocument();
     expect(screen.getByText('除權息')).toBeInTheDocument();
     expect(screen.getByText('-0.60%')).toBeInTheDocument();
+    expect(screen.getByText('已還原權息與分割').closest('details')).not.toHaveAttribute('open');
   });
 
   it('說明歷史價格已換算，與對帳單不會逐筆相同', async () => {

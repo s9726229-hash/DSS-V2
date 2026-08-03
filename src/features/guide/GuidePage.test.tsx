@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { GuidePage } from './GuidePage';
 
 describe('系統怎麼算', () => {
+  it('先以今日判讀觸發條件說明卡片狀態', () => {
+    render(<GuidePage />);
+
+    expect(screen.getByRole('heading', { name: '今日判讀如何觸發' })).toBeInTheDocument();
+    expect(screen.getByText(/連續兩個交易日收盤低於 MA60/)).toBeInTheDocument();
+    expect(screen.getByText(/低於或等於下界/)).toBeInTheDocument();
+  });
+
   it('先說明今天的卡片如何產生，再顯示技術名詞', () => {
     render(<GuidePage />);
 
@@ -15,6 +23,13 @@ describe('系統怎麼算', () => {
 
     expect(screen.getByRole('heading', { name: '歷史研究怎麼來' })).toBeInTheDocument();
     expect(screen.getByText('建立部位辨識')).toBeInTheDocument();
+  });
+
+  it('以可閱讀的流程卡呈現今日判讀步驟', () => {
+    render(<GuidePage />);
+
+    expect(screen.getByText('讀取本機庫存與市場資料')).toBeInTheDocument();
+    expect(screen.getByText('套用已確認的 Profile 規則')).toBeInTheDocument();
   });
 
   it('清楚列出系統不做的事', () => {

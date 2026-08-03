@@ -16,7 +16,7 @@ import './AppShell.css';
 const PAGES = [
   { id: 'today', label: '今日總覽' },
   { id: 'analysis', label: '完整分析' },
-  { id: 'guide', label: '系統怎麼算' },
+  { id: 'guide', label: '判讀說明' },
   { id: 'research', label: '歷史研究' },
   { id: 'profile', label: '目前規則' },
   { id: 'data', label: '資料中心' },

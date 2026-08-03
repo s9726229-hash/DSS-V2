@@ -14,7 +14,6 @@
 }
 
 .profile__lede {
-  max-width: 72ch;
   margin: 0;
   color: var(--graphite);
 }
@@ -32,10 +31,47 @@
 }
 
 .profile__note {
-  max-width: 72ch;
   margin: 0 0 var(--gap-3);
   color: var(--graphite);
   font-size: 13px;
+}
+
+.profile__review {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap-2);
+  margin: 0 0 var(--gap-5);
+  padding: var(--gap-2) var(--gap-3);
+  border: 1px solid var(--attention);
+  border-radius: 3px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.profile__review b {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 3px;
+  border: 1px solid var(--attention);
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.profile__legend-box {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  border: 1px solid var(--attention);
+  border-radius: 2px;
+  background: var(--attention-bg);
+  vertical-align: -2px;
 }
 
 .profile__asset {
@@ -55,15 +91,25 @@
   vertical-align: top;
 }
 
+.conditions {
+  table-layout: fixed;
+}
+
+.conditions__metric-col {
+  width: 25%;
+}
+
+.conditions__boundary-col {
+  width: 29%;
+}
+
+.conditions__normal-col {
+  width: 17%;
+}
+
 .conditions__metric {
   display: block;
   color: var(--ink);
-}
-
-.conditions__bands {
-  display: block;
-  color: var(--graphite-light);
-  font-size: 11px;
 }
 
 .conditions__value {
@@ -76,41 +122,51 @@
   font-size: 12px;
 }
 
-.origin {
-  display: block;
-  margin-top: 2px;
-}
-
-.origin__tag {
-  display: inline-block;
-  margin-right: var(--gap-1);
-  padding: 0 4px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  color: var(--graphite);
-  font-size: 10px;
-}
-
-/* 自訂與「證據不足仍套用」都要看得見，這是使用者自己承擔的部分。 */
-.origin__tag--manual,
-.origin__tag--override {
-  border-color: var(--attention);
-  background: var(--attention-bg);
-  color: var(--attention);
-}
-
-.origin__meta {
-  display: block;
-  color: var(--graphite-light);
-  font-size: 10px;
-}
-
 /* ── 手動調整 ───────────────────────────────── */
 
 .editor__field {
   display: flex;
   align-items: baseline;
   gap: var(--gap-1);
+}
+
+.editor__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-1);
+  min-height: 14px;
+  margin-bottom: 2px;
+}
+
+.editor__zone {
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.conditions__boundary-cell,
+.conditions__normal-cell {
+  text-align: left !important;
+}
+
+.conditions__boundary-cell--upper,
+.conditions__boundary-cell--upper .editor__field {
+  text-align: right;
+}
+
+.conditions__normal-cell {
+  vertical-align: middle !important;
+  text-align: center !important;
+}
+
+.conditions__normal {
+  color: var(--graphite-light);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.editor {
+  position: relative;
 }
 
 .editor__input {
@@ -132,6 +188,31 @@
 .editor__unit {
   color: var(--graphite-light);
   font-size: 11px;
+}
+
+.editor--review {
+  padding: var(--gap-1) var(--gap-2);
+  border: 1px solid var(--attention);
+  border-radius: 3px;
+  background: var(--attention-bg);
+}
+
+.origin {
+  display: flex;
+  gap: 3px;
+}
+
+.origin__mark {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--attention);
+  border-radius: 50%;
+  color: var(--attention);
+  font-size: 10px;
+  line-height: 1;
 }
 
 /* 下界不低於上界時中間區永遠是空的，這種設定不能存。 */

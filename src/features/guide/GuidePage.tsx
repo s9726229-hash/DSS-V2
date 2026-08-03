@@ -30,18 +30,23 @@ function Entry({
 }
 
 const JUMP_LINKS = [
+  { href: '#today-rules', label: '今日判讀' },
   { href: '#today-flow', label: '今天的卡片' },
   { href: '#research-flow', label: '歷史研究' },
   { href: '#nots', label: '系統限制' },
 ];
 
+function FlowCards({ steps }: { steps: readonly { title: string; detail: string; branch?: string }[] }) {
+  return <ol className="guide__flow-cards">{steps.map((step, index) => <li className="guide__flow-card" key={step.title}><span className="guide__flow-number num">{String(index + 1).padStart(2, '0')}</span><div><strong>{step.title}</strong><p>{step.detail}</p>{step.branch ? <span className="guide__flow-branch">資料不足時：{step.branch}</span> : null}</div></li>)}</ol>;
+}
+
 export function GuidePage() {
   return (
     <div className="guide">
       <header className="guide__head">
-        <h1 className="guide__title">系統怎麼算</h1>
+        <h1 className="guide__title">判讀說明</h1>
         <p className="guide__lede">
-          了解資料如何一路變成今天看到的判讀。所有狀態只描述資料事實，不代表買賣建議。
+          了解今日卡片的條件、資料來源與研究規則。所有狀態只描述資料事實，不代表買賣建議。
         </p>
         <nav className="guide__jump" aria-label="快速跳轉">
           {JUMP_LINKS.map((link) => (
@@ -51,6 +56,21 @@ export function GuidePage() {
           ))}
         </nav>
       </header>
+
+      <section className="guide__section" id="today-rules" aria-label="今日判讀如何觸發">
+        <h2 className="guide__section-title">今日判讀如何觸發</h2>
+        <p className="guide__flow-lede">先確認資料夠不夠，再顯示技術狀態；Profile 只負責把四個指標分成下界、中間與上界。</p>
+        <dl className="guide__list">
+          <Entry term="資料不足" meaning="收盤資料少於 60 個交易日，不計算均線與技術判讀。" />
+          <Entry term="跌破月線／回檔觀察" meaning="最新收盤低於 20 日均線（MA20）。" />
+          <Entry term="收復月線／回穩觀察" meaning="前一日低於 MA20，最新收盤重新站上 MA20；還要再觀察一天。" />
+          <Entry term="站穩月線" meaning="最新與前一日收盤都站在 MA20 上方。" />
+          <Entry term="回檔後回穩" meaning="收復月線後，下一個交易日仍站在 MA20 上方。" />
+          <Entry term="趨勢轉弱" meaning="連續兩個交易日收盤低於 MA60；這是重新檢視持倉的提醒。" />
+          <Entry term="綠／灰／紅指標" meaning="個股的乖離、外資、投信與融資：低於或等於下界顯示綠色；有完整上下界且落在中間顯示灰色；高於或等於上界顯示紅色。" />
+          <Entry term="未設 Profile 規則" meaning="尚未有足夠的個股門檻時，只顯示原始數值；ETF 也維持未設規則。" />
+        </dl>
+      </section>
 
       <section className="guide__section guide__flow-section" aria-label="資料到判讀的總流程">
         <h2 className="guide__section-title">資料怎麼一路變成判讀</h2>
@@ -67,13 +87,15 @@ export function GuidePage() {
       <section className="guide__section guide__flow-section" id="today-flow" aria-label="今天的卡片怎麼來">
         <h2 className="guide__section-title">今天的卡片怎麼來</h2>
         <p className="guide__flow-lede">先讀取本機資料，再分開算技術面與籌碼面；資料不夠時，不會硬算出結果。</p>
-        <CalculationFlow />
+        <FlowCards steps={[{ title: '讀取本機庫存與市場資料', detail: '只讀這台電腦已匯入的庫存與已同步的收盤資料。', branch: '沒有庫存或資料時，顯示資料不足。' }, { title: '整理價格與法人資料', detail: '先還原權息與分割，再依交易日整理技術面與籌碼面資料。' }, { title: '分開計算技術面與籌碼面', detail: '均線、乖離與法人流向各自計算，不合成單一分數。', branch: '任一項資料不夠時，不猜測結果。' }, { title: '套用已確認的 Profile 規則', detail: '只有你已確認的個股規則，才會把數字轉成今日的看多、看空或中性提示。' }, { title: '顯示今日小卡與完整分析', detail: '小卡只顯示重點；右側彈窗與完整分析共用完整數據。' }]} />
+        <div className="guide__legacy-flow"><CalculationFlow /></div>
       </section>
 
       <section className="guide__section guide__flow-section" id="research-flow" aria-label="歷史研究怎麼來">
         <h2 className="guide__section-title">歷史研究怎麼來</h2>
         <p className="guide__flow-lede">研究只用當時可取得的資料，確認候選門檻是否值得繼續追蹤。</p>
-        <ResearchFlow />
+        <FlowCards steps={[{ title: '讀取交易歷史與當時資料', detail: '只用建立部位當下已可取得的歷史資料，不偷看未來。' }, { title: '測試候選區間', detail: '以逐步增加資料的方式，重複檢查候選門檻。' }, { title: '檢查證據是否穩定', detail: '樣本數、檢查點、翻轉與重疊都會另外檢查。', branch: '證據不足時只保留觀察，不自動套用。' }, { title: '由你決定是否加入 Profile', detail: '研究結果是證據；只有你確認後才成為目前規則。' }]} />
+        <div className="guide__legacy-flow"><ResearchFlow /></div>
       </section>
 
       <details className="guide__terms">

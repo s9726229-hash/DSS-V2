@@ -1,46 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { DistortionEvent } from '../../dss/adjustment';
 import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
-import { ChipPanel } from './ChipPanel';
-import { TechnicalPanel } from './TechnicalPanel';
+import { StockAnalysisDetail } from './StockAnalysisDetail';
 import './AnalysisPage.css';
-
-const EVENT_LABEL: Record<'dividend' | 'split', string> = {
-  dividend: '除權息',
-  split: '分割',
-};
-
-/**
- * 已套用的還原事件。
- *
- * 配息與分割會讓股價帳面下跌但資產未減少，若不還原，均線與乖離率會失真。
- * 此處以中性語氣說明已做了什麼調整，而非警告——數字現在是正確的，
- * 但使用者仍應知道畫面上的歷史價格與券商對帳單不會逐筆相符。
- */
-function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
-  if (events.length === 0) return null;
-
-  return (
-    <div className="adjustment">
-      <span className="adjustment__title">已還原權息與分割</span>
-      <ul className="adjustment__events">
-        {events.map((event) => (
-          <li key={`${event.kind}-${event.date}`}>
-            <span className="num">{event.date}</span>
-            <span>{EVENT_LABEL[event.kind]}</span>
-            <span className="num">
-              {event.impactPercent >= 0 ? '+' : ''}
-              {event.impactPercent.toFixed(2)}%
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="adjustment__note">
-        均線與乖離率已排除上列帳面跳空。歷史價格經過換算，與券商對帳單的成交價不會逐筆相同。
-      </p>
-    </div>
-  );
-}
 
 export function AnalysisPage() {
   const [analyses, setAnalyses] = useState<StockAnalysis[] | null>(null);
@@ -91,12 +52,7 @@ export function AnalysisPage() {
                 </span>
               </header>
 
-              <AdjustmentNotice events={analysis.appliedAdjustments} />
-
-              <div className="stock__panels">
-                <TechnicalPanel result={analysis.technical} />
-                <ChipPanel result={analysis.chip} margin={analysis.margin} />
-              </div>
+              <StockAnalysisDetail analysis={analysis} />
             </section>
           ))}
       </>

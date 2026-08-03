@@ -75,6 +75,14 @@
   line-height: 1.6;
 }
 
+.guide__flow-cards { display: grid; gap: var(--gap-2); margin: 0; padding: 0; list-style: none; }
+.guide__flow-card { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: var(--gap-2); padding: var(--gap-3); border: 1px solid var(--rule); border-left: 3px solid var(--ink); background: var(--panel-sunken); }
+.guide__flow-number { color: var(--graphite-light); font-size: 12px; }
+.guide__flow-card strong { font-size: 13px; }
+.guide__flow-card p { margin: 3px 0 0; color: var(--graphite); font-size: 12px; line-height: 1.55; }
+.guide__flow-branch { display: inline-block; margin-top: var(--gap-2); padding: 2px 5px; background: var(--panel); color: var(--graphite); font-size: 11px; }
+.guide__legacy-flow { display: none; }
+
 .guide__terms {
   margin-bottom: var(--gap-4);
 }
