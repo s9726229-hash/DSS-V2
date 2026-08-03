@@ -29,6 +29,7 @@ import {
   MONTHLY_LINE_LABEL,
   RECOVERY_LABEL,
 } from '../dssLabels';
+import { profileRuleNotice } from './profileNotice';
 
 const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
   complete: '資料完整',
@@ -164,9 +165,7 @@ function PlainBox({ label, value }: { label: string; value: string }) {
 function StatusLine({ core }: { core: CardCore }) {
   const { technical } = core.analysis;
   const profileBand = core.bands.find((band) => band.band !== null)?.band ?? null;
-  const unsetRules = core.bands.filter((band) => band.value !== null && band.band === null).length;
-  const profileNotice =
-    unsetRules === 0 ? null : unsetRules === core.bands.length ? '未設 Profile 規則' : `尚有 ${unsetRules} 項未設規則`;
+  const profileNotice = profileRuleNotice(core.bands);
   const judgement =
     profileBand === 'overheated' ? '看多' : profileBand === 'pullback' ? '看空' : '中性';
   const judgementTone =

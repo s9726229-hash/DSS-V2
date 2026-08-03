@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyCandidate, emptyProfile } from '../profile/profile';
+import { applyCandidate, emptyProfile, setManualBoundary } from '../profile/profile';
 import { writeProfile } from '../profile/profileStore';
 import { DATABASE_NAME } from '../storage/database';
 import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
@@ -277,6 +277,28 @@ describe('AppShell', () => {
     expect(screen.getAllByText('賣超側')).toHaveLength(4);
     expect(screen.getAllByText('買超側')).toHaveLength(4);
     expect(screen.getAllByRole('columnheader', { name: '一般' })).toHaveLength(2);
+  });
+
+  /*
+   * 橘框與 ✎ ◷ ! 是同一組判準畫出來的，圖例就得跟著同一組出現，否則畫面上會有
+   * 標記卻沒有任何解釋。手動門檻沒有證據等級，最容易掉進這個縫裡。
+   */
+  it('只有手動門檻時，複核圖例仍然出現', async () => {
+    await writeProfile(
+      setManualBoundary(emptyProfile(), {
+        assetClass: 'stock',
+        metric: 'bias20',
+        side: 'lower',
+        value: -5,
+        at: '2026-08-03T00:00:00.000Z',
+      }),
+    );
+
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    const note = await screen.findByRole('note', { name: '需要複核的規則' });
+    expect(note).toHaveTextContent('自訂、未驗證');
   });
 
   /*

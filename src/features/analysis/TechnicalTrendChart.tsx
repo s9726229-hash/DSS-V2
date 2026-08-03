@@ -4,10 +4,35 @@ const TREND_DAYS = 20;
 const WIDTH = 360;
 const HEIGHT = 116;
 
-function linePath(values: readonly number[], min: number, max: number, top: number, height: number): string {
+/**
+ * 一條線的路徑。
+ *
+ * 沒有值的日子留白並中斷線段，不把有值的日子抽出來重排——那會讓月線被拉開
+ * 撐滿整張圖，看起來像二十天都算得出來（籌碼圖的均線也是同樣的處理方式）。
+ *
+ * 縮放用視窗內的實際價差，不設下限：價格是小數，十幾塊的股票整個月常常
+ * 波動不到一元，硬拉成一元就會壓成一條貼底的平線。
+ */
+function linePath(values: readonly (number | null)[], min: number, max: number): string {
   const stepX = WIDTH / Math.max(1, values.length - 1);
-  const y = (value: number) => top + height - ((value - min) / Math.max(1, max - min)) * height;
-  return values.map((value, index) => `${index === 0 ? 'M' : 'L'}${(index * stepX).toFixed(2)},${y(value).toFixed(2)}`).join(' ');
+  const span = max - min;
+  // 全部同價時沒有可縮放的區間，畫在中線比壓在底部誠實
+  const y = (value: number) => (span === 0 ? HEIGHT / 2 : HEIGHT - ((value - min) / span) * HEIGHT);
+
+  let path = '';
+  let command = 'M';
+
+  values.forEach((value, index) => {
+    if (value === null) {
+      command = 'M';
+      return;
+    }
+
+    path += `${command}${(index * stepX).toFixed(2)},${y(value).toFixed(2)}`;
+    command = 'L';
+  });
+
+  return path;
 }
 
 /** 完整分析右欄的價格圖：只呈現收盤與 MA20，籌碼另列以免混成同一尺度。 */
@@ -18,9 +43,12 @@ export function TechnicalTrendChart({ series }: { series: TrendSeries }) {
   const priceValues = points.flatMap((point) => point.ma20 === null ? [point.close] : [point.close, point.ma20]);
   const priceMin = Math.min(...priceValues);
   const priceMax = Math.max(...priceValues);
-  const closePath = linePath(points.map((point) => point.close), priceMin, priceMax, 0, HEIGHT);
-  const maPoints = points.filter((point) => point.ma20 !== null);
-  const maPath = maPoints.length < 2 ? null : linePath(maPoints.map((point) => point.ma20 as number), priceMin, priceMax, 0, HEIGHT);
+  const closePath = linePath(points.map((point) => point.close), priceMin, priceMax);
+  const maValues = points.map((point) => point.ma20);
+  const maPath =
+    maValues.filter((value) => value !== null).length < 2
+      ? null
+      : linePath(maValues, priceMin, priceMax);
 
   return (
     <figure className="technical-trend" aria-label="近 20 日股價走勢">

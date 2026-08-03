@@ -31,22 +31,30 @@ function formatBoundary(value: number): string {
   return value.toFixed(2);
 }
 
-function reviewCounts(profile: Profile) {
-  let insufficientData = 0;
-  let appliedDespiteWeakEvidence = 0;
+/**
+ * 這個門檻需不需要複核。
+ *
+ * 橘框、格子裡的 ✎ ◷ ! 與表格上方的圖例共用這一個判準。分成兩套的話，畫面會
+ * 出現有標記卻沒有任何說明的情況——手動門檻沒有證據等級，最容易掉進這個縫裡。
+ */
+function needsReview(boundary: ProfileBoundary): boolean {
+  return (
+    boundary.origin === 'manual' ||
+    boundary.sourceEvidence !== 'worth-tracking' ||
+    boundary.appliedDespiteWeakEvidence
+  );
+}
 
-  for (const assetClass of ASSET_CLASSES) {
-    for (const metric of RESEARCH_METRICS) {
+function hasReviewMark(profile: Profile): boolean {
+  return ASSET_CLASSES.some((assetClass) =>
+    RESEARCH_METRICS.some((metric) => {
       const entry = readEntry(profile, assetClass, metric);
-      for (const side of SIDES) {
+      return SIDES.some((side) => {
         const boundary = entry[side];
-        if (boundary?.sourceEvidence === 'insufficient-data') insufficientData += 1;
-        if (boundary?.appliedDespiteWeakEvidence) appliedDespiteWeakEvidence += 1;
-      }
-    }
-  }
-
-  return { insufficientData, appliedDespiteWeakEvidence };
+        return boundary !== null && needsReview(boundary);
+      });
+    }),
+  );
 }
 
 /** 表格只放圖示；完整意思集中在表格上方，避免每格重複長文字。 */
@@ -78,8 +86,7 @@ function BoundaryEditor({
   // 編輯中保留原始輸入字串，否則打到負號或小數點就會被數字轉換吃掉
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (boundary === null ? '' : formatBoundary(boundary.value));
-  const needsReview = boundary !== null &&
-    (boundary.origin === 'manual' || boundary.sourceEvidence !== 'worth-tracking');
+  const review = boundary !== null && needsReview(boundary);
 
   const commit = (raw: string) => {
     setDraft(null);
@@ -95,7 +102,7 @@ function BoundaryEditor({
   };
 
   return (
-    <div className={needsReview ? 'editor editor--review' : 'editor'}>
+    <div className={review ? 'editor editor--review' : 'editor'}>
       <div className="editor__meta">
         <span className="editor__zone">{zone}</span>
         {boundary === null ? null : <Provenance boundary={boundary} />}
@@ -250,7 +257,7 @@ export function ProfilePage() {
   }
 
   const empty = isProfileEmpty(saved);
-  const review = reviewCounts(draft);
+  const showReviewLegend = hasReviewMark(draft);
 
   return (
     <div className="profile">
@@ -287,7 +294,7 @@ export function ProfilePage() {
         </p>
       </header>
 
-      {review.insufficientData > 0 || review.appliedDespiteWeakEvidence > 0 ? (
+      {showReviewLegend ? (
         <aside className="profile__review" role="note" aria-label="需要複核的規則">
           <strong>複核圖示</strong>
           <span><i className="profile__legend-box" aria-hidden="true" />橘框代表需要複核</span>
