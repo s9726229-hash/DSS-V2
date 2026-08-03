@@ -79,6 +79,7 @@ export function TechnicalPanel({ result }: { result: TechnicalResult }) {
       {snapshot.alerts.length > 0 ? (
         <p className="panel__note">提醒重新檢視持倉，不是賣出指令。</p>
       ) : null}
+
     </section>
   );
 }

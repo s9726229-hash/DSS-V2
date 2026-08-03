@@ -25,6 +25,14 @@ describe('系統怎麼算', () => {
     expect(screen.getByText('建立部位辨識')).toBeInTheDocument();
   });
 
+  it('說明偏熱是相對於回檔區間的歷史報酬較弱，而非必然虧損', () => {
+    render(<GuidePage />);
+
+    expect(screen.getByText(/偏熱上界不代表一定虧損/)).toBeInTheDocument();
+    expect(screen.getByText(/通常低於回檔下界案例/)).toBeInTheDocument();
+    expect(screen.getByText(/回檔下界 \+8%、一般 \+4%、偏熱上界 \+1%/)).toBeInTheDocument();
+  });
+
   it('以可閱讀的流程卡呈現今日判讀步驟', () => {
     render(<GuidePage />);
 

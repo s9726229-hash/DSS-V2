@@ -105,6 +105,8 @@
   grid-template-columns: 1fr;
 }
 
+.stock__summary { min-width: 0; }
+
 /* ── 面板 ───────────────────────────────────── */
 
 .panel {
@@ -305,6 +307,60 @@
   font-size: 11px;
 }
 
+/* 上下圖取完全相同的二十日視窗，價格與量能可逐日對照。 */
+.technical-trend {
+  margin: var(--gap-4) 0 0;
+  padding-top: var(--gap-3);
+  border-top: 1px solid var(--rule);
+}
+
+.technical-trend__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.technical-trend__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px var(--gap-2);
+  color: var(--graphite-light);
+  font-size: 10px;
+}
+
+.technical-trend__key { width: 10px; height: 2px; background: var(--ink); }
+.technical-trend__key--ma { stroke: var(--calibrate); stroke-dasharray: 4 4; }
+.technical-trend__key--ma { background: var(--calibrate); }
+.technical-trend__chart { display: block; width: 100%; height: 116px; margin-top: var(--gap-2); overflow: visible; }
+.technical-trend__grid { stroke: var(--rule); stroke-dasharray: 2 3; }
+.technical-trend__close { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.technical-trend__ma { fill: none; stroke: var(--calibrate); stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.technical-trend__empty { margin: var(--gap-4) 0 0; color: var(--graphite-light); font-size: 12px; }
+
+.market-trends {
+  min-width: 0;
+  padding: var(--gap-4) var(--gap-5);
+  border-top: 1px solid var(--rule);
+}
+
+.market-trends__title { margin: 0 0 var(--gap-3); }
+.market-trends .technical-trend { margin-top: 0; padding-top: 0; border-top: 0; }
+.market-trends__flow { padding: var(--gap-2) 0; border-top: 1px solid var(--rule); }
+.market-trends__flow h4 { margin: 0 0 3px; color: var(--graphite); font-size: 11px; font-weight: 500; }
+.market-trends__flow .flowchart { width: 100%; max-width: none !important; height: 28px; }
+.market-trends__pending { margin: var(--gap-2) 0; color: var(--attention); font-size: 12px; }
+
 @media (max-width: 900px) {
   .stock__panels { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 901px) {
+  .stock__panels { grid-template-columns: minmax(300px, 42fr) minmax(380px, 58fr); }
+  .stock__summary { border-right: 1px solid var(--rule); }
+  .market-trends { border-top: 0; }
 }
