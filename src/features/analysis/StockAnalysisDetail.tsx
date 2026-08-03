@@ -1,6 +1,7 @@
 import type { StockAnalysis } from '../../dss/analyseHoldings';
 import type { DistortionEvent } from '../../dss/adjustment';
 import { ChipPanel } from './ChipPanel';
+import { MarketTrendsPanel } from './MarketTrendsPanel';
 import { TechnicalPanel } from './TechnicalPanel';
 
 const EVENT_LABEL: Record<'dividend' | 'split', string> = { dividend: '除權息', split: '分割' };
@@ -12,5 +13,5 @@ function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
 
 /** 整頁與今日右側彈窗都使用這一份內容，避免兩處數字與趨勢不同步。 */
 export function StockAnalysisDetail({ analysis }: { analysis: StockAnalysis }) {
-  return <section className="analysis-detail" aria-label="完整分析內容"><AdjustmentNotice events={analysis.appliedAdjustments} /><div className="stock__panels"><TechnicalPanel result={analysis.technical} /><ChipPanel result={analysis.chip} margin={analysis.margin} /></div></section>;
+  return <section className="analysis-detail" aria-label="完整分析內容"><AdjustmentNotice events={analysis.appliedAdjustments} /><div className="stock__panels"><div className="stock__summary"><TechnicalPanel result={analysis.technical} /><ChipPanel result={analysis.chip} margin={analysis.margin} /></div><MarketTrendsPanel trend={analysis.trend} chip={analysis.chip} margin={analysis.margin} /></div></section>;
 }

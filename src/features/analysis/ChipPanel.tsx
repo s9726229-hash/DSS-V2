@@ -7,8 +7,6 @@ import {
   type FlowThresholds,
 } from '../../dss/flow';
 import { MARGIN_FLOW_THRESHOLDS } from '../../dss/margin';
-import { FlowChart } from '../FlowChart';
-import { CHIP_TREND_DAYS, recentTradingDays } from './chipTrend';
 import {
   continuityText,
   FLOW_CHANGE_LABEL,
@@ -35,7 +33,6 @@ function FlowBlock({
   thresholds = DEFAULT_FLOW_THRESHOLDS,
   changeLabel = FLOW_CHANGE_LABEL,
   toned = true,
-  measure = '買賣超',
   footer = null,
 }: {
   label: string;
@@ -44,12 +41,9 @@ function FlowBlock({
   changeLabel?: Record<FlowChange, string>;
   /** 融資增減不是股價方向，也不是無爭議的多空訊號，因此不上紅綠。 */
   toned?: boolean;
-  /** 這條序列量的是什麼；融資量的是餘額增減。 */
-  measure?: string;
   footer?: React.ReactNode;
 }) {
   const flow = computeFlow(series, thresholds);
-  const trend = recentTradingDays(series);
 
   return (
     <section className="flow" aria-label={label}>
@@ -90,12 +84,6 @@ function FlowBlock({
             </span>
           </div>
 
-          <FlowChart
-            series={trend}
-            baselineDays={FLOW_BASELINE_DAYS}
-            label={label}
-            measure={measure}
-          />
         </>
       )}
 
@@ -153,7 +141,6 @@ export function ChipPanel({ result, margin }: { result: ChipResult; margin: read
         thresholds={MARGIN_FLOW_THRESHOLDS}
         changeLabel={MARGIN_CHANGE_LABEL}
         toned={false}
-        measure="餘額增減"
       />
 
       {result.ok ? (
@@ -163,7 +150,7 @@ export function ChipPanel({ result, margin }: { result: ChipResult; margin: read
         </div>
       ) : null}
 
-      <p className="panel__note">每張圖顯示最近 {CHIP_TREND_DAYS} 個交易日；虛線為前 {FLOW_BASELINE_DAYS} 日平均。籌碼與技術獨立呈現，不合併計分，也不覆寫技術面結果。</p>
+      <p className="panel__note">右側走勢圖顯示最近 20 個交易日；虛線為前 {FLOW_BASELINE_DAYS} 日平均。籌碼與技術獨立呈現，不合併計分，也不覆寫技術面結果。</p>
     </section>
   );
 }

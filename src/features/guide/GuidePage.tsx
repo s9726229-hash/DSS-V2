@@ -95,6 +95,9 @@ export function GuidePage() {
         <h2 className="guide__section-title">歷史研究怎麼來</h2>
         <p className="guide__flow-lede">研究只用當時可取得的資料，確認候選門檻是否值得繼續追蹤。</p>
         <FlowCards steps={[{ title: '讀取交易歷史與當時資料', detail: '只用建立部位當下已可取得的歷史資料，不偷看未來。' }, { title: '測試候選區間', detail: '以逐步增加資料的方式，重複檢查候選門檻。' }, { title: '檢查證據是否穩定', detail: '樣本數、檢查點、翻轉與重疊都會另外檢查。', branch: '證據不足時只保留觀察，不自動套用。' }, { title: '由你決定是否加入 Profile', detail: '研究結果是證據；只有你確認後才成為目前規則。' }]} />
+        <div className="guide__caution">
+          <strong>怎麼看偏熱上界？</strong> 偏熱上界不代表一定虧損；它表示歷史研究中，這個區間在固定觀察期的報酬通常低於回檔下界案例。例：回檔下界 +8%、一般 +4%、偏熱上界 +1%，意思是相對較弱，不是預測必跌。只有資料量與驗證足夠、差異也穩定時，才會形成可套用的 Profile 規則。
+        </div>
         <div className="guide__legacy-flow"><ResearchFlow /></div>
       </section>
 

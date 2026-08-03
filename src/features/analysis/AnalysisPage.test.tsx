@@ -60,7 +60,7 @@ describe('沒有資料時', () => {
     render(<AnalysisPage />);
 
     const stock = await screen.findByRole('region', { name: '2330 分析' });
-    expect(within(stock).getByText(/價格資料不足/)).toBeInTheDocument();
+    expect(within(stock).getByText(/價格資料不足，尚無法計算技術指標/)).toBeInTheDocument();
     expect(within(stock).getByText(/法人資料未就緒/)).toBeInTheDocument();
     expect(within(stock).getByText('尚未同步')).toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe('有完整資料時', () => {
     await waitFor(() => {
       expect(within(technical).getByText('120.00')).toBeInTheDocument();
     });
-    expect(within(technical).getByText(/MA20/)).toBeInTheDocument();
+    expect(within(technical).getByText('MA20')).toBeInTheDocument();
     expect(within(technical).getByText(/^\+\d+\.\d+%$/)).toBeInTheDocument();
   });
 
@@ -110,6 +110,16 @@ describe('有完整資料時', () => {
     render(<AnalysisPage />);
 
     expect(await screen.findByRole('region', { name: '完整分析內容' })).toBeInTheDocument();
+  });
+
+  it('右欄集中呈現股價、外資、投信與融資的二十日走勢', async () => {
+    render(<AnalysisPage />);
+
+    const trends = await screen.findByRole('region', { name: '20 日走勢' });
+    expect(within(trends).getByText('股價')).toBeInTheDocument();
+    expect(within(trends).getByText('外資')).toBeInTheDocument();
+    expect(within(trends).getByText('投信')).toBeInTheDocument();
+    expect(within(trends).getByText('融資')).toBeInTheDocument();
   });
 
   it('外資買超、投信賣超時顯示為分歧', async () => {
