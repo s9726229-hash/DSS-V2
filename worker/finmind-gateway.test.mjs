@@ -258,7 +258,7 @@ describe('設定與上游錯誤', () => {
 
 describe('CORS', () => {
   it('允許的來源會取得對應的 Access-Control-Allow-Origin', async () => {
-    for (const origin of [LOCAL_ORIGIN, 'http://localhost:5173', ALLOWED_ORIGIN]) {
+    for (const origin of [LOCAL_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5174', ALLOWED_ORIGIN]) {
       const response = await worker.fetch(request(PRICE_QUERY, { origin }), ENV, {
         waitUntil() {},
       });

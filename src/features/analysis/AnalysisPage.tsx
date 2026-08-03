@@ -1,57 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { DistortionEvent } from '../../dss/adjustment';
 import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
-import { CalculationFlow } from './CalculationFlow';
-import { ChipPanel } from './ChipPanel';
-import { TechnicalPanel } from './TechnicalPanel';
+import { StockAnalysisDetail } from './StockAnalysisDetail';
 import './AnalysisPage.css';
 
-type Tab = 'status' | 'flow';
-
-const TAB_LABEL: Record<Tab, string> = {
-  status: '個股狀態',
-  flow: '計算流程',
-};
-
-const EVENT_LABEL: Record<'dividend' | 'split', string> = {
-  dividend: '除權息',
-  split: '分割',
-};
-
-/**
- * 已套用的還原事件。
- *
- * 配息與分割會讓股價帳面下跌但資產未減少，若不還原，均線與乖離率會失真。
- * 此處以中性語氣說明已做了什麼調整，而非警告——數字現在是正確的，
- * 但使用者仍應知道畫面上的歷史價格與券商對帳單不會逐筆相符。
- */
-function AdjustmentNotice({ events }: { events: DistortionEvent[] }) {
-  if (events.length === 0) return null;
-
-  return (
-    <div className="adjustment">
-      <span className="adjustment__title">已還原權息與分割</span>
-      <ul className="adjustment__events">
-        {events.map((event) => (
-          <li key={`${event.kind}-${event.date}`}>
-            <span className="num">{event.date}</span>
-            <span>{EVENT_LABEL[event.kind]}</span>
-            <span className="num">
-              {event.impactPercent >= 0 ? '+' : ''}
-              {event.impactPercent.toFixed(2)}%
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="adjustment__note">
-        均線與乖離率已排除上列帳面跳空。歷史價格經過換算，與券商對帳單的成交價不會逐筆相同。
-      </p>
-    </div>
-  );
-}
-
 export function AnalysisPage() {
-  const [tab, setTab] = useState<Tab>('status');
   const [analyses, setAnalyses] = useState<StockAnalysis[] | null>(null);
 
   useEffect(() => {
@@ -71,30 +23,13 @@ export function AnalysisPage() {
   return (
     <div className="analysis">
       <header className="analysis__head">
-        <h1 className="analysis__title">技術分析</h1>
+        <h1 className="analysis__title">完整分析</h1>
         <p className="analysis__lede">
-          依最近一個交易日的收盤資料計算。技術面與籌碼面各自獨立呈現，不合併為單一評分，也不產生買賣建議。
+          逐檔查看原始數字、趨勢與計算依據。資料依最近一個交易日的收盤資料計算，不產生買賣建議。
         </p>
       </header>
 
-      <nav className="tabs" aria-label="技術分析檢視">
-        {(['status', 'flow'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={id === tab ? 'tabs__item tabs__item--active' : 'tabs__item'}
-            aria-current={id === tab ? 'page' : undefined}
-            onClick={() => setTab(id)}
-          >
-            {TAB_LABEL[id]}
-          </button>
-        ))}
-      </nav>
-
-      {tab === 'flow' ? <CalculationFlow /> : null}
-
-      {tab === 'status' ? (
-        <>
+      <>
           {analyses === null ? <p className="analysis__loading">讀取中…</p> : null}
 
           {analyses !== null && analyses.length === 0 ? (
@@ -117,16 +52,10 @@ export function AnalysisPage() {
                 </span>
               </header>
 
-              <AdjustmentNotice events={analysis.appliedAdjustments} />
-
-              <div className="stock__panels">
-                <TechnicalPanel result={analysis.technical} />
-                <ChipPanel result={analysis.chip} margin={analysis.margin} />
-              </div>
+              <StockAnalysisDetail analysis={analysis} />
             </section>
           ))}
-        </>
-      ) : null}
+      </>
     </div>
   );
 }

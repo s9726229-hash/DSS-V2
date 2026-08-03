@@ -183,37 +183,13 @@ describe('沒有檢查點時', () => {
   });
 });
 
-describe('計算流程分頁', () => {
-  it('預設顯示研究結果，不顯示流程圖', async () => {
+describe('歷史研究的分頁', () => {
+  it('不再顯示已移至系統怎麼算的計算流程', async () => {
     render(<ResearchPage />);
 
     await screen.findByText(/請先到.*匯入交易明細/);
+    expect(screen.queryByRole('button', { name: '計算流程' })).not.toBeInTheDocument();
     expect(screen.queryByText('建立部位辨識')).not.toBeInTheDocument();
-  });
-
-  it('切到計算流程會顯示流程圖，並標出每個證據等級的判定門檻', async () => {
-    render(<ResearchPage />);
-    await screen.findByText(/請先到.*匯入交易明細/);
-
-    await userEvent.click(screen.getByRole('button', { name: '計算流程' }));
-
-    expect(screen.getByText('建立部位辨識')).toBeInTheDocument();
-    expect(screen.getByText('walk-forward 切點')).toBeInTheDocument();
-    expect(screen.getByText('資料不足')).toBeInTheDocument();
-    expect(screen.getByText('初步觀察')).toBeInTheDocument();
-    expect(screen.getByText('門檻不穩定／重疊敏感')).toBeInTheDocument();
-    expect(screen.getByText('值得繼續追蹤')).toBeInTheDocument();
-    expect(screen.queryByText(/請先到.*匯入交易明細/)).not.toBeInTheDocument();
-  });
-
-  it('切回研究結果會恢復原本內容', async () => {
-    render(<ResearchPage />);
-    await screen.findByText(/請先到.*匯入交易明細/);
-
-    await userEvent.click(screen.getByRole('button', { name: '計算流程' }));
-    await userEvent.click(screen.getByRole('button', { name: '研究結果' }));
-
-    expect(await screen.findByText(/請先到.*匯入交易明細/)).toBeInTheDocument();
   });
 });
 

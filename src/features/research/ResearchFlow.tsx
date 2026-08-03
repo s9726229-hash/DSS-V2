@@ -18,7 +18,7 @@ export function ResearchFlow() {
   return (
     <div className="flow">
       <p className="flow__lede">
-        每個候選區間的證據等級，都是照這個順序算出來的。名詞定義請看<strong>判讀說明</strong>。
+        每個候選區間的證據等級，都是照這個順序算出來的。名詞定義請看<strong>系統怎麼算</strong>。
       </p>
 
       <div className="flowchart__scroll">

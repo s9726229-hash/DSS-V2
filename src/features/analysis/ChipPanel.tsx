@@ -8,6 +8,7 @@ import {
 } from '../../dss/flow';
 import { MARGIN_FLOW_THRESHOLDS } from '../../dss/margin';
 import { FlowChart } from '../FlowChart';
+import { CHIP_TREND_DAYS, recentTradingDays } from './chipTrend';
 import {
   continuityText,
   FLOW_CHANGE_LABEL,
@@ -48,6 +49,7 @@ function FlowBlock({
   footer?: React.ReactNode;
 }) {
   const flow = computeFlow(series, thresholds);
+  const trend = recentTradingDays(series);
 
   return (
     <section className="flow" aria-label={label}>
@@ -89,14 +91,11 @@ function FlowBlock({
           </div>
 
           <FlowChart
-            series={series}
+            series={trend}
             baselineDays={FLOW_BASELINE_DAYS}
             label={label}
             measure={measure}
           />
-          <p className="flow__legend micro">
-            每日{measure}，虛線為前 {FLOW_BASELINE_DAYS} 日平均．分級門檻為市場慣例，未經驗證
-          </p>
         </>
       )}
 
@@ -164,7 +163,7 @@ export function ChipPanel({ result, margin }: { result: ChipResult; margin: read
         </div>
       ) : null}
 
-      <p className="panel__note">籌碼與技術獨立呈現，不合併計分，也不覆寫技術面結果。</p>
+      <p className="panel__note">每張圖顯示最近 {CHIP_TREND_DAYS} 個交易日；虛線為前 {FLOW_BASELINE_DAYS} 日平均。籌碼與技術獨立呈現，不合併計分，也不覆寫技術面結果。</p>
     </section>
   );
 }

@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyCandidate, emptyProfile } from '../profile/profile';
+import { writeProfile } from '../profile/profileStore';
 import { DATABASE_NAME } from '../storage/database';
 import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
 import { addWatch, emptyWatchlist } from '../watchlist/watchlist';
@@ -57,21 +59,22 @@ beforeEach(async () => {
 });
 
 describe('AppShell', () => {
-  it('顯示五個主頁導覽', () => {
+  it('顯示 V1 的六個完成頁面導覽', () => {
     render(<AppShell />);
 
     const nav = screen.getByRole('navigation');
-    for (const label of ['今日 DSS', '歷史交易研究', 'Profile', '資料中心', '設定']) {
+    for (const label of ['今日總覽', '完整分析', '判讀說明', '歷史研究', '目前規則', '資料中心']) {
       expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument();
     }
+    expect(within(nav).queryByRole('button', { name: '設定' })).not.toBeInTheDocument();
   });
 
-  // 今日 DSS 要先讀庫存與 Profile 才畫得出卡片，因此標題是非同步出現的
-  it('預設顯示今日 DSS', async () => {
+  // 今日總覽要先讀庫存與 Profile 才畫得出卡片，因此標題是非同步出現的
+  it('預設顯示今日總覽', async () => {
     render(<AppShell />);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: '今日 DSS' }),
+      await screen.findByRole('heading', { level: 1, name: '今日總覽' }),
     ).toBeInTheDocument();
   });
 
@@ -221,7 +224,7 @@ describe('AppShell', () => {
    * 卡片上十幾個數字全都同一個字級時，眼睛沒有落點。改版後只留一個放大的讀數，
    * 成本這類只在加減碼時才看的數字收進明細——收起不是刪除，點開仍在同一張卡上。
    */
-  it('持股卡以報酬率為落點，成本明細預設收起', async () => {
+  it('持股卡以報酬率與今日判讀為落點，成本改由詳情查看', async () => {
     await importHoldingsSnapshot(
       [
         {
@@ -241,12 +244,39 @@ describe('AppShell', () => {
 
     expect(await screen.findByText('+5.00%')).toBeInTheDocument();
 
-    const cost = screen.getByText(/成本 100\.00/);
-    expect(cost).not.toBeVisible();
+    expect(screen.getAllByText('資料不足').length).toBeGreaterThan(0);
+    expect(screen.queryByText('明細')).not.toBeInTheDocument();
+    expect(screen.getByText('庫存現價')).toBeInTheDocument();
+    expect(screen.getByText('持有天數')).toBeInTheDocument();
+    expect(screen.getByText('融資流向')).toBeInTheDocument();
+  });
 
-    await userEvent.click(screen.getByText('明細'));
+  it('目前規則將複核意義集中在表格上方，並以兩位小數呈現', async () => {
+    const profile = applyCandidate(emptyProfile(), {
+      assetClass: 'stock',
+      metric: 'bias20',
+      band: 'normal',
+      range: { min: 0.5661903, max: 15.78477 },
+      runId: 'run-2026-08-02',
+      evidence: 'insufficient-data',
+      despiteWeakEvidence: true,
+      at: '2026-08-03T00:00:00.000Z',
+    });
+    await writeProfile(profile);
 
-    expect(cost).toBeVisible();
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    const alert = await screen.findByRole('note', { name: '需要複核的規則' });
+    expect(alert).toHaveTextContent('橘框代表需要複核');
+    expect(alert).toHaveTextContent('研究證據未足');
+    expect(alert).toHaveTextContent('仍套用');
+    expect(screen.getAllByLabelText('門檻值')[0]).toHaveValue('0.57');
+    expect(screen.getAllByLabelText('門檻值')[1]).toHaveValue('15.78');
+    expect(screen.getAllByText('合理區')).toHaveLength(2);
+    expect(screen.getAllByText('賣超側')).toHaveLength(4);
+    expect(screen.getAllByText('買超側')).toHaveLength(4);
+    expect(screen.getAllByRole('columnheader', { name: '一般' })).toHaveLength(2);
   });
 
   /*

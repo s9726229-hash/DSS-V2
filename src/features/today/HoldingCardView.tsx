@@ -29,7 +29,6 @@ import {
   MONTHLY_LINE_LABEL,
   RECOVERY_LABEL,
 } from '../dssLabels';
-import { Sparkline } from './Sparkline';
 
 const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
   complete: '資料完整',
@@ -86,6 +85,27 @@ function LeadReadout({
   );
 }
 
+function HoldingSummary({ card }: { card: HoldingCard }) {
+  return (
+    <div className="card__holding-summary">
+      <span className="card__stat">
+        <span className="card__stat-label micro">報酬率</span>
+        <span className={`card__stat-value num${tone(card.position.returnPercent)}`}>
+          {percent(card.position.returnPercent, '%')}
+        </span>
+      </span>
+      <span className="card__stat">
+        <span className="card__stat-label micro">庫存現價</span>
+        <span className="card__stat-value num">{price(card.currentPrice)}</span>
+      </span>
+      <span className="card__stat">
+        <span className="card__stat-label micro">持有天數</span>
+        <span className="card__stat-value num">{card.heldDays === null ? '—' : `${card.heldDays} 天`}</span>
+      </span>
+    </div>
+  );
+}
+
 /**
  * 指標方塊。
  *
@@ -103,12 +123,21 @@ function MetricBox({ band }: { band: CardBand }) {
     );
   }
 
+  const tone =
+    band.band === 'overheated'
+      ? ' metric--upper'
+      : band.band === 'pullback'
+        ? ' metric--lower'
+        : band.band === 'normal'
+          ? ' metric--normal'
+          : '';
+
   return (
-    <div className="metric">
+    <div className={`metric${tone}`}>
       <span className="metric__label micro">{BOX_LABEL[band.metric]}</span>
       <span className="metric__value num">{percent(band.value, METRIC_UNIT[band.metric])}</span>
       <span className="metric__state">
-        {band.band === null ? '未設門檻' : bandLabel(band.metric, band.band)}
+        {band.band === null ? '—' : bandLabel(band.metric, band.band)}
         {band.unverified ? <span className="metric__flag">未驗證</span> : null}
       </span>
     </div>
@@ -134,11 +163,20 @@ function PlainBox({ label, value }: { label: string; value: string }) {
  */
 function StatusLine({ core }: { core: CardCore }) {
   const { technical } = core.analysis;
+  const profileBand = core.bands.find((band) => band.band !== null)?.band ?? null;
+  const unsetRules = core.bands.filter((band) => band.value !== null && band.band === null).length;
+  const profileNotice =
+    unsetRules === 0 ? null : unsetRules === core.bands.length ? '未設 Profile 規則' : `尚有 ${unsetRules} 項未設規則`;
+  const judgement =
+    profileBand === 'overheated' ? '看多' : profileBand === 'pullback' ? '看空' : '中性';
+  const judgementTone =
+    profileBand === 'overheated' ? 'bullish' : profileBand === 'pullback' ? 'bearish' : 'neutral';
 
   if (!technical.ok) {
     return (
-      <p className="card__status card__status--missing">
-        股價資料只有 {technical.available} 筆，需要 {technical.required} 筆才算得出均線
+      <p className="card__status card__status--missing card__status--neutral">
+        <span className="card__judgement">資料不足</span>
+        <span>股價資料只有 {technical.available} 筆，需要 {technical.required} 筆才算得出均線</span>
       </p>
     );
   }
@@ -146,7 +184,8 @@ function StatusLine({ core }: { core: CardCore }) {
   const { monthlyLineState, recoveryState, alerts } = technical.snapshot;
 
   return (
-    <p className="card__status">
+    <p className={`card__status card__status--${judgementTone}`}>
+      <span className="card__judgement">今日判讀：{judgement}</span>
       <span className="card__status-main">{MONTHLY_LINE_LABEL[monthlyLineState]}</span>
       {/* 回穩是狀態描述，提醒才需要跳出來，兩者不共用同一個顏色 */}
       {recoveryState === null ? null : (
@@ -157,6 +196,7 @@ function StatusLine({ core }: { core: CardCore }) {
           {ALERT_LABEL[alert]}
         </span>
       ))}
+      {profileNotice === null ? null : <span className="card__status-note">{profileNotice}</span>}
     </p>
   );
 }
@@ -222,7 +262,7 @@ function FlowLine({
   );
 }
 
-function ChipRow({ core }: { core: CardCore }) {
+export function ChipRow({ core }: { core: CardCore }) {
   const { chip, margin } = core.analysis;
 
   return (
@@ -288,8 +328,6 @@ function CardFrame({
   /** 未提供時整張卡不可點——管理觀察清單時要讓位給拖曳。 */
   onOpenDetail?: () => void;
 }) {
-  const { technical } = core.analysis;
-
   /*
    * 卡片裡本來就有摘要、按鈕與核取方塊，整張包成 <button> 是無效的 HTML。
    * 因此改成在卡片上掛 onClick，並忽略來自互動元素的點擊；
@@ -338,29 +376,13 @@ function CardFrame({
         </div>
       </header>
 
-      <div className="card__summary">
-        {lead}
-        <Sparkline series={core.analysis.trend} />
-      </div>
+      <div className="card__summary">{lead}</div>
 
       <StatusLine core={core} />
 
       <div className="card__metrics">{boxes}</div>
+      <span hidden>{details}</span>
 
-      <ChipRow core={core} />
-
-      <details className="card__details">
-        <summary className="card__details-summary">明細</summary>
-        <div className="card__details-body num">
-          {details}
-          {technical.ok ? (
-            <span className="card__detail">
-              MA5 {price(technical.snapshot.ma5)}．MA20 {price(technical.snapshot.ma20)}．MA60{' '}
-              {price(technical.snapshot.ma60)}
-            </span>
-          ) : null}
-        </div>
-      </details>
     </article>
   );
 }
@@ -425,24 +447,12 @@ export function HoldingCardView({
       tags={[card.tradeType]}
       dataTitle={`市場資料 ${card.priceDate ?? '未取得'}．庫存快照 ${card.snapshotDate}`}
       onOpenDetail={onOpenDetail}
-      lead={
-        <LeadReadout
-          value={percent(position.returnPercent, '%')}
-          label="報酬率"
-          numeric={position.returnPercent}
-          /* 損益一律用券商快照的成本與現價，與技術指標的還原價分屬兩個尺度 */
-          note={`庫存現價 ${price(card.currentPrice)}`}
-        />
-      }
+      lead={<HoldingSummary card={card} />}
       boxes={
         <>
           {card.bands.map((band) => (
             <MetricBox key={band.metric} band={band} />
           ))}
-          <PlainBox
-            label="持有天數"
-            value={card.heldDays === null ? '—' : `${card.heldDays} 天`}
-          />
         </>
       }
       details={

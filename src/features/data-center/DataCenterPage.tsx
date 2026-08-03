@@ -16,7 +16,7 @@ export function DataCenterPage({
       <header className="datacenter__head">
         <h1 className="datacenter__title">資料中心</h1>
         <p className="datacenter__lede">
-          匯入與備份本機資料。所有資料只存在這台電腦，不會上傳。
+          匯入、同步與備份你的本機資料。所有資料只存在這台電腦，不會上傳。
         </p>
       </header>
 

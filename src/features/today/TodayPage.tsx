@@ -97,11 +97,9 @@ export function TodayPage({
   return (
     <div className="today">
       <header className="today__head">
-        <h1 className="today__title">今日 DSS</h1>
+        <h1 className="today__title">今日總覽</h1>
         <p className="today__lede">
-          依最近一個交易日的收盤資料。技術面與籌碼面各自獨立呈現，不合併為單一評分，
-          也不產生買賣建議。持股損益用券商庫存快照自己的成本與現價計算，與技術指標所用的
-          還原價格分屬兩個尺度，不混用。
+          今天的持股狀態，以及值得再查看的變化。依最近一個交易日的收盤資料，不產生買賣建議。
         </p>
       </header>
 

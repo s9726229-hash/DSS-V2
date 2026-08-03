@@ -27,28 +27,37 @@ import './ProfilePage.css';
 const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
 const SIDES: BoundarySide[] = ['lower', 'upper'];
 
-function when(iso: string): string {
-  return iso.slice(0, 10);
+function formatBoundary(value: number): string {
+  return value.toFixed(2);
 }
 
-/** 一個邊界的來源說明。看得到數字是怎麼來的，才有辦法回頭質疑它。 */
+function reviewCounts(profile: Profile) {
+  let insufficientData = 0;
+  let appliedDespiteWeakEvidence = 0;
+
+  for (const assetClass of ASSET_CLASSES) {
+    for (const metric of RESEARCH_METRICS) {
+      const entry = readEntry(profile, assetClass, metric);
+      for (const side of SIDES) {
+        const boundary = entry[side];
+        if (boundary?.sourceEvidence === 'insufficient-data') insufficientData += 1;
+        if (boundary?.appliedDespiteWeakEvidence) appliedDespiteWeakEvidence += 1;
+      }
+    }
+  }
+
+  return { insufficientData, appliedDespiteWeakEvidence };
+}
+
+/** 表格只放圖示；完整意思集中在表格上方，避免每格重複長文字。 */
 function Provenance({ boundary }: { boundary: ProfileBoundary }) {
   return (
     <span className="origin">
-      {boundary.origin === 'manual' ? (
-        <span className="origin__tag origin__tag--manual">自訂／未驗證</span>
-      ) : (
-        <span className="origin__tag">
-          {boundary.sourceEvidence === null ? '候選' : EVIDENCE_LABEL[boundary.sourceEvidence]}
-        </span>
-      )}
+      {boundary.origin === 'manual' ? <span className="origin__mark" title="自訂門檻，未驗證" aria-label="自訂門檻，未驗證">✎</span> : null}
+      {boundary.origin === 'candidate' && boundary.sourceEvidence !== 'worth-tracking' ? <span className="origin__mark" title={boundary.sourceEvidence === null ? '研究證據未足' : EVIDENCE_LABEL[boundary.sourceEvidence]} aria-label={boundary.sourceEvidence === null ? '研究證據未足' : EVIDENCE_LABEL[boundary.sourceEvidence]}>◷</span> : null}
       {boundary.appliedDespiteWeakEvidence ? (
-        <span className="origin__tag origin__tag--override">證據不足仍套用</span>
+        <span className="origin__mark" title="證據不足仍套用" aria-label="證據不足仍套用">!</span>
       ) : null}
-      <span className="origin__meta num">
-        {when(boundary.updatedAt)}
-        {boundary.sourceRunId === null ? '' : `．來源批次 ${when(boundary.sourceRunId.slice(4))}`}
-      </span>
     </span>
   );
 }
@@ -56,17 +65,21 @@ function Provenance({ boundary }: { boundary: ProfileBoundary }) {
 function BoundaryEditor({
   boundary,
   unit,
+  zone,
   onChange,
   onClear,
 }: {
   boundary: ProfileBoundary | null;
   unit: string;
+  zone: string;
   onChange: (value: number) => void;
   onClear: () => void;
 }) {
   // 編輯中保留原始輸入字串，否則打到負號或小數點就會被數字轉換吃掉
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? (boundary === null ? '' : String(boundary.value));
+  const shown = draft ?? (boundary === null ? '' : formatBoundary(boundary.value));
+  const needsReview = boundary !== null &&
+    (boundary.origin === 'manual' || boundary.sourceEvidence !== 'worth-tracking');
 
   const commit = (raw: string) => {
     setDraft(null);
@@ -82,7 +95,11 @@ function BoundaryEditor({
   };
 
   return (
-    <div className="editor">
+    <div className={needsReview ? 'editor editor--review' : 'editor'}>
+      <div className="editor__meta">
+        <span className="editor__zone">{zone}</span>
+        {boundary === null ? null : <Provenance boundary={boundary} />}
+      </div>
       <label className="editor__field">
         <input
           className="editor__input num"
@@ -103,9 +120,7 @@ function BoundaryEditor({
 
       {boundary === null ? (
         <span className="conditions__unset">未設定</span>
-      ) : (
-        <Provenance boundary={boundary} />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -123,10 +138,17 @@ function ConditionsTable({
 }) {
   return (
     <table className="checkpoints conditions">
+      <colgroup>
+        <col className="conditions__metric-col" />
+        <col className="conditions__boundary-col" />
+        <col className="conditions__normal-col" />
+        <col className="conditions__boundary-col" />
+      </colgroup>
       <thead>
         <tr>
           <th>指標</th>
           <th>下界</th>
+          <th>一般</th>
           <th>上界</th>
         </tr>
       </thead>
@@ -140,23 +162,31 @@ function ConditionsTable({
             <tr key={metric} className={conflict ? 'conditions__row--conflict' : undefined}>
               <td>
                 <span className="conditions__metric">{METRIC_LABEL[metric]}</span>
-                <span className="conditions__bands">
-                  ≤ 下界為{bandLabel(metric, 'pullback')}．≥ 上界為{bandLabel(metric, 'overheated')}
-                </span>
                 {conflict ? (
                   <span className="conditions__conflict">下界必須低於上界，否則中間區永遠是空的</span>
                 ) : null}
               </td>
-              {SIDES.map((side) => (
-                <td key={side}>
-                  <BoundaryEditor
-                    boundary={entry[side]}
-                    unit={unit}
-                    onChange={(value) => onSet(metric, side, value)}
-                    onClear={() => onClear(metric, side)}
-                  />
-                </td>
-              ))}
+              <td className="conditions__boundary-cell">
+                <BoundaryEditor
+                  boundary={entry.lower}
+                  unit={unit}
+                  zone={bandLabel(metric, 'pullback')}
+                  onChange={(value) => onSet(metric, 'lower', value)}
+                  onClear={() => onClear(metric, 'lower')}
+                />
+              </td>
+              <td className="conditions__normal-cell">
+                <span className="conditions__normal">{bandLabel(metric, 'normal')}</span>
+              </td>
+              <td className="conditions__boundary-cell conditions__boundary-cell--upper">
+                <BoundaryEditor
+                  boundary={entry.upper}
+                  unit={unit}
+                  zone={bandLabel(metric, 'overheated')}
+                  onChange={(value) => onSet(metric, 'upper', value)}
+                  onClear={() => onClear(metric, 'upper')}
+                />
+              </td>
             </tr>
           );
         })}
@@ -220,6 +250,7 @@ export function ProfilePage() {
   }
 
   const empty = isProfileEmpty(saved);
+  const review = reviewCounts(draft);
 
   return (
     <div className="profile">
@@ -250,12 +281,21 @@ export function ProfilePage() {
       ) : null}
 
       <header className="profile__head">
-        <h1 className="profile__title">Profile</h1>
+        <h1 className="profile__title">目前規則</h1>
         <p className="profile__lede">
-          判讀庫存與觀察標的時使用的門檻。門檻只影響現在的判讀，
-          不會改動交易紀錄、研究樣本或歷史快照，也不代表未來報酬。
+          個股與 ETF 的目前判讀門檻；只影響今天的判讀，不改動交易、研究或歷史資料，也不代表未來報酬。
         </p>
       </header>
+
+      {review.insufficientData > 0 || review.appliedDespiteWeakEvidence > 0 ? (
+        <aside className="profile__review" role="note" aria-label="需要複核的規則">
+          <strong>複核圖示</strong>
+          <span><i className="profile__legend-box" aria-hidden="true" />橘框代表需要複核</span>
+          <span><b aria-hidden="true">◷</b>研究證據未足</span>
+          <span><b aria-hidden="true">!</b>仍套用</span>
+          <span><b aria-hidden="true">✎</b>自訂、未驗證</span>
+        </aside>
+      ) : null}
 
       <section className="profile__section" aria-label="候選參數">
         <h2 className="profile__section-title">候選參數</h2>
@@ -266,8 +306,7 @@ export function ProfilePage() {
           </p>
         ) : (
           <p className="profile__note">
-            下方每個門檻都標示了來源：從哪一批研究來的、當時的證據等級，
-            以及是否在證據不足的情況下仍被套用。
+            每個門檻都保留來源與證據等級；橘框代表需要複核。
             {hasUnverifiedBoundary(saved)
               ? '　目前有手動設定的門檻，它們沒有經過驗證。'
               : ''}
@@ -278,8 +317,7 @@ export function ProfilePage() {
       <section className="profile__section" aria-label="判定條件">
         <h2 className="profile__section-title">判定條件</h2>
         <p className="profile__note">
-          個股與 ETF 分開，兩者不共用門檻。直接改數字即可，清空欄位代表取消該門檻。
-          v1 不提供單一標的覆寫。
+          個股與 ETF 各自判定；直接改數字，清空即取消門檻。
         </p>
 
         {ASSET_CLASSES.map((assetClass) => (

@@ -129,7 +129,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  margin: 0;
+  margin: 0 0 var(--gap-3);
   padding-bottom: var(--gap-2);
   gap: var(--gap-1);
   font-size: 12px;
@@ -157,14 +157,67 @@
   color: var(--attention);
 }
 
+.card__holding-summary {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--gap-3) 0;
+}
+
+.card__stat {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0 var(--gap-3);
+  border-left: 1px solid var(--rule);
+  gap: 2px;
+}
+
+.card__stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.card__stat-label { color: var(--graphite-light); }
+.card__stat-value { font-size: 17px; font-weight: 600; }
+
+/* 今日總覽只用這一組語意色：台股看多紅、看空綠、中性灰底。 */
+.card__status--bullish,
+.card__status--bearish,
+.card__status--neutral {
+  align-items: center;
+  padding: var(--gap-1) var(--gap-2);
+  border-radius: 3px;
+}
+
+.card__status--bullish {
+  background: color-mix(in srgb, var(--signal-up) 12%, var(--panel));
+  color: var(--signal-up);
+}
+
+.card__status--bearish {
+  background: color-mix(in srgb, var(--signal-down) 12%, var(--panel));
+  color: var(--signal-down);
+}
+
+.card__status--neutral {
+  background: var(--panel-sunken);
+  color: var(--graphite);
+}
+
+.card__judgement {
+  font-weight: 700;
+}
+
 /* ── 指標方塊 ───────────────────────────────── */
 
 .card__metrics {
   display: grid;
+  padding-top: var(--gap-2);
   padding-bottom: var(--gap-2);
+  border-top: 1px solid var(--rule);
   gap: var(--gap-1);
-  /* 上限讓方塊在只剩兩格時不會被拉成兩塊大空白 */
-  grid-template-columns: repeat(auto-fit, minmax(84px, 150px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metric {
@@ -172,7 +225,7 @@
   flex-direction: column;
   padding: var(--gap-1) var(--gap-2);
   border-radius: 3px;
-  background: var(--panel-sunken);
+  background: color-mix(in srgb, var(--panel-sunken) 68%, var(--panel));
   gap: 1px;
 }
 
@@ -597,6 +650,28 @@
   padding: 0 var(--gap-4) var(--gap-5);
 }
 
+/* Profile 區間：下界綠、中間灰、上界紅；名稱保持中性，只有數值與判定著色。 */
+.metric--lower .metric__value,
+.metric--lower .metric__state { color: var(--signal-down); }
+.metric--upper .metric__value,
+.metric--upper .metric__state { color: var(--signal-up); }
+.metric--normal .metric__value,
+.metric--normal .metric__state { color: var(--graphite); }
+
+/* 右側彈窗與完整分析共用同一個面板；彈窗改為單欄，避免 460px 內再塞雙欄。 */
+.detail .stock__panels {
+  grid-template-columns: 1fr;
+}
+
+.detail .panel {
+  border-top: 1px solid var(--rule);
+  border-left: 0;
+}
+
+.detail .panel:first-child {
+  border-top: 0;
+}
+
 .detail__block {
   padding: var(--gap-3) 0;
   border-bottom: 1px solid var(--panel-sunken);
@@ -714,6 +789,9 @@
 }
 
 @media (max-width: 640px) {
+  .card__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card__holding-summary { grid-template-columns: 1fr; gap: var(--gap-2); }
+  .card__stat { padding: 0; border-left: 0; }
   .detail {
     width: 100%;
   }

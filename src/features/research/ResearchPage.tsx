@@ -24,17 +24,15 @@ import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
 import { ApplyCandidate, type PendingCandidate } from './ApplyCandidate';
 import { ASSET_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
-import { ResearchFlow } from './ResearchFlow';
 import { ResearchHistory } from './ResearchHistory';
 import { TransactionLog } from './TransactionLog';
 import './ResearchPage.css';
 
-type View = 'result' | 'log' | 'flow' | 'history';
+type View = 'result' | 'log' | 'history';
 
 const VIEW_LABEL: Record<View, string> = {
   result: '研究結果',
   log: '交易歷史',
-  flow: '計算流程',
   history: '搜尋紀錄',
 };
 
@@ -348,9 +346,9 @@ export function ResearchPage() {
       )}
 
       <header className="research__head">
-        <h1 className="research__title">歷史交易研究</h1>
+        <h1 className="research__title">歷史研究</h1>
         <p className="research__lede">
-          分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。
+          用過去交易資料檢查哪些條件值得繼續追蹤。分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。
           2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析
           {report.reentryCount > 0 ? `（另有 ${report.reentryCount} 筆再進場已保留紀錄）` : null}。
         </p>
@@ -395,7 +393,7 @@ export function ResearchPage() {
       </section>
 
       <nav className="tabs" aria-label="研究檢視">
-        {(['result', 'log', 'flow', 'history'] as const).map((id) => (
+        {(['result', 'log', 'history'] as const).map((id) => (
           <button
             key={id}
             type="button"
@@ -409,8 +407,6 @@ export function ResearchPage() {
       </nav>
 
       {view === 'log' ? <TransactionLog rows={log} /> : null}
-
-      {view === 'flow' ? <ResearchFlow /> : null}
 
       {view === 'history' ? <ResearchHistory runs={runs} /> : null}
 
