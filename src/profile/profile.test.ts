@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyCandidate, classifyByProfile, emptyProfile, readEntry } from './profile';
+import { applyCandidate, applyResearchCandidates, classifyByProfile, emptyProfile, readEntry } from './profile';
+import type { ResearchCandidate } from './researchCandidates';
 
 const AT = '2026-08-01T00:00:00.000Z';
 
@@ -17,7 +18,39 @@ function candidate(overrides: Partial<Parameters<typeof applyCandidate>[1]> = {}
   };
 }
 
+function selectedCandidate(overrides: Partial<ResearchCandidate> = {}): ResearchCandidate {
+  return {
+    id: 'run:2026-08-04:bias20:stock:pullback',
+    runId: 'run:2026-08-04',
+    executedAt: '2026-08-04T00:00:00.000Z',
+    assetClass: 'stock',
+    metric: 'bias20',
+    band: 'pullback',
+    range: { min: null, max: -1.5 },
+    evidence: 'worth-tracking',
+    reason: '測試候選',
+    ...overrides,
+  };
+}
+
 describe('候選套用', () => {
+  it('套用分屬不同資產類別與指標群組的已選候選', () => {
+    const next = applyResearchCandidates(emptyProfile(), [
+      selectedCandidate({ assetClass: 'stock', metric: 'bias20', band: 'normal', range: { min: -2, max: 8 } }),
+      selectedCandidate({ assetClass: 'etf', metric: 'foreignFlow', band: 'pullback', range: { min: null, max: -1 } }),
+    ], '2026-08-05T00:00:00.000Z');
+
+    expect(readEntry(next, 'stock', 'bias20').lower?.value).toBe(-2);
+    expect(readEntry(next, 'stock', 'bias20').upper?.value).toBe(8);
+    expect(readEntry(next, 'etf', 'foreignFlow').lower?.sourceRunId).toBe('run:2026-08-04');
+  });
+
+  it('拒絕同一資產類別與指標的兩個區間', () => {
+    expect(() => applyResearchCandidates(emptyProfile(), [
+      selectedCandidate({ band: 'pullback' }), selectedCandidate({ band: 'normal' }),
+    ], '2026-08-05T00:00:00.000Z')).toThrow('同一指標只能套用一個候選區間');
+  });
+
   it('回檔下界寫入下界，來源與證據等級一併保留', () => {
     const profile = applyCandidate(emptyProfile(), candidate());
     const entry = readEntry(profile, 'stock', 'bias20');
