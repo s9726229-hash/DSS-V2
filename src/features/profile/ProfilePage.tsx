@@ -23,6 +23,7 @@ import {
 } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
 import { ASSET_LABEL, EVIDENCE_LABEL } from '../research/evidence';
+import { ApplyResearchCandidates } from './ApplyResearchCandidates';
 import { ProfileChangePreview } from './ProfileChangePreview';
 import { ResearchCandidatePicker } from './ResearchCandidatePicker';
 import './ProfilePage.css';
@@ -211,6 +212,8 @@ export function ProfilePage() {
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [candidateSources, setCandidateSources] = useState<ResearchCandidateSource[] | null>(null);
+  const [reviewingCandidates, setReviewingCandidates] = useState<ResearchCandidate[] | null>(null);
+  const [candidatePickerVersion, setCandidatePickerVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,8 +237,18 @@ export function ProfilePage() {
     };
   }, []);
 
-  const reviewCandidates = useCallback((_candidates: ResearchCandidate[]) => {
-    // 確認視窗與實際寫入由下一個任務接手；此處只把選取結果交給 onReview 邊界。
+  const reviewCandidates = useCallback((candidates: ResearchCandidate[]) => {
+    setReviewingCandidates(candidates);
+  }, []);
+
+  const confirmCandidates = useCallback((next: Profile) => {
+    void (async () => {
+      await writeProfile(next);
+      setSaved(next);
+      setDraft(next);
+      setReviewingCandidates(null);
+      setCandidatePickerVersion((current) => current + 1);
+    })();
   }, []);
 
   // 庫存狀態只為了預覽而讀
@@ -279,6 +292,16 @@ export function ProfilePage() {
 
   return (
     <div className="profile">
+      {reviewingCandidates === null ? null : (
+        <ApplyResearchCandidates
+          candidates={reviewingCandidates}
+          profile={saved}
+          analyses={holdings}
+          onCancel={() => setReviewingCandidates(null)}
+          onConfirm={confirmCandidates}
+        />
+      )}
+
       {confirming ? (
         <div className="apply" role="dialog" aria-modal="true" aria-label="儲存判定條件">
           <div className="apply__panel">
@@ -326,6 +349,7 @@ export function ProfilePage() {
         <p className="research__loading">讀取研究紀錄…</p>
       ) : (
         <ResearchCandidatePicker
+          key={candidatePickerVersion}
           sources={candidateSources}
           onReview={reviewCandidates}
         />
