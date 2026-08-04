@@ -36,6 +36,92 @@
   font-size: 13px;
 }
 
+/* 研究候選沿用表格的資料密度，額外資訊只放在證據欄，避免再開一張長卡片。 */
+.research-picker__source {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.research-picker__source select {
+  max-width: 100%;
+  padding: var(--gap-1) var(--gap-2);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.research-picker__date {
+  margin: 0 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.research-picker__unavailable {
+  margin: 0 0 var(--gap-3);
+  color: var(--attention);
+  font-size: 12px;
+}
+
+.research-picker__table td {
+  vertical-align: top;
+}
+
+.research-picker__reason {
+  display: block;
+  margin-top: 3px;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.research-picker__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--gap-3);
+}
+
+.apply-research__panel {
+  width: min(680px, 100%);
+}
+
+.apply-research__candidates {
+  display: grid;
+  margin: 0 0 var(--gap-4);
+  padding: 0;
+  gap: var(--gap-3);
+  list-style: none;
+}
+
+.apply-research__candidate {
+  padding: var(--gap-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--panel-sunken);
+}
+
+.apply-research__candidate-title {
+  margin: 0 0 var(--gap-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.apply-research__candidate .apply__facts {
+  margin-bottom: var(--gap-2);
+}
+
+.apply-research__candidate .apply__reason {
+  margin-bottom: var(--gap-2);
+  background: var(--panel);
+}
+
+.apply-research__candidate .apply__ack {
+  margin-bottom: 0;
+}
+
 .profile__review {
   display: flex;
   align-items: center;

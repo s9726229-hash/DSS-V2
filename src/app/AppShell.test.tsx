@@ -2,10 +2,11 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyCandidate, emptyProfile, setManualBoundary } from '../profile/profile';
-import { writeProfile } from '../profile/profileStore';
-import { DATABASE_NAME } from '../storage/database';
+import { applyCandidate, emptyProfile, readEntry, setManualBoundary } from '../profile/profile';
+import { readProfile, writeProfile } from '../profile/profileStore';
+import { DATABASE_NAME, openDssDatabase } from '../storage/database';
 import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
+import type { ResearchRunRecord } from '../storage/types';
 import { addWatch, emptyWatchlist } from '../watchlist/watchlist';
 import { writeWatchlist } from '../watchlist/watchlistStore';
 import { AppShell } from './AppShell';
@@ -33,6 +34,78 @@ function marketRows(): { prices: unknown[]; chips: unknown[] } {
       { date, stock_id: '2330', name: 'Investment_Trust', buy: 150, sell: 100 },
     ]),
   };
+}
+
+async function seedResearchRun(executedAt: string): Promise<void> {
+  const db = await openDssDatabase();
+  await db.put('researchRuns', {
+    id: `run:${executedAt}`,
+    executedAt,
+    signature: `test:${executedAt}`,
+    entryCount: 12,
+    technicalCount: 12,
+    chipCount: 12,
+    completeCount: 10,
+    results: {
+      bias20: {
+        stock: {
+          bands: [
+            {
+              band: 'pullback',
+              range: { min: null, max: -2 },
+              evidence: 'worth-tracking',
+              reason: '回檔側有可追蹤的驗證結果。',
+            },
+            {
+              band: 'normal',
+              range: { min: -2, max: 4 },
+              evidence: 'worth-tracking',
+              reason: '合理區有可追蹤的驗證結果。',
+            },
+          ],
+        },
+        etf: { bands: [] },
+      },
+    } as unknown as ResearchRunRecord['results'],
+  });
+  db.close();
+}
+
+async function seedResearchRunWithEvidence(
+  evidence: ResearchRunRecord['results']['bias20']['stock']['bands'][number]['evidence'],
+): Promise<void> {
+  const db = await openDssDatabase();
+  await db.put('researchRuns', {
+    id: 'run:2026-08-05',
+    executedAt: '2026-08-05T00:00:00.000Z',
+    signature: `test:2026-08-05:${evidence}`,
+    entryCount: 12,
+    technicalCount: 12,
+    chipCount: 12,
+    completeCount: 10,
+    results: {
+      bias20: {
+        stock: {
+          bands: [
+            {
+              band: 'pullback',
+              range: { min: null, max: -2 },
+              evidence,
+              reason: '回檔側測試證據。',
+            },
+            {
+              band: 'normal',
+              range: { min: -2, max: 4 },
+              evidence,
+              reason: '合理區測試證據。',
+            },
+          ],
+        },
+        etf: { bands: [] },
+      },
+    } as unknown as ResearchRunRecord['results'],
+  });
+  db.close();
 }
 
 /** 依 dataset 回應對應內容，模擬 Worker。 */
@@ -299,6 +372,129 @@ describe('AppShell', () => {
 
     const note = await screen.findByRole('note', { name: '需要複核的規則' });
     expect(note).toHaveTextContent('自訂、未驗證');
+  });
+
+  it('目前規則預設使用最新研究，候選一開始都不勾選', async () => {
+    await seedResearchRun('2026-08-04T00:00:00.000Z');
+    await seedResearchRun('2026-08-05T00:00:00.000Z');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    expect(await screen.findByRole('heading', { name: '從研究加入' })).toBeInTheDocument();
+    expect(screen.getByText('2026-08-05')).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('外資流向、投信流向、融資流向');
+    expect(screen.queryByLabelText('個股 融資流向 減少側')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeDisabled();
+  });
+
+  it('同一個股指標改選另一個區間時會取代原選擇', async () => {
+    await seedResearchRun('2026-08-05T00:00:00.000Z');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+    await userEvent.click(await screen.findByLabelText('個股 20MA 乖離率 回檔下界'));
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeEnabled();
+    await userEvent.click(screen.getByLabelText('個股 20MA 乖離率 合理區'));
+
+    expect(screen.getByLabelText('個股 20MA 乖離率 回檔下界')).not.toBeChecked();
+    expect(screen.getByLabelText('個股 20MA 乖離率 合理區')).toBeChecked();
+  });
+
+  it('可一次選取每個指標的中性區，並保留其他區間未選', async () => {
+    await seedResearchRun('2026-08-05T00:00:00.000Z');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: '選取各指標中性區' }));
+
+    expect(screen.getByLabelText('個股 20MA 乖離率 回檔下界')).not.toBeChecked();
+    expect(screen.getByLabelText('個股 20MA 乖離率 合理區')).toBeChecked();
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeEnabled();
+  });
+
+  it('再次點擊已選候選會取消選擇', async () => {
+    await seedResearchRun('2026-08-05T00:00:00.000Z');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    const candidate = await screen.findByLabelText('個股 20MA 乖離率 回檔下界');
+    await userEvent.click(candidate);
+    await userEvent.click(candidate);
+
+    expect(candidate).not.toBeChecked();
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeDisabled();
+  });
+
+  it('證據較弱的候選必須逐一確認後才能套用', async () => {
+    await seedResearchRunWithEvidence('insufficient-data');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+    await userEvent.click(await screen.findByLabelText('個股 20MA 乖離率 回檔下界'));
+    await userEvent.click(screen.getByRole('button', { name: '套用已選規則' }));
+
+    expect(screen.getByRole('button', { name: '套用' })).toBeDisabled();
+    await userEvent.click(screen.getByLabelText('我仍要套用 個股 20MA 乖離率 回檔下界'));
+    expect(screen.getByRole('button', { name: '套用' })).toBeEnabled();
+  });
+
+  it('只寫入確認的候選並保留研究來源，套用後清空選取', async () => {
+    await seedResearchRunWithEvidence('insufficient-data');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+    await userEvent.click(await screen.findByLabelText('個股 20MA 乖離率 回檔下界'));
+    await userEvent.click(screen.getByRole('button', { name: '套用已選規則' }));
+    await userEvent.click(screen.getByLabelText('我仍要套用 個股 20MA 乖離率 回檔下界'));
+    await userEvent.click(screen.getByRole('button', { name: '套用' }));
+
+    await waitFor(async () => {
+      const profile = await readProfile();
+      expect(readEntry(profile, 'stock', 'bias20').lower).toMatchObject({
+        sourceRunId: 'run:2026-08-05',
+        sourceEvidence: 'insufficient-data',
+        appliedDespiteWeakEvidence: true,
+      });
+      expect(readEntry(profile, 'stock', 'bias20').upper).toBeNull();
+    });
+    expect(screen.getByLabelText('個股 20MA 乖離率 回檔下界')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeDisabled();
+  });
+
+  it('取消批次確認不會寫入 Profile，並保留原本選取', async () => {
+    await seedResearchRunWithEvidence('worth-tracking');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+    const candidate = await screen.findByLabelText('個股 20MA 乖離率 回檔下界');
+    await userEvent.click(candidate);
+    await userEvent.click(screen.getByRole('button', { name: '套用已選規則' }));
+    await userEvent.click(screen.getByRole('button', { name: '取消' }));
+
+    expect(readEntry(await readProfile(), 'stock', 'bias20').lower).toBeNull();
+    expect(candidate).toBeChecked();
+  });
+
+  it('確認清單顯示來源日期、候選門檻、證據與覆蓋差異', async () => {
+    await seedResearchRunWithEvidence('insufficient-data');
+    await writeProfile(
+      setManualBoundary(emptyProfile(), {
+        assetClass: 'stock',
+        metric: 'bias20',
+        side: 'lower',
+        value: -1,
+        at: '2026-08-04T00:00:00.000Z',
+      }),
+    );
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+    await userEvent.click(await screen.findByLabelText('個股 20MA 乖離率 回檔下界'));
+    await userEvent.click(screen.getByRole('button', { name: '套用已選規則' }));
+
+    const dialog = screen.getByRole('dialog', { name: '確認套用已選規則' });
+    expect(dialog).toHaveTextContent('研究日期2026-08-05');
+    expect(dialog).toHaveTextContent('候選門檻下界 -2.00%');
+    expect(dialog).toHaveTextContent('目前規則變更下界 -1.00% → -2.00%');
+    expect(dialog).toHaveTextContent('資料不足');
+    expect(
+      within(dialog).getByText(/正在讀取庫存資料|目前沒有庫存可以比對/),
+    ).toBeInTheDocument();
   });
 
   /*

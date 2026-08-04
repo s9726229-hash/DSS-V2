@@ -12,6 +12,8 @@ import {
   type ProfileBoundary,
 } from '../../profile/profile';
 import { readProfile, writeProfile } from '../../profile/profileStore';
+import { researchCandidateSource, type ResearchCandidate, type ResearchCandidateSource } from '../../profile/researchCandidates';
+import { readResearchRuns } from '../../research/runStore';
 import { bandLabel } from '../../research/bandLabels';
 import {
   METRIC_LABEL,
@@ -21,7 +23,9 @@ import {
 } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
 import { ASSET_LABEL, EVIDENCE_LABEL } from '../research/evidence';
+import { ApplyResearchCandidates } from './ApplyResearchCandidates';
 import { ProfileChangePreview } from './ProfileChangePreview';
+import { ResearchCandidatePicker } from './ResearchCandidatePicker';
 import './ProfilePage.css';
 
 const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
@@ -207,6 +211,9 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<Profile | null>(null);
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [candidateSources, setCandidateSources] = useState<ResearchCandidateSource[] | null>(null);
+  const [reviewingCandidates, setReviewingCandidates] = useState<ResearchCandidate[] | null>(null);
+  const [candidatePickerVersion, setCandidatePickerVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +225,30 @@ export function ProfilePage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readResearchRuns().then((runs) => {
+      if (!cancelled) setCandidateSources(runs.map(researchCandidateSource));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const reviewCandidates = useCallback((candidates: ResearchCandidate[]) => {
+    setReviewingCandidates(candidates);
+  }, []);
+
+  const confirmCandidates = useCallback((next: Profile) => {
+    void (async () => {
+      await writeProfile(next);
+      setSaved(next);
+      setDraft(next);
+      setReviewingCandidates(null);
+      setCandidatePickerVersion((current) => current + 1);
+    })();
   }, []);
 
   // 庫存狀態只為了預覽而讀
@@ -261,6 +292,16 @@ export function ProfilePage() {
 
   return (
     <div className="profile">
+      {reviewingCandidates === null ? null : (
+        <ApplyResearchCandidates
+          candidates={reviewingCandidates}
+          profile={saved}
+          analyses={holdings}
+          onCancel={() => setReviewingCandidates(null)}
+          onConfirm={confirmCandidates}
+        />
+      )}
+
       {confirming ? (
         <div className="apply" role="dialog" aria-modal="true" aria-label="儲存判定條件">
           <div className="apply__panel">
@@ -303,6 +344,16 @@ export function ProfilePage() {
           <span><b aria-hidden="true">✎</b>自訂、未驗證</span>
         </aside>
       ) : null}
+
+      {candidateSources === null ? (
+        <p className="research__loading">讀取研究紀錄…</p>
+      ) : (
+        <ResearchCandidatePicker
+          key={candidatePickerVersion}
+          sources={candidateSources}
+          onReview={reviewCandidates}
+        />
+      )}
 
       <section className="profile__section" aria-label="候選參數">
         <h2 className="profile__section-title">候選參數</h2>

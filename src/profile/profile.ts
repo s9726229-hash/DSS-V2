@@ -1,6 +1,7 @@
 import type { ResearchMetric } from '../research/runResearch';
 import type { AssetClass } from '../research/snapshot';
 import type { BandId, EvidenceLevel } from '../research/walkForward';
+import type { ResearchCandidate } from './researchCandidates';
 
 /**
  * 個人 Profile。
@@ -112,6 +113,33 @@ export function applyCandidate(profile: Profile, application: CandidateApplicati
       [profileKey(application.assetClass, application.metric)]: next,
     },
   };
+}
+
+/**
+ * 將同一次選取的研究候選合併寫入一份 Profile 草稿。
+ * 每個資產類別與指標只能選擇一個區間，避免同一組門檻互相覆蓋。
+ */
+export function applyResearchCandidates(
+  profile: Profile,
+  candidates: readonly ResearchCandidate[],
+  at: string,
+): Profile {
+  const keys = candidates.map((candidate) => profileKey(candidate.assetClass, candidate.metric));
+  if (new Set(keys).size !== keys.length) throw new Error('同一指標只能套用一個候選區間');
+
+  return candidates.reduce(
+    (next, candidate) => applyCandidate(next, {
+      assetClass: candidate.assetClass,
+      metric: candidate.metric,
+      band: candidate.band,
+      range: candidate.range,
+      runId: candidate.runId,
+      evidence: candidate.evidence,
+      despiteWeakEvidence: candidate.evidence !== 'worth-tracking',
+      at,
+    }),
+    profile,
+  );
 }
 
 export type BoundarySide = 'lower' | 'upper';
