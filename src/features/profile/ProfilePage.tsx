@@ -12,6 +12,8 @@ import {
   type ProfileBoundary,
 } from '../../profile/profile';
 import { readProfile, writeProfile } from '../../profile/profileStore';
+import { researchCandidateSource, type ResearchCandidate, type ResearchCandidateSource } from '../../profile/researchCandidates';
+import { readResearchRuns } from '../../research/runStore';
 import { bandLabel } from '../../research/bandLabels';
 import {
   METRIC_LABEL,
@@ -22,6 +24,7 @@ import {
 import type { AssetClass } from '../../research/snapshot';
 import { ASSET_LABEL, EVIDENCE_LABEL } from '../research/evidence';
 import { ProfileChangePreview } from './ProfileChangePreview';
+import { ResearchCandidatePicker } from './ResearchCandidatePicker';
 import './ProfilePage.css';
 
 const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
@@ -207,6 +210,7 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<Profile | null>(null);
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [candidateSources, setCandidateSources] = useState<ResearchCandidateSource[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,6 +222,20 @@ export function ProfilePage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readResearchRuns().then((runs) => {
+      if (!cancelled) setCandidateSources(runs.map(researchCandidateSource));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const reviewCandidates = useCallback((_candidates: ResearchCandidate[]) => {
+    // 確認視窗與實際寫入由下一個任務接手；此處只把選取結果交給 onReview 邊界。
   }, []);
 
   // 庫存狀態只為了預覽而讀
@@ -303,6 +321,15 @@ export function ProfilePage() {
           <span><b aria-hidden="true">✎</b>自訂、未驗證</span>
         </aside>
       ) : null}
+
+      {candidateSources === null ? (
+        <p className="research__loading">讀取研究紀錄…</p>
+      ) : (
+        <ResearchCandidatePicker
+          sources={candidateSources}
+          onReview={reviewCandidates}
+        />
+      )}
 
       <section className="profile__section" aria-label="候選參數">
         <h2 className="profile__section-title">候選參數</h2>
