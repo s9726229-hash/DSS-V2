@@ -64,6 +64,23 @@ export function ResearchCandidatePicker({
     });
   }
 
+  function selectNormalCandidates() {
+    if (selectedSource === null) {
+      return;
+    }
+
+    setSelectedByKey(
+      Object.fromEntries(
+        selectedSource.candidates
+          .filter((candidate) => candidate.band === 'normal')
+          .map((candidate) => [
+            profileKey(candidate.assetClass, candidate.metric),
+            candidate.id,
+          ]),
+      ),
+    );
+  }
+
   return (
     <section className="profile__section research-picker" aria-labelledby="research-picker-title">
       <h2 id="research-picker-title" className="profile__section-title">從研究加入</h2>
@@ -155,10 +172,23 @@ export function ResearchCandidatePicker({
         </>
       )}
 
-      <div className="research-picker__actions">
-        <button
-          type="button"
-          className="btn btn--primary"
+        <div className="research-picker__actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={
+              selectedSource === null ||
+              !selectedSource.candidates.some(
+                (candidate) => candidate.band === 'normal',
+              )
+            }
+            onClick={selectNormalCandidates}
+          >
+            選取各指標中性區
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
           disabled={selectedCandidates.length === 0}
           onClick={() => onReview(selectedCandidates)}
         >

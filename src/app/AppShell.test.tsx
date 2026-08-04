@@ -399,6 +399,18 @@ describe('AppShell', () => {
     expect(screen.getByLabelText('個股 20MA 乖離率 合理區')).toBeChecked();
   });
 
+  it('可一次選取每個指標的中性區，並保留其他區間未選', async () => {
+    await seedResearchRun('2026-08-05T00:00:00.000Z');
+    render(<AppShell />);
+    await userEvent.click(screen.getByRole('button', { name: '目前規則' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: '選取各指標中性區' }));
+
+    expect(screen.getByLabelText('個股 20MA 乖離率 回檔下界')).not.toBeChecked();
+    expect(screen.getByLabelText('個股 20MA 乖離率 合理區')).toBeChecked();
+    expect(screen.getByRole('button', { name: '套用已選規則' })).toBeEnabled();
+  });
+
   it('再次點擊已選候選會取消選擇', async () => {
     await seedResearchRun('2026-08-05T00:00:00.000Z');
     render(<AppShell />);
