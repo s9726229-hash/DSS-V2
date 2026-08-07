@@ -1,6 +1,6 @@
 import type { DBSchema } from 'idb';
 import type { ImportedTransaction } from '../import/types';
-import type { ResearchMetric } from '../research/runResearch';
+import type { ResearchMetric, ResearchScenario } from '../research/runResearch';
 import type { AssetClass } from '../research/snapshot';
 import type { WalkForwardResult } from '../research/walkForward';
 
@@ -57,6 +57,15 @@ export type ResearchRunRecord = {
   executedAt: string;
   /** 結果內容簽章，用來判斷這次搜尋是否與上一次完全相同。 */
   signature: string;
+  /** V2 情境；缺少代表 V1 舊紀錄，一律視為 establish。 */
+  scenario?: ResearchScenario;
+  /** V2 情境事件數；舊紀錄以 entryCount 作為相容值。 */
+  eventCount?: number;
+  /** V2 帳本資料品質摘要；舊紀錄可能缺少。 */
+  ledgerQuality?: {
+    excludedByCode: Record<string, number>;
+    stockStatus: Record<string, string>;
+  };
   entryCount: number;
   /**
    * 這次搜尋是否已排除再進場。

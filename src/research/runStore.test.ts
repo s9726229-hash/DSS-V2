@@ -64,12 +64,26 @@ function report(overrides: Partial<ResearchReport> = {}): ResearchReport {
   };
 
   return {
+    scenario: 'establish',
+    eventCount: 20,
     entryCount: 20,
     reentryCount: 3,
     technicalCount: 19,
     chipCount: 18,
     completeCount: 16,
     missingStocks: [],
+    ledgerQuality: {
+      excludedByCode: {
+        'opening-position-unknown': 0,
+        'same-day-opposite-sides': 0,
+        'scheduled-investment': 0,
+        'trade-method-unknown': 0,
+        'non-cash-position': 0,
+        'day-trade': 0,
+        'split-data-missing': 0,
+      },
+      stockStatus: {},
+    },
     samples: { bias20: [], foreignFlow: [], trustFlow: [], marginFlow: [] },
     results: {
       bias20: results,
@@ -103,6 +117,7 @@ describe('候選搜尋保存', () => {
     expect(stock.bands[0].nonOverlappingCount).toBe(10);
     expect(stock.bands[0].reason).toMatch(/值得繼續追蹤/);
     expect(stored.entryCount).toBe(20);
+    expect(stored.ledgerQuality).toEqual(report().ledgerQuality);
   });
 
   it('內容相同時不重複寫入', async () => {
@@ -111,6 +126,26 @@ describe('候選搜尋保存', () => {
 
     expect(second).toEqual({ saved: false, reason: 'unchanged' });
     expect(await readResearchRuns()).toHaveLength(1);
+  });
+
+  it('不同研究情境不會被視為同一次搜尋', async () => {
+    await saveResearchRun(report({ scenario: 'establish' }), '2026-08-01T00:00:00.000Z');
+
+    const second = await saveResearchRun(
+      report({ scenario: 'add-on' }),
+      '2026-08-01T00:05:00.000Z',
+    );
+
+    expect(second.saved).toBe(true);
+    expect(await readResearchRuns()).toHaveLength(2);
+  });
+
+  it('帳本排除摘要改變時會保存新搜尋', async () => {
+    await saveResearchRun(report(), '2026-08-01T00:00:00.000Z');
+    const changed = report();
+    changed.ledgerQuality.excludedByCode['opening-position-unknown'] = 1;
+
+    expect((await saveResearchRun(changed, '2026-08-01T00:05:00.000Z')).saved).toBe(true);
   });
 
   it('結果改變時寫入新的一筆，保留舊紀錄', async () => {
@@ -154,7 +189,10 @@ describe('候選搜尋保存', () => {
   });
 
   it('沒有任何建立部位時不留下紀錄', async () => {
-    const empty = await saveResearchRun(report({ entryCount: 0 }), '2026-08-01T00:00:00.000Z');
+    const empty = await saveResearchRun(
+      report({ entryCount: 0, eventCount: 0 }),
+      '2026-08-01T00:00:00.000Z',
+    );
 
     expect(empty).toEqual({ saved: false, reason: 'no-entries' });
     expect(await readResearchRuns()).toHaveLength(0);

@@ -1,7 +1,11 @@
 import { fetchDataset } from '../market/finmindClient';
 import type { AdjustmentEventRow, FinMindDataset, InstitutionalRow, PriceRow } from '../market/types';
 import { writeCachedDataset } from '../storage/marketCache';
-import type { PositionEvent } from './positions';
+
+export type ResearchEventReference = {
+  stockId: string;
+  tradeDate: string;
+};
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -42,7 +46,7 @@ function shift(date: string, days: number): number {
  * 價格每檔一段連續區間；法人依建立部位日期切成不超過 45 天的區段，
  * 相近的建立部位共用同一段，避免對沒有交易的期間發出無用請求。
  */
-export function planBackfill(entries: readonly PositionEvent[], now: Date): BackfillRequest[] {
+export function planBackfill(entries: readonly ResearchEventReference[], now: Date): BackfillRequest[] {
   const byStock = new Map<string, string[]>();
 
   for (const entry of entries) {
@@ -155,7 +159,7 @@ export type BackfillOptions = {
  * 單一請求失敗不中斷其他請求。
  */
 export async function backfillResearchData(
-  entries: readonly PositionEvent[],
+  entries: readonly ResearchEventReference[],
   { now = new Date(), onProgress }: BackfillOptions = {},
 ): Promise<BackfillSummary> {
   const requests = planBackfill(entries, now);

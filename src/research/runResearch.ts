@@ -10,36 +10,57 @@ import type {
 import { readCachedDataset } from '../storage/marketCache';
 import { readTransactions } from '../storage/portfolio';
 import { computeEntryOutcome } from './outcome';
-import { identifyPositionEvents, selectEntries, type PositionEvent } from './positions';
+import { loadResearchLedger } from './loadLedger';
+import { selectLedgerEvents, type LedgerEvent, type LedgerIssueCode } from './positionLedger';
+import {
+  identifyPositionEvents,
+  selectEntries,
+  type PositionEvent,
+  type ResearchEventKind,
+} from './positions';
 import { buildEntrySnapshot, classifyAsset, type AssetClass } from './snapshot';
 import { runWalkForward, type MetricSample, type WalkForwardResult } from './walkForward';
 
 /** 規格 v1 的三個研究分頁。 */
 export type ResearchMetric = 'bias20' | 'foreignFlow' | 'trustFlow' | 'marginFlow';
 
-export const RESEARCH_METRICS: ResearchMetric[] = [
+/** V2 以實際決策情境切開研究樣本。 */
+export type ResearchScenario = ResearchEventKind;
+
+/** 加碼才有相對既有成本可研究；其他情境不可誤用這個欄位。 */
+export type ScenarioResearchMetric = ResearchMetric | 'relativeCost';
+
+const BASE_METRICS = [
   'bias20',
   'foreignFlow',
   'trustFlow',
   'marginFlow',
-];
+] as const;
 
-export const METRIC_LABEL: Record<ResearchMetric, string> = {
+export function researchMetricsFor(scenario: ResearchScenario): ScenarioResearchMetric[] {
+  return scenario === 'add-on' ? [...BASE_METRICS, 'relativeCost'] : [...BASE_METRICS];
+}
+
+export const RESEARCH_METRICS: ResearchMetric[] = [...BASE_METRICS];
+
+export const METRIC_LABEL: Record<ScenarioResearchMetric, string> = {
   bias20: '20MA 乖離率',
   foreignFlow: '外資流向',
   trustFlow: '投信流向',
   marginFlow: '融資流向',
+  relativeCost: '相對均價',
 };
 
 /**
  * 流向是「今日淨額 ÷ 前五日平均絕對值」，所以單位是倍：
  * −1.43 倍代表今天在賣，量是近期平均的 1.43 倍。
  */
-export const METRIC_UNIT: Record<ResearchMetric, string> = {
+export const METRIC_UNIT: Record<ScenarioResearchMetric, string> = {
   bias20: '%',
   foreignFlow: ' 倍',
   trustFlow: ' 倍',
   marginFlow: ' 倍',
+  relativeCost: '%',
 };
 
 /**
@@ -53,6 +74,10 @@ export type ResearchSample = MetricSample & {
 };
 
 export type ResearchReport = {
+  /** 本次只使用這個決策情境的事件。 */
+  scenario: ResearchScenario;
+  /** 研究期間內這個情境的事件數。 */
+  eventCount: number;
   /** 研究期間內的建立部位總數。 */
   entryCount: number;
   /** 研究期間內已保留紀錄、但依規格不列入本輪的再進場筆數。 */
@@ -65,8 +90,13 @@ export type ResearchReport = {
   completeCount: number;
   /** 尚未回補價格資料的股票代號。 */
   missingStocks: string[];
-  samples: Record<ResearchMetric, ResearchSample[]>;
-  results: Record<ResearchMetric, Record<AssetClass, WalkForwardResult>>;
+  ledgerQuality: {
+    excludedByCode: Record<LedgerIssueCode, number>;
+    stockStatus: Record<string, string>;
+  };
+  samples: Record<ResearchMetric, ResearchSample[]> & Partial<Record<'relativeCost', ResearchSample[]>>;
+  results: Record<ResearchMetric, Record<AssetClass, WalkForwardResult>> &
+    Partial<Record<'relativeCost', Record<AssetClass, WalkForwardResult>>>;
 };
 
 async function loadStockData(stockId: string) {
@@ -96,16 +126,50 @@ export async function loadResearchEntries(from = RESEARCH_FROM_DATE): Promise<Po
 }
 
 /**
+ * V2 依決策情境取樣；建立部位、加碼、再進場絕不共用同一批研究事件。
+ *
+ * 市場資料回補與後續報酬計算都必須使用這個已合併的事件清單，避免同日拆單
+ * 被當作多個樣本。
+ */
+export async function loadResearchEvents(
+  scenario: ResearchScenario,
+  from = RESEARCH_FROM_DATE,
+): Promise<LedgerEvent[]> {
+  const ledger = await loadResearchLedger();
+  return selectLedgerEvents(ledger, scenario).filter(
+    (event) => event.tradeDate >= from,
+  );
+}
+
+/**
  * 研究期間內被排除的再進場筆數。
  *
  * 規格要求再進場「保留紀錄，但不混入第一輪提取」，
  * 所以樣本數的落差要能在頁面上交代，不能靜靜消失。
  */
 export async function countResearchReentries(from = RESEARCH_FROM_DATE): Promise<number> {
-  const transactions = await readTransactions();
-  return selectEntries(identifyPositionEvents(transactions), { includeReentries: true }).filter(
-    (entry) => entry.isReentry && entry.tradeDate >= from,
+  const ledger = await loadResearchLedger();
+  return ledger.events.filter(
+    (event) => event.scenario === 'reentry' && event.tradeDate >= from,
   ).length;
+}
+
+function asLegacySnapshotEvent(event: LedgerEvent): PositionEvent {
+  return {
+    transactionId: event.transactionIds.join(','),
+    tradeDate: event.tradeDate,
+    stockId: event.stockId,
+    stockName: event.stockName,
+    tradeType: '現股',
+    kind: event.scenario === 'add-on' ? 'add-on' : 'entry',
+    isReentry: event.scenario === 'reentry',
+    quantity: event.quantity,
+    price: event.executionPrice,
+    positionBefore: event.positionBefore ?? 0,
+    averageCostBefore: event.averageCostBefore,
+    positionAfter: event.positionAfter ?? 0,
+    includeInScenarioResearch: event.includeInScenarioResearch,
+  };
 }
 
 /**
@@ -114,9 +178,18 @@ export async function countResearchReentries(from = RESEARCH_FROM_DATE): Promise
  * 只讀本機快取，不發出網路請求：資料回補是獨立的動作，
  * 這樣開啟研究頁時能立即看到既有結果，而不是每次都等待數十秒。
  */
-export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchReport> {
-  const entries = await loadResearchEntries(from);
-  const reentryCount = await countResearchReentries(from);
+export async function runResearch(
+  scenario: ResearchScenario = 'establish',
+  from = RESEARCH_FROM_DATE,
+): Promise<ResearchReport> {
+  const ledger = await loadResearchLedger();
+  const entries = selectLedgerEvents(ledger, scenario).filter((event) => event.tradeDate >= from);
+  const reentryCount =
+    scenario === 'establish'
+      ? ledger.events.filter(
+          (event) => event.scenario === 'reentry' && event.tradeDate >= from,
+        ).length
+      : 0;
 
   const samples: Record<ResearchMetric, ResearchSample[]> = {
     bias20: [],
@@ -124,6 +197,9 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
     trustFlow: [],
     marginFlow: [],
   };
+
+  const scenarioSamples: ResearchReport['samples'] = samples;
+  if (scenario === 'add-on') scenarioSamples.relativeCost = [];
 
   const previous = new Map<string, string>();
   const missingStocks = new Set<string>();
@@ -141,7 +217,7 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
     }
 
     const snapshot = buildEntrySnapshot({
-      entry,
+      entry: asLegacySnapshotEvent(entry),
       prices: rawPrices,
       institutional,
       margin,
@@ -171,43 +247,54 @@ export async function runResearch(from = RESEARCH_FROM_DATE): Promise<ResearchRe
       overlapsPrevious: outcome.validation.overlapsPrevious,
     };
 
-    samples.bias20.push({
+    scenarioSamples.bias20.push({
       ...base,
       metricValue: snapshot.technical.ok ? snapshot.technical.snapshot.bias20 : null,
     });
-    samples.foreignFlow.push({
+    scenarioSamples.foreignFlow.push({
       ...base,
       metricValue: snapshot.chip.ok ? flowAxis(snapshot.chip.snapshot.foreign) : null,
     });
-    samples.trustFlow.push({
+    scenarioSamples.trustFlow.push({
       ...base,
       metricValue: snapshot.chip.ok ? flowAxis(snapshot.chip.snapshot.trust) : null,
     });
-    samples.marginFlow.push({
+    scenarioSamples.marginFlow.push({
       ...base,
       // 融資有自己的中性門檻：法人的 500 張會把多數融資變化誤判為中性
       metricValue: computeFlow(snapshot.margin, MARGIN_FLOW_THRESHOLDS)?.signedRatio ?? null,
     });
+
+    if (scenario === 'add-on') {
+      const relativeCost = entry.relativeCostAvailable ? entry.relativeCostPercent : null;
+      scenarioSamples.relativeCost?.push({ ...base, metricValue: relativeCost });
+    }
   }
 
   const results = Object.fromEntries(
-    RESEARCH_METRICS.map((metric) => [
+    researchMetricsFor(scenario).map((metric) => [
       metric,
       {
-        stock: runWalkForward({ samples: samples[metric], assetClass: 'stock', metric }),
-        etf: runWalkForward({ samples: samples[metric], assetClass: 'etf', metric }),
+        stock: runWalkForward({ samples: scenarioSamples[metric] ?? [], assetClass: 'stock', metric }),
+        etf: runWalkForward({ samples: scenarioSamples[metric] ?? [], assetClass: 'etf', metric }),
       },
     ]),
   ) as ResearchReport['results'];
 
   return {
+    scenario,
+    eventCount: entries.length,
     entryCount: entries.length,
     reentryCount,
     technicalCount,
     chipCount,
     completeCount,
     missingStocks: [...missingStocks],
-    samples,
+    ledgerQuality: {
+      excludedByCode: ledger.excludedByCode,
+      stockStatus: Object.fromEntries(ledger.stockStatus),
+    },
+    samples: scenarioSamples,
     results,
   };
 }

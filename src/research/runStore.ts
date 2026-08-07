@@ -1,7 +1,7 @@
 import { openDssDatabase } from '../storage/database';
 import type { ResearchRunRecord } from '../storage/types';
 import type { ResearchReport } from './runResearch';
-import { RESEARCH_METRICS } from './runResearch';
+import { researchMetricsFor } from './runResearch';
 
 /**
  * 這次搜尋結果的內容簽章。
@@ -12,18 +12,21 @@ import { RESEARCH_METRICS } from './runResearch';
  */
 export function researchRunSignature(report: ResearchReport): string {
   return JSON.stringify({
+    scenario: report.scenario,
+    eventCount: report.eventCount,
     entryCount: report.entryCount,
     technicalCount: report.technicalCount,
     chipCount: report.chipCount,
     completeCount: report.completeCount,
-    results: RESEARCH_METRICS.map((metric) =>
+    ledgerQuality: report.ledgerQuality,
+    results: researchMetricsFor(report.scenario).map((metric) =>
       (['stock', 'etf'] as const).map((assetClass) => {
-        const result = report.results[metric][assetClass];
+        const result = report.results[metric]?.[assetClass];
         return {
-          checkpoints: result.checkpoints,
-          drift: result.drift,
-          baseline: result.baseline,
-          bands: result.bands.map((band) => ({
+          checkpoints: result?.checkpoints ?? [],
+          drift: result?.drift ?? { p25: null, p75: null },
+          baseline: result?.baseline ?? null,
+          bands: result?.bands.map((band) => ({
             band: band.band,
             range: band.range,
             completeCount: band.completeCount,
@@ -41,7 +44,7 @@ export function researchRunSignature(report: ResearchReport): string {
             checkpointsCovered: band.checkpointsCovered,
             evidence: band.evidence,
             reason: band.reason,
-          })),
+          })) ?? [],
         };
       }),
     ),
@@ -67,7 +70,7 @@ export async function saveResearchRun(
   report: ResearchReport,
   executedAt: string,
 ): Promise<SaveResearchRunResult> {
-  if (report.entryCount === 0) {
+  if (report.eventCount === 0) {
     return { saved: false, reason: 'no-entries' };
   }
 
@@ -91,6 +94,9 @@ export async function saveResearchRun(
       id: `run:${executedAt}`,
       executedAt,
       signature,
+      scenario: report.scenario,
+      eventCount: report.eventCount,
+      ledgerQuality: report.ledgerQuality,
       entryCount: report.entryCount,
       excludesReentries: true,
       technicalCount: report.technicalCount,
@@ -114,7 +120,13 @@ export async function readResearchRuns(): Promise<ResearchRunRecord[]> {
 
   try {
     const all = await db.getAll('researchRuns');
-    return all.sort((a, b) => b.executedAt.localeCompare(a.executedAt));
+    return all
+      .map((row) => ({
+        ...row,
+        scenario: row.scenario ?? 'establish',
+        eventCount: row.eventCount ?? row.entryCount,
+      }))
+      .sort((a, b) => b.executedAt.localeCompare(a.executedAt));
   } finally {
     db.close();
   }
