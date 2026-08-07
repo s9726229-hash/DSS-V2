@@ -1,13 +1,14 @@
 import { readProfile } from '../profile/profileStore';
-import { identifyPositionEvents } from '../research/positions';
-import { readHoldingsSnapshot, readTransactions } from '../storage/portfolio';
+import { loadResearchLedger } from '../research/loadLedger';
+import type { PositionLedgerState, StockLedgerStatus } from '../research/positionLedger';
+import type { ResearchScenario } from '../research/runResearch';
+import { readHoldingsSnapshot } from '../storage/portfolio';
 import { groupByTopic, type TopicGroup } from '../watchlist/watchlist';
 import { readWatchlist } from '../watchlist/watchlistStore';
 import { analyseStock, type StockAnalysis } from './analyseHoldings';
 import {
   buildHoldingCard,
   buildWatchCard,
-  latestEntryDates,
   type HoldingCard,
   type WatchCard,
 } from './holdingCard';
@@ -19,6 +20,20 @@ export type TodayView = {
   groups: TopicGroup[];
 };
 
+export function resolveTodayScenario({
+  hasHolding,
+  status,
+  state,
+}: {
+  hasHolding: boolean;
+  status: StockLedgerStatus | undefined;
+  state: PositionLedgerState | undefined;
+}): ResearchScenario | null {
+  if (status !== undefined && status !== 'reliable') return null;
+  if (hasHolding) return status === 'reliable' && state?.shares ? 'add-on' : null;
+  return state?.everHeld ? 'reentry' : 'establish';
+}
+
 /**
  * 今日 DSS 的內容。
  *
@@ -29,14 +44,19 @@ export type TodayView = {
  * 資料與計算結果，各算各的會讓同一檔在兩處顯示不同判定。
  */
 export async function loadTodayView(): Promise<TodayView> {
-  const [holdings, transactions, profile, watchlist] = await Promise.all([
+  const [holdings, ledger, profile, watchlist] = await Promise.all([
     readHoldingsSnapshot(),
-    readTransactions(),
+    loadResearchLedger(),
     readProfile(),
     readWatchlist(),
   ]);
 
-  const entryDates = latestEntryDates(identifyPositionEvents(transactions));
+  const entryDates = new Map<string, string>();
+  for (const event of ledger.events) {
+    if (event.scenario !== 'establish' && event.scenario !== 'reentry') continue;
+    if ((entryDates.get(event.stockId) ?? '') < event.tradeDate) entryDates.set(event.stockId, event.tradeDate);
+  }
+  const heldIds = new Set(holdings.map((holding) => holding.stockId));
 
   const names = new Map<string, string>();
   for (const holding of holdings) names.set(holding.stockId, holding.stockName);
@@ -58,11 +78,29 @@ export async function loadTodayView(): Promise<TodayView> {
         holding,
         analysis: analysisOf(holding.stockId),
         profile,
+        scenario: resolveTodayScenario({
+          hasHolding: true,
+          status: ledger.stockStatus.get(holding.stockId),
+          state: ledger.currentPositions.get(holding.stockId),
+        }),
+        addOnCostBasis:
+          ledger.stockStatus.get(holding.stockId) === 'reliable'
+            ? ledger.currentPositions.get(holding.stockId)?.averageCost ?? null
+            : null,
         entryDate: entryDates.get(holding.stockId) ?? null,
       }),
     ),
     watches: watchlist.entries.map((entry) =>
-      buildWatchCard({ entry, analysis: analysisOf(entry.stockId), profile }),
+      buildWatchCard({
+        entry,
+        analysis: analysisOf(entry.stockId),
+        profile,
+        scenario: resolveTodayScenario({
+          hasHolding: heldIds.has(entry.stockId),
+          status: ledger.stockStatus.get(entry.stockId),
+          state: ledger.currentPositions.get(entry.stockId),
+        }),
+      }),
     ),
     groups: groupByTopic(watchlist),
   };

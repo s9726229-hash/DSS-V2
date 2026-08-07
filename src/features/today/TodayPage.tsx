@@ -41,6 +41,7 @@ export function TodayPage({
   const [tab, setTab] = useState<'holdings' | 'watches' | null>(null);
   /** 詳情面板要顯示的標的；null 代表沒有開啟。 */
   const [detail, setDetail] = useState<{ kind: 'holding' | 'watch'; stockId: string } | null>(null);
+  const [plannedPrices, setPlannedPrices] = useState<Record<string, string>>({});
 
   const refresh = useCallback(() => {
     void loadTodayView().then(setView);
@@ -148,6 +149,10 @@ export function TodayPage({
                 <HoldingCardView
                   key={card.stockId}
                   card={card}
+                  plannedPrice={plannedPrices[card.stockId] ?? ''}
+                  onPlannedPriceChange={(value) =>
+                    setPlannedPrices((current) => ({ ...current, [card.stockId]: value }))
+                  }
                   onOpenDetail={() => setDetail({ kind: 'holding', stockId: card.stockId })}
                 />
               ))}

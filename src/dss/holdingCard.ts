@@ -1,6 +1,6 @@
-import { classifyByProfile, readEntry, type Profile } from '../profile/profile';
+import { classifyByProfile, readEntry, readScenarioEntry, type Profile, type ProfileEntry } from '../profile/profile';
 import { metricValue } from '../profile/preview';
-import { RESEARCH_METRICS, type ResearchMetric } from '../research/runResearch';
+import { RESEARCH_METRICS, researchMetricsFor, type ResearchScenario, type ScenarioResearchMetric } from '../research/runResearch';
 import { classifyAsset, type AssetClass } from '../research/snapshot';
 import type { BandId, EvidenceLevel } from '../research/walkForward';
 import type { PositionEvent } from '../research/positions';
@@ -19,7 +19,7 @@ export type PositionResult = {
 };
 
 export type CardBand = {
-  metric: ResearchMetric;
+  metric: ScenarioResearchMetric;
   value: number | null;
   band: BandId | null;
   /** 判定所依據的門檻是手動設定、未經驗證的。 */
@@ -42,6 +42,7 @@ export type CardCore = {
   completeness: DataCompleteness;
   bands: CardBand[];
   analysis: StockAnalysis;
+  scenario: ResearchScenario | null;
 };
 
 export type WatchCard = CardCore & {
@@ -58,7 +59,14 @@ export type HoldingCard = CardCore & {
   currentPrice: number;
   position: PositionResult;
   heldDays: number | null;
+  addOnCostBasis: number | null;
+  addOnCostProfile: ProfileEntry;
 };
+
+export function plannedRelativeCost(plannedPrice: number | null, averageCost: number | null): number | null {
+  if (plannedPrice === null || averageCost === null || averageCost === 0) return null;
+  return ((plannedPrice - averageCost) / averageCost) * 100;
+}
 
 /**
  * 未實現損益。
@@ -132,12 +140,15 @@ export function dataCompleteness(analysis: StockAnalysis): DataCompleteness {
 
 function cardBand(
   analysis: StockAnalysis,
-  metric: ResearchMetric,
+  metric: ScenarioResearchMetric,
   profile: Profile,
   assetClass: AssetClass,
+  scenario: ResearchScenario | null,
 ): CardBand {
   const value = metricValue(analysis, metric);
-  const entry = readEntry(profile, assetClass, metric);
+  const entry = scenario === null
+    ? metric === 'relativeCost' ? { lower: null, upper: null } : readEntry(profile, assetClass, metric)
+    : readScenarioEntry(profile, scenario, assetClass, metric);
   const band = classifyByProfile(value, entry);
 
   // 判定只要用到任一手動門檻，就不能宣稱這個結論經過驗證
@@ -153,11 +164,13 @@ export function buildCardCore({
   stockName,
   analysis,
   profile,
+  scenario = null,
 }: {
   stockId: string;
   stockName: string;
   analysis: StockAnalysis;
   profile: Profile;
+  scenario?: ResearchScenario | null;
 }): CardCore {
   const assetClass = classifyAsset(stockId);
 
@@ -167,7 +180,8 @@ export function buildCardCore({
     assetClass,
     priceDate: analysis.priceDate,
     completeness: dataCompleteness(analysis),
-    bands: RESEARCH_METRICS.map((metric) => cardBand(analysis, metric, profile, assetClass)),
+    scenario,
+    bands: (scenario === null ? RESEARCH_METRICS : researchMetricsFor(scenario)).map((metric) => cardBand(analysis, metric, profile, assetClass, scenario)),
     analysis,
   };
 }
@@ -176,10 +190,12 @@ export function buildWatchCard({
   entry,
   analysis,
   profile,
+  scenario = null,
 }: {
   entry: { stockId: string; stockName: string; addedAt: string; topics: string[] };
   analysis: StockAnalysis;
   profile: Profile;
+  scenario?: ResearchScenario | null;
 }): WatchCard {
   return {
     ...buildCardCore({
@@ -187,6 +203,7 @@ export function buildWatchCard({
       stockName: entry.stockName,
       analysis,
       profile,
+      scenario,
     }),
     addedAt: entry.addedAt,
     topics: entry.topics,
@@ -198,12 +215,16 @@ export function buildHoldingCard({
   analysis,
   profile,
   entryDate,
+  scenario = null,
+  addOnCostBasis = null,
 }: {
   holding: HoldingSnapshotRecord;
   analysis: StockAnalysis;
   profile: Profile;
   /** 最近一次建立部位的日期；沒有對應交易紀錄時為 null。 */
   entryDate: string | null;
+  scenario?: ResearchScenario | null;
+  addOnCostBasis?: number | null;
 }): HoldingCard {
   return {
     ...buildCardCore({
@@ -211,6 +232,7 @@ export function buildHoldingCard({
       stockName: holding.stockName,
       analysis,
       profile,
+      scenario,
     }),
     tradeType: holding.tradeType,
     snapshotDate: holding.snapshotDate,
@@ -219,5 +241,7 @@ export function buildHoldingCard({
     currentPrice: holding.currentPrice,
     position: positionResult(holding),
     heldDays: heldDays(entryDate, analysis.priceDate),
+    addOnCostBasis,
+    addOnCostProfile: readScenarioEntry(profile, 'add-on', classifyAsset(holding.stockId), 'relativeCost'),
   };
 }

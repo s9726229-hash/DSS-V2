@@ -6,8 +6,10 @@ import type {
   HoldingCard,
   WatchCard,
 } from '../../dss/holdingCard';
+import { plannedRelativeCost } from '../../dss/holdingCard';
+import { classifyByProfile } from '../../profile/profile';
 import { bandLabel } from '../../research/bandLabels';
-import { METRIC_LABEL, METRIC_UNIT, type ResearchMetric } from '../../research/runResearch';
+import { METRIC_LABEL, METRIC_UNIT, type ScenarioResearchMetric } from '../../research/runResearch';
 import { ASSET_LABEL } from '../research/evidence';
 import { percent } from '../research/format';
 import {
@@ -37,11 +39,12 @@ const COMPLETENESS_LABEL: Record<DataCompleteness, string> = {
 };
 
 /** 方塊裡的指標標籤要短，長標籤會把四格擠成兩行。 */
-const BOX_LABEL: Record<ResearchMetric, string> = {
+const BOX_LABEL: Record<ScenarioResearchMetric, string> = {
   bias20: '20MA 乖離',
   foreignFlow: '外資流向',
   trustFlow: '投信流向',
   marginFlow: '融資流向',
+  relativeCost: '相對均價',
 };
 
 function money(value: number): string {
@@ -434,12 +437,27 @@ export function WatchCardView({
 
 export function HoldingCardView({
   card,
+  plannedPrice = '',
+  onPlannedPriceChange,
   onOpenDetail,
 }: {
   card: HoldingCard;
+  plannedPrice?: string;
+  onPlannedPriceChange?: (value: string) => void;
   onOpenDetail?: () => void;
 }) {
   const { position } = card;
+  const parsed = plannedPrice.trim() === '' ? null : Number(plannedPrice);
+  const relative = Number.isFinite(parsed) && (parsed as number) > 0
+    ? plannedRelativeCost(parsed, card.addOnCostBasis)
+    : null;
+  const relativeBand: CardBand = {
+    metric: 'relativeCost',
+    value: relative,
+    band: classifyByProfile(relative, card.addOnCostProfile),
+    unverified: [card.addOnCostProfile.lower, card.addOnCostProfile.upper].some((item) => item?.origin === 'manual'),
+    evidence: card.addOnCostProfile.lower?.sourceEvidence ?? card.addOnCostProfile.upper?.sourceEvidence ?? null,
+  };
 
   return (
     <CardFrame
@@ -450,9 +468,20 @@ export function HoldingCardView({
       lead={<HoldingSummary card={card} />}
       boxes={
         <>
-          {card.bands.map((band) => (
-            <MetricBox key={band.metric} band={band} />
-          ))}
+          {card.bands
+            .filter((band) => band.metric !== 'relativeCost')
+            .map((band) => (
+              <MetricBox key={band.metric} band={band} />
+            ))}
+          {card.scenario === 'add-on' ? (
+            <label className="metric">
+              <span className="metric__label micro">預計加碼價</span>
+              <input aria-label={`${card.stockId} 預計加碼價`} value={plannedPrice}
+                inputMode="decimal" onChange={(event) => onPlannedPriceChange?.(event.target.value)} />
+              <span className="metric__state">情境試算，不是交易建議</span>
+              {relative === null ? null : <MetricBox band={relativeBand} />}
+            </label>
+          ) : null}
         </>
       }
       details={

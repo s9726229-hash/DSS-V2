@@ -7,8 +7,17 @@ import {
   dataCompleteness,
   heldDays,
   latestEntryDates,
+  plannedRelativeCost,
   positionResult,
 } from './holdingCard';
+
+describe('預計加碼價', () => {
+  it('以可靠帳本均價計算且缺值不猜測', () => {
+    expect(plannedRelativeCost(90, 100)).toBe(-10);
+    expect(plannedRelativeCost(90, null)).toBeNull();
+    expect(plannedRelativeCost(null, 100)).toBeNull();
+  });
+});
 
 /**
  * 產生一組每日淨額，讓流向軸剛好等於指定的值。
