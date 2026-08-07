@@ -31,73 +31,66 @@ export function transactionSignature(row: ImportedTransaction): string {
   ].join('|');
 }
 
-function countBySignature(rows: readonly { signature: string }[]): Map<string, number> {
-  const counts = new Map<string, number>();
-
-  for (const { signature } of rows) {
-    counts.set(signature, (counts.get(signature) ?? 0) + 1);
-  }
-
-  return counts;
-}
-
 type ImportPlan = {
-  /** 每個簽章要新增的列，以及該簽章在資料庫既有的筆數（決定序號起點）。 */
-  additions: { row: ImportedTransaction; signature: string; startOrdinal: number; count: number }[];
+  additions: { row: ImportedTransaction; signature: string; ordinal: number }[];
+  enrichments: { stored: StoredTransaction; tradeMethod: string }[];
   newCount: number;
+  enrichedCount: number;
   duplicateCount: number;
 };
 
 function buildImportPlan(
   incoming: readonly ImportedTransaction[],
-  existingCounts: Map<string, number>,
+  stored: readonly StoredTransaction[],
 ): ImportPlan {
-  const incomingCounts = countBySignature(
-    incoming.map((row) => ({ signature: transactionSignature(row) })),
-  );
-  const firstRowBySignature = new Map<string, ImportedTransaction>();
+  const incomingBySignature = new Map<string, ImportedTransaction[]>();
+  const storedBySignature = new Map<string, StoredTransaction[]>();
 
   for (const row of incoming) {
     const signature = transactionSignature(row);
-    if (!firstRowBySignature.has(signature)) {
-      firstRowBySignature.set(signature, row);
-    }
+    const rows = incomingBySignature.get(signature) ?? [];
+    rows.push(row);
+    incomingBySignature.set(signature, rows);
+  }
+
+  for (const row of stored) {
+    const signature = transactionSignature(row);
+    const rows = storedBySignature.get(signature) ?? [];
+    rows.push(row);
+    storedBySignature.set(signature, rows);
   }
 
   const additions: ImportPlan['additions'] = [];
-  let newCount = 0;
+  const enrichments: ImportPlan['enrichments'] = [];
 
-  for (const [signature, incomingCount] of incomingCounts) {
-    const existing = existingCounts.get(signature) ?? 0;
-    const count = Math.max(0, incomingCount - existing);
+  for (const [signature, incomingRows] of incomingBySignature) {
+    const storedRows = storedBySignature.get(signature) ?? [];
+    const matched = Math.min(incomingRows.length, storedRows.length);
 
-    if (count > 0) {
-      additions.push({
-        row: firstRowBySignature.get(signature) as ImportedTransaction,
-        signature,
-        startOrdinal: existing,
-        count,
-      });
-      newCount += count;
+    for (let ordinal = 0; ordinal < matched; ordinal += 1) {
+      const tradeMethod = incomingRows[ordinal].tradeMethod?.trim();
+      if ((storedRows[ordinal].tradeMethod ?? null) === null && tradeMethod) {
+        enrichments.push({ stored: storedRows[ordinal], tradeMethod });
+      }
+    }
+
+    for (let ordinal = storedRows.length; ordinal < incomingRows.length; ordinal += 1) {
+      additions.push({ row: incomingRows[ordinal], signature, ordinal });
     }
   }
 
-  return { additions, newCount, duplicateCount: incoming.length - newCount };
-}
-
-async function readExistingCounts(): Promise<Map<string, number>> {
-  const db = await openDssDatabase();
-
-  try {
-    const stored = await db.getAll('transactions');
-    return countBySignature(stored.map((row) => ({ signature: transactionSignature(row) })));
-  } finally {
-    db.close();
-  }
+  return {
+    additions,
+    enrichments,
+    newCount: additions.length,
+    enrichedCount: enrichments.length,
+    duplicateCount: incoming.length - additions.length,
+  };
 }
 
 export type TransactionImportPreview = {
   newCount: number;
+  enrichedCount: number;
   duplicateCount: number;
 };
 
@@ -105,12 +98,22 @@ export type TransactionImportPreview = {
 export async function planTransactionImport(
   rows: readonly ImportedTransaction[],
 ): Promise<TransactionImportPreview> {
-  const { newCount, duplicateCount } = buildImportPlan(rows, await readExistingCounts());
-  return { newCount, duplicateCount };
+  const db = await openDssDatabase();
+
+  try {
+    const { newCount, enrichedCount, duplicateCount } = buildImportPlan(
+      rows,
+      await db.getAll('transactions'),
+    );
+    return { newCount, enrichedCount, duplicateCount };
+  } finally {
+    db.close();
+  }
 }
 
 export type TransactionImportResult = {
   inserted: number;
+  enriched: number;
   duplicateCount: number;
 };
 
@@ -122,30 +125,38 @@ export async function importTransactions(
 
   try {
     const stored = await db.getAll('transactions');
-    const existingCounts = countBySignature(
-      stored.map((row) => ({ signature: transactionSignature(row) })),
-    );
-    const plan = buildImportPlan(rows, existingCounts);
+    const plan = buildImportPlan(rows, stored);
 
     const transaction = db.transaction('transactions', 'readwrite');
     const writes: Promise<unknown>[] = [];
 
     for (const addition of plan.additions) {
-      for (let offset = 0; offset < addition.count; offset += 1) {
-        writes.push(
-          transaction.store.put({
-            ...addition.row,
-            id: `${addition.signature}#${addition.startOrdinal + offset}`,
-            importedAt,
-          } satisfies StoredTransaction),
-        );
-      }
+      writes.push(
+        transaction.store.put({
+          ...addition.row,
+          id: `${addition.signature}#${addition.ordinal}`,
+          importedAt,
+        } satisfies StoredTransaction),
+      );
+    }
+
+    for (const enrichment of plan.enrichments) {
+      writes.push(
+        transaction.store.put({
+          ...enrichment.stored,
+          tradeMethod: enrichment.tradeMethod,
+        }),
+      );
     }
 
     await Promise.all(writes);
     await transaction.done;
 
-    return { inserted: plan.newCount, duplicateCount: plan.duplicateCount };
+    return {
+      inserted: plan.newCount,
+      enriched: plan.enrichedCount,
+      duplicateCount: plan.duplicateCount,
+    };
   } finally {
     db.close();
   }

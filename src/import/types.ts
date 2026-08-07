@@ -5,6 +5,8 @@ export type ImportedTransaction = {
   stockId: string;
   stockName: string;
   side: TransactionSide;
+  /** 交易種類：普通／定期定額。舊版已儲存資料可能缺少。 */
+  tradeMethod?: string | null;
   /** 交易類別：現股／融資／融券。v1 不做融資分析，但保留供日後建立部位辨識使用。 */
   tradeType: string;
   quantity: number;

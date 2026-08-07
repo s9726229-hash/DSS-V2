@@ -20,12 +20,19 @@ type Ready = {
   rowCount: number;
   skipped: SkippedRow[];
   newCount: number;
+  enrichedCount: number;
   duplicateCount: number;
   transactions?: ImportedTransaction[];
   holdings?: ImportedHolding[];
 };
 
-type Done = { stage: 'done'; fileName: string; inserted: number; duplicateCount: number };
+type Done = {
+  stage: 'done';
+  fileName: string;
+  inserted: number;
+  enriched: number;
+  duplicateCount: number;
+};
 
 type PanelState = { stage: 'idle' } | Rejected | Ready | Done;
 
@@ -98,6 +105,7 @@ export function ImportPanel({
         rowCount: parsed.rows.length,
         skipped: parsed.skipped,
         newCount: plan.newCount,
+        enrichedCount: plan.enrichedCount,
         duplicateCount: plan.duplicateCount,
         transactions: parsed.rows,
       });
@@ -117,6 +125,7 @@ export function ImportPanel({
       rowCount: parsed.rows.length,
       skipped: parsed.skipped,
       newCount: parsed.rows.length,
+      enrichedCount: 0,
       duplicateCount: 0,
       holdings: parsed.rows,
     });
@@ -135,6 +144,7 @@ export function ImportPanel({
           stage: 'done',
           fileName: state.fileName,
           inserted: result.inserted,
+          enriched: result.enriched,
           duplicateCount: result.duplicateCount,
         });
       } else if (state.holdings) {
@@ -143,6 +153,7 @@ export function ImportPanel({
           stage: 'done',
           fileName: state.fileName,
           inserted: state.holdings.length,
+          enriched: 0,
           duplicateCount: 0,
         });
       }
@@ -200,7 +211,7 @@ export function ImportPanel({
               label="比對"
               value={
                 kind === 'transactions'
-                  ? `新增 ${state.newCount} 筆．已存在 ${state.duplicateCount} 筆`
+                  ? `新增 ${state.newCount} 筆．補齊 ${state.enrichedCount} 筆交易方式．已存在 ${state.duplicateCount} 筆`
                   : `快照日期 ${today()}`
               }
               tone="plain"
@@ -228,10 +239,12 @@ export function ImportPanel({
             <button
               type="button"
               className="btn btn--primary"
-              disabled={busy || state.newCount === 0}
+              disabled={busy || state.newCount + state.enrichedCount === 0}
               onClick={() => void handleConfirm()}
             >
-              確認匯入 {state.newCount} {copy.unit}
+              {state.newCount > 0
+                ? `確認匯入 ${state.newCount} ${copy.unit}`
+                : `確認補齊 ${state.enrichedCount} 筆`}
             </button>
           </div>
         </div>
@@ -242,6 +255,7 @@ export function ImportPanel({
           <p className="import__file num">{state.fileName}</p>
           <p className="import__done">
             已寫入 {state.inserted} {copy.unit}
+            {state.enriched > 0 ? `．已補齊 ${state.enriched} 筆交易方式` : ''}
             {state.duplicateCount > 0 ? `．略過 ${state.duplicateCount} 筆（已存在）` : ''}
           </p>
         </div>

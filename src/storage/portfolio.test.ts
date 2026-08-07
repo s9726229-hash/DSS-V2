@@ -46,10 +46,24 @@ beforeEach(async () => {
 });
 
 describe('importTransactions', () => {
+  it('重匯新版資料時只補齊舊交易的交易方式，不建立重複交易', async () => {
+    await importTransactions([tx({ tradeMethod: null })], '2026-08-01T00:00:00.000Z');
+
+    const result = await importTransactions(
+      [tx({ tradeMethod: '普通' })],
+      '2026-08-08T00:00:00.000Z',
+    );
+
+    expect(result).toEqual({ inserted: 0, enriched: 1, duplicateCount: 1 });
+    const stored = await readTransactions();
+    expect(stored).toHaveLength(1);
+    expect(stored[0].tradeMethod).toBe('普通');
+  });
+
   it('首次匯入寫入全部交易', async () => {
     const result = await importTransactions([tx(), tx({ stockId: '0050' })], IMPORTED_AT);
 
-    expect(result).toEqual({ inserted: 2, duplicateCount: 0 });
+    expect(result).toEqual({ inserted: 2, enriched: 0, duplicateCount: 0 });
     expect(await readTransactions()).toHaveLength(2);
   });
 
@@ -59,7 +73,7 @@ describe('importTransactions', () => {
 
     const second = await importTransactions(rows, IMPORTED_AT);
 
-    expect(second).toEqual({ inserted: 0, duplicateCount: 2 });
+    expect(second).toEqual({ inserted: 0, enriched: 0, duplicateCount: 2 });
     expect(await readTransactions()).toHaveLength(2);
   });
 
@@ -68,7 +82,7 @@ describe('importTransactions', () => {
 
     const result = await importTransactions([tx(), tx({ tradeDate: '2026-03-05' })], IMPORTED_AT);
 
-    expect(result).toEqual({ inserted: 1, duplicateCount: 1 });
+    expect(result).toEqual({ inserted: 1, enriched: 0, duplicateCount: 1 });
     expect(await readTransactions()).toHaveLength(2);
   });
 
@@ -111,7 +125,7 @@ describe('importTransactions', () => {
 
     const second = await importTransactions([tx(), tx(), tx()], IMPORTED_AT);
 
-    expect(second).toEqual({ inserted: 0, duplicateCount: 3 });
+    expect(second).toEqual({ inserted: 0, enriched: 0, duplicateCount: 3 });
     expect(await readTransactions()).toHaveLength(3);
   });
 
@@ -120,7 +134,7 @@ describe('importTransactions', () => {
 
     const second = await importTransactions([tx(), tx(), tx()], IMPORTED_AT);
 
-    expect(second).toEqual({ inserted: 1, duplicateCount: 2 });
+    expect(second).toEqual({ inserted: 1, enriched: 0, duplicateCount: 2 });
     expect(await readTransactions()).toHaveLength(3);
   });
 
@@ -130,7 +144,7 @@ describe('importTransactions', () => {
 
     const second = await importTransactions([tx({ brokerReference: 'X0000' })], IMPORTED_AT);
 
-    expect(second).toEqual({ inserted: 0, duplicateCount: 1 });
+    expect(second).toEqual({ inserted: 0, enriched: 0, duplicateCount: 1 });
     expect(await readTransactions()).toHaveLength(1);
   });
 
@@ -147,7 +161,7 @@ describe('planTransactionImport', () => {
 
     const plan = await planTransactionImport([tx(), tx({ tradeDate: '2026-03-05' })]);
 
-    expect(plan).toEqual({ newCount: 1, duplicateCount: 1 });
+    expect(plan).toEqual({ newCount: 1, enrichedCount: 0, duplicateCount: 1 });
     expect(await readTransactions()).toHaveLength(1);
   });
 });

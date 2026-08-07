@@ -19,6 +19,15 @@ function csv(...rows: string[]): string {
 }
 
 describe('parseTransactionCsv', () => {
+  it('分開保留交易種類與交易類別', () => {
+    const result = parseTransactionCsv(csv(BUY_ROW));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.rows[0]).toMatchObject({ tradeMethod: '普通', tradeType: '現股' });
+  });
+
   it('解析買進列，保留交易類別與券商委託書號', () => {
     const result = parseTransactionCsv(csv(BUY_ROW));
 
@@ -31,6 +40,7 @@ describe('parseTransactionCsv', () => {
       stockId: '2330',
       stockName: '台積電',
       side: 'buy',
+      tradeMethod: '普通',
       tradeType: '現股',
       quantity: 1000,
       price: 1100,

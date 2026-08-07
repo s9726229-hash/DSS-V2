@@ -77,6 +77,43 @@ describe('本機存量', () => {
 });
 
 describe('交易明細匯入', () => {
+  it('舊交易缺少交易方式時允許重匯補齊並回報結果', async () => {
+    await importTransactions(
+      [
+        {
+          tradeDate: '2026-03-02',
+          stockId: '2330',
+          stockName: '台積電',
+          side: 'buy',
+          tradeMethod: null,
+          tradeType: '現股',
+          quantity: 1000,
+          price: 1100,
+          fees: 1567,
+          tax: 0,
+          settlementDate: '2026-03-04',
+          brokerReference: 'X00000001',
+        },
+      ],
+      '2026-08-01T00:00:00.000Z',
+    );
+    renderPage();
+
+    await userEvent.upload(
+      screen.getByLabelText('選擇交易明細檔案'),
+      csvFile('交易明細.csv', [TRANSACTION_HEADER, TRANSACTION_ROW]),
+    );
+
+    const panel = await screen.findByRole('region', { name: '匯入交易明細' });
+    expect(await within(panel).findByText(/補齊 1 筆交易方式/)).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: /確認補齊 1 筆/ }));
+
+    await waitFor(async () => {
+      expect((await readTransactions())[0].tradeMethod).toBe('普通');
+    });
+    expect(within(panel).getByText(/已補齊 1 筆交易方式/)).toBeInTheDocument();
+  });
+
   it('選擇檔案後顯示欄位檢查、解析與比對三段結果', async () => {
     renderPage();
 
