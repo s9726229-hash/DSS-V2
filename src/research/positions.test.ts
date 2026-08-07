@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StoredTransaction } from '../storage/types';
-import { identifyPositionEvents, selectEntries } from './positions';
+import { identifyPositionEvents, selectEntries, selectResearchEvents } from './positions';
 
 function tx(overrides: Partial<StoredTransaction> = {}): StoredTransaction {
   return {
@@ -9,6 +9,7 @@ function tx(overrides: Partial<StoredTransaction> = {}): StoredTransaction {
     stockId: '2330',
     stockName: '台積電',
     side: 'buy',
+    tradeMethod: '普通',
     tradeType: '現股',
     quantity: 1000,
     price: 1100,
@@ -123,7 +124,7 @@ describe('建立部位辨識', () => {
     expect(events[2].kind).toBe('entry');
   });
 
-  it('同一天多筆買進只有第一筆是建立部位', () => {
+  it('同一天多筆買進在相容層維持逐筆，只有第一筆是建立部位', () => {
     const events = identifyPositionEvents([
       tx({ tradeDate: '2026-03-02', quantity: 1000 }),
       tx({ tradeDate: '2026-03-02', quantity: 1000 }),
@@ -171,5 +172,37 @@ describe('研究樣本篩選', () => {
     );
 
     expect(entries.map((entry) => entry.stockId)).toEqual(['2330', '0050']);
+  });
+
+  it('加碼研究合併同一標的同日的多筆買進，並保留加碼前均價', () => {
+    const events = identifyPositionEvents([
+      tx({ tradeDate: '2026-03-02', quantity: 1000, price: 100 }),
+      tx({ tradeDate: '2026-03-05', quantity: 500, price: 110 }),
+      tx({ tradeDate: '2026-03-05', quantity: 1000, price: 120 }),
+    ]);
+
+    const addOns = selectResearchEvents(events, 'add-on');
+
+    expect(addOns).toHaveLength(1);
+    expect(addOns[0]).toMatchObject({
+      quantity: 1500,
+      price: 116.66666666666667,
+      positionBefore: 1000,
+      averageCostBefore: 100,
+      positionAfter: 2500,
+    });
+  });
+
+  it('再進場研究只取清零後再次建立的事件', () => {
+    const events = identifyPositionEvents([
+      tx({ tradeDate: '2026-03-02' }),
+      tx({ tradeDate: '2026-03-10', side: 'sell' }),
+      tx({ tradeDate: '2026-04-01' }),
+      tx({ tradeDate: '2026-04-08' }),
+    ]);
+
+    expect(selectResearchEvents(events, 'reentry').map((event) => event.tradeDate)).toEqual([
+      '2026-04-01',
+    ]);
   });
 });
