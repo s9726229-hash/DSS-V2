@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCandidate, classifyByProfile, emptyProfile, readEntry } from './profile';
+import { applyCandidate, applyScenarioCandidate, classifyByProfile, clearScenarioBoundary, emptyProfile, isScenarioProfileEmpty, readEntry, readScenarioEntry, setScenarioManualBoundary } from './profile';
 
 const AT = '2026-08-01T00:00:00.000Z';
 
@@ -18,6 +18,24 @@ function candidate(overrides: Partial<Parameters<typeof applyCandidate>[1]> = {}
 }
 
 describe('候選套用', () => {
+  it('情境寫入不會改變 V1 通用 entries 或另一情境', () => {
+    const next = applyScenarioCandidate(emptyProfile(), {
+      ...candidate({ metric: 'bias20', band: 'normal', range: { min: -8, max: 3 } }),
+      scenario: 'add-on',
+      metric: 'relativeCost',
+    });
+    expect(readScenarioEntry(next, 'add-on', 'stock', 'relativeCost')).toMatchObject({
+      lower: { value: -8 }, upper: { value: 3 },
+    });
+    expect(readScenarioEntry(next, 'establish', 'stock', 'relativeCost')).toEqual({ lower: null, upper: null });
+    expect(next.entries).toEqual({});
+  });
+  it('加碼候選不會寫入既有通用 Profile', () => {
+    const profile = applyScenarioCandidate(emptyProfile(), { ...candidate(), scenario: 'add-on' });
+
+    expect(readEntry(profile, 'stock', 'bias20').lower).toBeNull();
+    expect(readScenarioEntry(profile, 'add-on', 'stock', 'bias20').lower?.value).toBe(-1.5);
+  });
   it('回檔下界寫入下界，來源與證據等級一併保留', () => {
     const profile = applyCandidate(emptyProfile(), candidate());
     const entry = readEntry(profile, 'stock', 'bias20');
@@ -114,6 +132,22 @@ describe('候選套用', () => {
     applyCandidate(before, candidate());
 
     expect(readEntry(before, 'stock', 'bias20').lower).toBeNull();
+  });
+});
+
+describe('情境手動門檻', () => {
+  it('可設定、清除且不影響其他情境', () => {
+    const set = setScenarioManualBoundary(emptyProfile(), {
+      scenario: 'add-on', assetClass: 'stock', metric: 'relativeCost', side: 'lower',
+      value: -5, at: AT,
+    });
+    expect(readScenarioEntry(set, 'add-on', 'stock', 'relativeCost').lower).toMatchObject({ value: -5, origin: 'manual' });
+    expect(isScenarioProfileEmpty(set, 'add-on')).toBe(false);
+    expect(isScenarioProfileEmpty(set, 'establish')).toBe(true);
+    const cleared = clearScenarioBoundary(set, {
+      scenario: 'add-on', assetClass: 'stock', metric: 'relativeCost', side: 'lower',
+    });
+    expect(isScenarioProfileEmpty(cleared, 'add-on')).toBe(true);
   });
 });
 

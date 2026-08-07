@@ -490,7 +490,7 @@ export function ResearchPage() {
               samples={report.samples[metric] ?? []}
               unit={METRIC_UNIT[metric]}
               metric={metric}
-              onApply={metric === 'relativeCost' ? undefined : (applied, band) => setPending({ metric, assetClass: applied, band, runId: latestRunId })}
+              onApply={(applied, band) => setPending({ scenario, metric, assetClass: applied, band, runId: latestRunId })}
             />
           ))}
 

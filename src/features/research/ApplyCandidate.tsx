@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
 import { bandLabel } from '../../research/bandLabels';
-import { METRIC_LABEL, METRIC_UNIT, type ResearchMetric } from '../../research/runResearch';
+import { METRIC_LABEL, METRIC_UNIT, type ResearchScenario, type ScenarioResearchMetric } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
 import type { BandResult } from '../../research/walkForward';
 import type { StockAnalysis } from '../../dss/analyseHoldings';
-import { applyCandidate, type Profile } from '../../profile/profile';
+import { applyScenarioCandidate, type Profile } from '../../profile/profile';
 import { ProfileChangePreview } from '../profile/ProfileChangePreview';
 import { ASSET_LABEL, EVIDENCE_LABEL, EVIDENCE_TONE } from './evidence';
 import { percent } from './format';
 
 export type PendingCandidate = {
-  metric: ResearchMetric;
+  scenario: ResearchScenario;
+  metric: ScenarioResearchMetric;
   assetClass: AssetClass;
   band: BandResult;
   runId: string | null;
@@ -45,7 +46,8 @@ export function ApplyCandidate({
 
   const next = useMemo(
     () =>
-      applyCandidate(profile, {
+      applyScenarioCandidate(profile, {
+        scenario: candidate.scenario,
         assetClass: candidate.assetClass,
         metric: candidate.metric,
         band: candidate.band.band,
@@ -65,7 +67,7 @@ export function ApplyCandidate({
       <div className="apply__panel">
         <h3 className="apply__title">
           套用「{bandLabel(candidate.metric, candidate.band.band)}」到{' '}
-          {ASSET_LABEL[candidate.assetClass]} Profile
+          {ASSET_LABEL[candidate.assetClass]}／{candidate.scenario} Profile
         </h3>
 
         <dl className="apply__facts">
@@ -90,7 +92,7 @@ export function ApplyCandidate({
         <p className="apply__reason">{candidate.band.reason}</p>
 
         <h4 className="apply__section micro">套用後庫存的變化</h4>
-        <ProfileChangePreview analyses={analyses} current={profile} next={next} />
+        <ProfileChangePreview analyses={analyses} current={profile} next={next} scenario={candidate.scenario} />
 
         {weakEvidence ? (
           <label className="apply__ack">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StockAnalysis } from '../dss/analyseHoldings';
-import { applyCandidate, emptyProfile, type Profile } from './profile';
+import { applyCandidate, applyScenarioCandidate, emptyProfile, type Profile } from './profile';
 import { metricValue, previewProfileChange } from './preview';
 
 /**
@@ -111,6 +111,18 @@ describe('指標取值', () => {
 });
 
 describe('套用預覽', () => {
+  it('情境預覽列保留 scenario 且不讀取通用 Profile', () => {
+    const next = applyScenarioCandidate(emptyProfile(), {
+      scenario: 'establish', assetClass: 'stock', metric: 'bias20', band: 'normal',
+      range: { min: -1, max: 10 }, runId: 'run:test', evidence: 'worth-tracking',
+      despiteWeakEvidence: false, at: '2026-08-08T00:00:00.000Z',
+    });
+    const rows = previewProfileChange({
+      analyses: [analysis({ stockId: '2330', bias20: 5 })],
+      current: emptyProfile(), next, scenario: 'establish',
+    });
+    expect(rows[0]).toMatchObject({ scenario: 'establish', metric: 'bias20' });
+  });
   it('只列出歸屬真的會變的標的', () => {
     const holdings = [
       analysis({ stockId: '2330', bias20: 20 }),

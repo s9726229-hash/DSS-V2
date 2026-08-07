@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
 import {
   boundaryConflict,
-  clearBoundary,
-  hasUnverifiedBoundary,
-  isProfileEmpty,
-  readEntry,
-  setManualBoundary,
+  clearScenarioBoundary,
+  isScenarioProfileEmpty,
+  readScenarioEntry,
+  setScenarioManualBoundary,
   type BoundarySide,
   type Profile,
   type ProfileBoundary,
@@ -16,8 +15,9 @@ import { bandLabel } from '../../research/bandLabels';
 import {
   METRIC_LABEL,
   METRIC_UNIT,
-  RESEARCH_METRICS,
-  type ResearchMetric,
+  researchMetricsFor,
+  type ResearchScenario,
+  type ScenarioResearchMetric,
 } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
 import { ASSET_LABEL, EVIDENCE_LABEL } from '../research/evidence';
@@ -26,18 +26,21 @@ import './ProfilePage.css';
 
 const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
 const SIDES: BoundarySide[] = ['lower', 'upper'];
+const SCENARIO_LABEL: Record<ResearchScenario, string> = {
+  establish: '建立部位', 'add-on': '加碼', reentry: '再進場',
+};
 
 function formatBoundary(value: number): string {
   return value.toFixed(2);
 }
 
-function reviewCounts(profile: Profile) {
+function reviewCounts(profile: Profile, scenario: ResearchScenario) {
   let insufficientData = 0;
   let appliedDespiteWeakEvidence = 0;
 
   for (const assetClass of ASSET_CLASSES) {
-    for (const metric of RESEARCH_METRICS) {
-      const entry = readEntry(profile, assetClass, metric);
+    for (const metric of researchMetricsFor(scenario)) {
+      const entry = readScenarioEntry(profile, scenario, assetClass, metric);
       for (const side of SIDES) {
         const boundary = entry[side];
         if (boundary?.sourceEvidence === 'insufficient-data') insufficientData += 1;
@@ -127,14 +130,16 @@ function BoundaryEditor({
 
 function ConditionsTable({
   profile,
+  scenario,
   assetClass,
   onSet,
   onClear,
 }: {
   profile: Profile;
+  scenario: ResearchScenario;
   assetClass: AssetClass;
-  onSet: (metric: ResearchMetric, side: BoundarySide, value: number) => void;
-  onClear: (metric: ResearchMetric, side: BoundarySide) => void;
+  onSet: (metric: ScenarioResearchMetric, side: BoundarySide, value: number) => void;
+  onClear: (metric: ScenarioResearchMetric, side: BoundarySide) => void;
 }) {
   return (
     <table className="checkpoints conditions">
@@ -153,8 +158,8 @@ function ConditionsTable({
         </tr>
       </thead>
       <tbody>
-        {RESEARCH_METRICS.map((metric) => {
-          const entry = readEntry(profile, assetClass, metric);
+        {researchMetricsFor(scenario).map((metric) => {
+          const entry = readScenarioEntry(profile, scenario, assetClass, metric);
           const unit = METRIC_UNIT[metric];
           const conflict = boundaryConflict(entry);
 
@@ -200,6 +205,7 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<Profile | null>(null);
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [scenario, setScenario] = useState<ResearchScenario>('establish');
 
   useEffect(() => {
     let cancelled = false;
@@ -232,9 +238,9 @@ export function ProfilePage() {
   const conflicts = useMemo(() => {
     if (draft === null) return 0;
     return ASSET_CLASSES.flatMap((assetClass) =>
-      RESEARCH_METRICS.map((metric) => boundaryConflict(readEntry(draft, assetClass, metric))),
+      researchMetricsFor(scenario).map((metric) => boundaryConflict(readScenarioEntry(draft, scenario, assetClass, metric))),
     ).filter(Boolean).length;
-  }, [draft]);
+  }, [draft, scenario]);
 
   const save = useCallback(() => {
     if (draft === null) return;
@@ -249,8 +255,8 @@ export function ProfilePage() {
     return <p className="research__loading">讀取中…</p>;
   }
 
-  const empty = isProfileEmpty(saved);
-  const review = reviewCounts(draft);
+  const empty = isScenarioProfileEmpty(saved, scenario);
+  const review = reviewCounts(draft, scenario);
 
   return (
     <div className="profile">
@@ -260,7 +266,7 @@ export function ProfilePage() {
             <h3 className="apply__title">儲存判定條件</h3>
 
             <h4 className="apply__section micro">儲存後庫存的變化</h4>
-            <ProfileChangePreview analyses={holdings} current={saved} next={draft} />
+            <ProfileChangePreview analyses={holdings} current={saved} next={draft} scenario={scenario} />
 
             <p className="apply__note">
               手動調整的門檻會標示為「自訂／未驗證」——它沒有經過 walk-forward 驗證，
@@ -287,6 +293,14 @@ export function ProfilePage() {
         </p>
       </header>
 
+      <nav className="tabs" aria-label="Profile 情境" role="tablist">
+        {(Object.keys(SCENARIO_LABEL) as ResearchScenario[]).map((id) => (
+          <button key={id} type="button" role="tab" aria-selected={scenario === id}
+            className={scenario === id ? 'tabs__item tabs__item--active' : 'tabs__item'}
+            onClick={() => setScenario(id)}>{SCENARIO_LABEL[id]}</button>
+        ))}
+      </nav>
+
       {review.insufficientData > 0 || review.appliedDespiteWeakEvidence > 0 ? (
         <aside className="profile__review" role="note" aria-label="需要複核的規則">
           <strong>複核圖示</strong>
@@ -307,9 +321,7 @@ export function ProfilePage() {
         ) : (
           <p className="profile__note">
             每個門檻都保留來源與證據等級；橘框代表需要複核。
-            {hasUnverifiedBoundary(saved)
-              ? '　目前有手動設定的門檻，它們沒有經過驗證。'
-              : ''}
+            情境規則與 V1 通用規則分開保存。
           </p>
         )}
       </section>
@@ -325,12 +337,14 @@ export function ProfilePage() {
             <h3 className="profile__asset-title">{ASSET_LABEL[assetClass]}</h3>
             <ConditionsTable
               profile={draft}
+              scenario={scenario}
               assetClass={assetClass}
               onSet={(metric, side, value) =>
                 setDraft((current) =>
                   current === null
                     ? current
-                    : setManualBoundary(current, {
+                    : setScenarioManualBoundary(current, {
+                        scenario,
                         assetClass,
                         metric,
                         side,
@@ -341,7 +355,7 @@ export function ProfilePage() {
               }
               onClear={(metric, side) =>
                 setDraft((current) =>
-                  current === null ? current : clearBoundary(current, { assetClass, metric, side }),
+                  current === null ? current : clearScenarioBoundary(current, { scenario, assetClass, metric, side }),
                 )
               }
             />

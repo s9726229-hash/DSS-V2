@@ -1,4 +1,4 @@
-import type { ResearchMetric } from '../research/runResearch';
+import type { ResearchMetric, ResearchScenario, ScenarioResearchMetric } from '../research/runResearch';
 import type { AssetClass } from '../research/snapshot';
 import type { BandId, EvidenceLevel } from '../research/walkForward';
 
@@ -35,7 +35,11 @@ export type ProfileKey = `${AssetClass}:${ResearchMetric}`;
 export type Profile = {
   version: 1;
   entries: Partial<Record<ProfileKey, ProfileEntry>>;
+  /** V2 情境專屬候選；既有通用 entries 不自動搬移。 */
+  scenarioEntries?: Partial<Record<ScenarioProfileKey, ProfileEntry>>;
 };
+
+export type ScenarioProfileKey = `${ResearchScenario}:${AssetClass}:${ScenarioResearchMetric}`;
 
 export type CandidateApplication = {
   assetClass: AssetClass;
@@ -58,6 +62,23 @@ export function profileKey(assetClass: AssetClass, metric: ResearchMetric): Prof
   return `${assetClass}:${metric}`;
 }
 
+export function scenarioProfileKey(
+  scenario: ResearchScenario,
+  assetClass: AssetClass,
+  metric: ScenarioResearchMetric,
+): ScenarioProfileKey {
+  return `${scenario}:${assetClass}:${metric}`;
+}
+
+export function readScenarioEntry(
+  profile: Profile,
+  scenario: ResearchScenario,
+  assetClass: AssetClass,
+  metric: ScenarioResearchMetric,
+): ProfileEntry {
+  return profile.scenarioEntries?.[scenarioProfileKey(scenario, assetClass, metric)] ?? EMPTY_ENTRY;
+}
+
 export function readEntry(
   profile: Profile,
   assetClass: AssetClass,
@@ -66,7 +87,10 @@ export function readEntry(
   return profile.entries[profileKey(assetClass, metric)] ?? EMPTY_ENTRY;
 }
 
-function boundary(value: number, application: CandidateApplication): ProfileBoundary {
+function boundary(
+  value: number,
+  application: Pick<CandidateApplication, 'runId' | 'evidence' | 'despiteWeakEvidence' | 'at'>,
+): ProfileBoundary {
   return {
     value,
     origin: 'candidate',
@@ -114,12 +138,47 @@ export function applyCandidate(profile: Profile, application: CandidateApplicati
   };
 }
 
+/** 專屬情境候選與通用 Profile 完全分開保存。 */
+export function applyScenarioCandidate(
+  profile: Profile,
+  application: Omit<CandidateApplication, 'metric'> & {
+    scenario: ResearchScenario;
+    metric: ScenarioResearchMetric;
+  },
+): Profile {
+  const entry = readScenarioEntry(profile, application.scenario, application.assetClass, application.metric);
+  const { band, range } = application;
+  let next: ProfileEntry;
+  if (band === 'pullback') {
+    if (range.max === null) throw new Error('回檔側沒有可用門檻，不能套用');
+    next = { ...entry, lower: boundary(range.max, application) };
+  } else if (band === 'overheated') {
+    if (range.min === null) throw new Error('偏熱側沒有可用門檻，不能套用');
+    next = { ...entry, upper: boundary(range.min, application) };
+  } else {
+    if (range.min === null || range.max === null) throw new Error('中間區沒有完整門檻，不能套用');
+    next = { lower: boundary(range.min, application), upper: boundary(range.max, application) };
+  }
+  return {
+    ...profile,
+    scenarioEntries: {
+      ...profile.scenarioEntries,
+      [scenarioProfileKey(application.scenario, application.assetClass, application.metric)]: next,
+    },
+  };
+}
+
 export type BoundarySide = 'lower' | 'upper';
 
-type BoundaryTarget = {
+export type BoundaryTarget = {
   assetClass: AssetClass;
   metric: ResearchMetric;
   side: BoundarySide;
+};
+
+export type ScenarioBoundaryTarget = Omit<BoundaryTarget, 'metric'> & {
+  scenario: ResearchScenario;
+  metric: ScenarioResearchMetric;
 };
 
 function writeEntry(profile: Profile, target: BoundaryTarget, entry: ProfileEntry): Profile {
@@ -166,6 +225,49 @@ export function clearBoundary(profile: Profile, target: BoundaryTarget): Profile
   const entry = readEntry(profile, target.assetClass, target.metric);
 
   return writeEntry(profile, target, { ...entry, [target.side]: null });
+}
+
+function writeScenarioEntry(
+  profile: Profile,
+  target: ScenarioBoundaryTarget,
+  entry: ProfileEntry,
+): Profile {
+  return {
+    ...profile,
+    scenarioEntries: {
+      ...profile.scenarioEntries,
+      [scenarioProfileKey(target.scenario, target.assetClass, target.metric)]: entry,
+    },
+  };
+}
+
+export function setScenarioManualBoundary(
+  profile: Profile,
+  target: ScenarioBoundaryTarget & { value: number; at: string },
+): Profile {
+  const entry = readScenarioEntry(profile, target.scenario, target.assetClass, target.metric);
+  return writeScenarioEntry(profile, target, {
+    ...entry,
+    [target.side]: {
+      value: target.value,
+      origin: 'manual',
+      sourceRunId: null,
+      sourceEvidence: null,
+      appliedDespiteWeakEvidence: false,
+      updatedAt: target.at,
+    },
+  });
+}
+
+export function clearScenarioBoundary(profile: Profile, target: ScenarioBoundaryTarget): Profile {
+  const entry = readScenarioEntry(profile, target.scenario, target.assetClass, target.metric);
+  return writeScenarioEntry(profile, target, { ...entry, [target.side]: null });
+}
+
+export function isScenarioProfileEmpty(profile: Profile, scenario: ResearchScenario): boolean {
+  return Object.entries(profile.scenarioEntries ?? {})
+    .filter(([key]) => key.startsWith(`${scenario}:`))
+    .every(([, entry]) => entry === undefined || (entry.lower === null && entry.upper === null));
 }
 
 /**
