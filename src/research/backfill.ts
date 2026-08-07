@@ -177,6 +177,7 @@ export async function backfillResearchData(
         rows: result.rows,
         tradeDate: null,
         retrievedAt,
+        coverage: { startDate: request.startDate, endDate: request.endDate },
       });
     } else {
       failures.push({

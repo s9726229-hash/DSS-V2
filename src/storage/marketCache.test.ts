@@ -1,7 +1,7 @@
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DATABASE_NAME } from './database';
-import { readCachedDataset, writeCachedDataset } from './marketCache';
+import { coversRange, readCachedDataset, writeCachedDataset } from './marketCache';
 
 const NOW = '2026-07-28T02:00:00.000Z';
 
@@ -173,10 +173,69 @@ describe('writeCachedDataset', () => {
     expect(cached?.payload).toEqual([]);
     expect(cached?.retrievedAt).toBe(NOW);
   });
+
+  it('成功的空回應仍會記錄已查詢範圍', async () => {
+    await writeCachedDataset({
+      dataset: 'TaiwanStockSplitPrice',
+      stockId: '2330',
+      rows: [],
+      tradeDate: null,
+      retrievedAt: NOW,
+      coverage: { startDate: '2025-01-01', endDate: '2025-12-31' },
+    });
+
+    const cached = await readCachedDataset('TaiwanStockSplitPrice', '2330');
+
+    expect(cached?.coverage).toEqual([{ startDate: '2025-01-01', endDate: '2025-12-31' }]);
+    expect(coversRange(cached, '2025-03-01', '2025-08-31')).toBe(true);
+  });
+
+  it('合併重疊與相鄰的已查詢範圍', async () => {
+    for (const coverage of [
+      { startDate: '2025-01-01', endDate: '2025-01-31' },
+      { startDate: '2025-02-01', endDate: '2025-02-28' },
+      { startDate: '2025-02-15', endDate: '2025-03-31' },
+    ]) {
+      await writeCachedDataset({
+        dataset: 'TaiwanStockPrice',
+        stockId: '0050',
+        rows: [],
+        tradeDate: null,
+        retrievedAt: NOW,
+        coverage,
+      });
+    }
+
+    const cached = await readCachedDataset('TaiwanStockPrice', '0050');
+
+    expect(cached?.coverage).toEqual([{ startDate: '2025-01-01', endDate: '2025-03-31' }]);
+    expect(coversRange(cached, '2025-01-15', '2025-03-15')).toBe(true);
+    expect(coversRange(cached, '2024-12-31', '2025-03-15')).toBe(false);
+  });
 });
 
 describe('readCachedDataset', () => {
   it('沒有快取時回傳 null', async () => {
     expect(await readCachedDataset('TaiwanStockPrice', '9999')).toBeNull();
+  });
+});
+
+describe('coversRange', () => {
+  it('舊版快取沒有 coverage 時不視為已查詢', () => {
+    expect(coversRange(null, '2025-01-01', '2025-01-31')).toBe(false);
+    expect(
+      coversRange(
+        {
+          id: 'TaiwanStockPrice:0050',
+          dataset: 'TaiwanStockPrice',
+          stockId: '0050',
+          tradeDate: '2025-01-31',
+          retrievedAt: NOW,
+          payload: [],
+        },
+        '2025-01-01',
+        '2025-01-31',
+      ),
+    ).toBe(false);
   });
 });

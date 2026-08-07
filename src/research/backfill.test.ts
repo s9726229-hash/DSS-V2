@@ -148,7 +148,12 @@ describe('backfillResearchData', () => {
     const result = await backfillResearchData([entry('2330', '2026-03-02')], { now: NOW });
 
     expect(calls.length).toBeGreaterThan(0);
-    expect(await readCachedDataset('TaiwanStockPrice', '2330')).not.toBeNull();
+    const priceRequest = calls.find((call) => call.dataset === 'TaiwanStockPrice')!;
+    const cached = await readCachedDataset('TaiwanStockPrice', '2330');
+    expect(cached).not.toBeNull();
+    expect(cached?.coverage).toEqual([
+      { startDate: priceRequest.start, endDate: priceRequest.end },
+    ]);
     expect(result.failures).toEqual([]);
   });
 
@@ -186,6 +191,7 @@ describe('backfillResearchData', () => {
 
     expect(result.failures.length).toBeGreaterThan(0);
     expect(result.failures.every((failure) => failure.stockId === '2330')).toBe(true);
+    expect(await readCachedDataset('TaiwanStockPrice', '2330')).toBeNull();
     expect(await readCachedDataset('TaiwanStockPrice', '0050')).not.toBeNull();
   });
 

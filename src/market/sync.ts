@@ -117,11 +117,12 @@ async function syncStock(
   now: Date,
 ): Promise<StockSyncResult> {
   const retrievedAt = now.toISOString();
+  const priceRange = rangeEnding(now, PRICE_LOOKBACK_DAYS);
 
   const price = await fetchDataset<PriceRow>(
     'TaiwanStockPrice',
     stockId,
-    rangeEnding(now, PRICE_LOOKBACK_DAYS),
+    priceRange,
   );
 
   if (!price.ok) {
@@ -135,12 +136,14 @@ async function syncStock(
     rows: price.rows,
     tradeDate: priceDate,
     retrievedAt,
+    coverage: priceRange,
   });
 
+  const institutionalRange = rangeEnding(now, INSTITUTIONAL_LOOKBACK_DAYS);
   const institutional = await fetchDataset<InstitutionalRow>(
     'TaiwanStockInstitutionalInvestorsBuySell',
     stockId,
-    rangeEnding(now, INSTITUTIONAL_LOOKBACK_DAYS),
+    institutionalRange,
   );
 
   // 價格已寫入快取，法人失敗不必回收；僅回報哪一段沒取到
@@ -160,6 +163,7 @@ async function syncStock(
     rows: institutional.rows,
     tradeDate: institutionalDate,
     retrievedAt,
+    coverage: institutionalRange,
   });
 
   await cacheMargin(stockId, now, retrievedAt);
@@ -176,10 +180,11 @@ async function syncStock(
  * 融資是附加的第三條序列，缺了它價格與法人仍然可用。
  */
 async function cacheMargin(stockId: string, now: Date, retrievedAt: string): Promise<void> {
+  const range = rangeEnding(now, INSTITUTIONAL_LOOKBACK_DAYS);
   const result = await fetchDataset<MarginRow>(
     'TaiwanStockMarginPurchaseShortSale',
     stockId,
-    rangeEnding(now, INSTITUTIONAL_LOOKBACK_DAYS),
+    range,
   );
 
   if (!result.ok) return;
@@ -190,6 +195,7 @@ async function cacheMargin(stockId: string, now: Date, retrievedAt: string): Pro
     rows: result.rows,
     tradeDate: latestDate(result.rows),
     retrievedAt,
+    coverage: range,
   });
 }
 
@@ -211,6 +217,7 @@ async function cacheAdjustmentEvents(stockId: string, now: Date, retrievedAt: st
         rows: result.rows,
         tradeDate: latestDate(result.rows),
         retrievedAt,
+        coverage: range,
       });
     }
   }

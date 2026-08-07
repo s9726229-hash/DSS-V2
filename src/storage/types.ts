@@ -27,6 +27,11 @@ export type StoredSetting = {
   value: unknown;
 };
 
+export type CacheCoverage = {
+  startDate: string;
+  endDate: string;
+};
+
 export type MarketCacheRecord = {
   id: string;
   dataset: string;
@@ -34,6 +39,8 @@ export type MarketCacheRecord = {
   tradeDate: string;
   retrievedAt: string;
   payload: unknown;
+  /** 已成功向上游查詢的日期範圍；空回應也會保留。 */
+  coverage?: CacheCoverage[];
 };
 
 /**

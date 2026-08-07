@@ -206,6 +206,9 @@ describe('有庫存時', () => {
     const cached = await readCachedDataset('TaiwanStockPrice', '0050');
     expect(cached?.payload).toEqual([PRICE_ROW]);
     expect(cached?.tradeDate).toBe('2026-07-24');
+    expect(cached?.coverage).toEqual([
+      { startDate: '2025-07-28', endDate: '2026-07-28' },
+    ]);
   });
 
   it('逐檔回報結果', async () => {

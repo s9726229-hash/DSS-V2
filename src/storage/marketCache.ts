@@ -1,5 +1,5 @@
 import { openDssDatabase } from './database';
-import type { MarketCacheRecord } from './types';
+import type { CacheCoverage, MarketCacheRecord } from './types';
 
 /**
  * 市場快取保存的是 FinMind 的原始回應，不是計算後的結果。
@@ -12,6 +12,8 @@ export type CacheWrite = {
   /** 該資料集最新的交易日；沒有資料時為 null。 */
   tradeDate: string | null;
   retrievedAt: string;
+  /** 本次上游請求成功涵蓋的日期範圍，包含成功但沒有資料的回應。 */
+  coverage?: CacheCoverage;
 };
 
 function cacheId(dataset: string, stockId: string): string {
@@ -66,6 +68,40 @@ function mergeRows(existing: unknown[], incoming: readonly unknown[]): unknown[]
   return [...merged.values()].sort((a, b) => dateOf(a).localeCompare(dateOf(b)));
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function mergeCoverage(ranges: readonly CacheCoverage[]): CacheCoverage[] {
+  const sorted = [...ranges].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const merged: CacheCoverage[] = [];
+
+  for (const range of sorted) {
+    const previous = merged[merged.length - 1];
+    const adjacentBoundary = previous
+      ? new Date(`${previous.endDate}T00:00:00Z`).getTime() + DAY_MS
+      : Number.NaN;
+    const rangeStart = new Date(`${range.startDate}T00:00:00Z`).getTime();
+
+    if (previous && rangeStart <= adjacentBoundary) {
+      if (range.endDate > previous.endDate) previous.endDate = range.endDate;
+    } else {
+      merged.push({ ...range });
+    }
+  }
+
+  return merged;
+}
+
+/** 舊版快取沒有 coverage，不能僅憑 payload 推定曾完整查過某段期間。 */
+export function coversRange(
+  record: MarketCacheRecord | null,
+  startDate: string,
+  endDate: string,
+): boolean {
+  return (record?.coverage ?? []).some(
+    (range) => range.startDate <= startDate && range.endDate >= endDate,
+  );
+}
+
 /**
  * 寫入快取。
  *
@@ -78,6 +114,7 @@ export async function writeCachedDataset({
   rows,
   tradeDate,
   retrievedAt,
+  coverage,
 }: CacheWrite): Promise<void> {
   const db = await openDssDatabase();
 
@@ -86,7 +123,7 @@ export async function writeCachedDataset({
     const existing = await db.get('marketCache', id);
     const existingRows = Array.isArray(existing?.payload) ? (existing.payload as unknown[]) : [];
 
-    if (rows.length === 0 && existingRows.length > 0) {
+    if (rows.length === 0 && existingRows.length > 0 && !coverage) {
       return;
     }
 
@@ -103,6 +140,7 @@ export async function writeCachedDataset({
       tradeDate: latestDate || (tradeDate ?? ''),
       retrievedAt,
       payload,
+      coverage: mergeCoverage([...(existing?.coverage ?? []), ...(coverage ? [coverage] : [])]),
     } satisfies MarketCacheRecord);
   } finally {
     db.close();
