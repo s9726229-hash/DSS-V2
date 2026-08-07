@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { deleteDB } from 'idb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyCandidate, emptyProfile } from '../profile/profile';
+import { applyScenarioCandidate, emptyProfile } from '../profile/profile';
 import { writeProfile } from '../profile/profileStore';
 import { DATABASE_NAME } from '../storage/database';
 import { importHoldingsSnapshot, importTransactions } from '../storage/portfolio';
@@ -252,7 +252,8 @@ describe('AppShell', () => {
   });
 
   it('目前規則將複核意義集中在表格上方，並以兩位小數呈現', async () => {
-    const profile = applyCandidate(emptyProfile(), {
+    const profile = applyScenarioCandidate(emptyProfile(), {
+      scenario: 'establish',
       assetClass: 'stock',
       metric: 'bias20',
       band: 'normal',
