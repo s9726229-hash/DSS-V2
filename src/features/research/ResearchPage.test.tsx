@@ -44,6 +44,7 @@ async function seedStock(stockId: string, entryIndex: number) {
         stockId,
         stockName: `測試${stockId}`,
         side: 'buy',
+        tradeMethod: '普通',
         tradeType: '現股',
         quantity: 1000,
         price: 100,
@@ -56,6 +57,14 @@ async function seedStock(stockId: string, entryIndex: number) {
     NOW,
   );
 
+  await writeCachedDataset({
+    dataset: 'TaiwanStockSplitPrice',
+    stockId,
+    rows: [],
+    tradeDate: null,
+    retrievedAt: NOW,
+    coverage: { startDate: tradeDay(entryIndex), endDate: tradeDay(entryIndex) },
+  });
   await writeCachedDataset({
     dataset: 'TaiwanStockPrice',
     stockId,
@@ -77,6 +86,18 @@ beforeEach(async () => {
 });
 
 describe('沒有資料時', () => {
+  it('提供建立部位、加碼與再進場三種研究情境', async () => {
+    render(<ResearchPage />);
+
+    const tabs = await screen.findByRole('tablist', { name: '研究情境' });
+    expect(within(tabs).getByRole('tab', { name: '建立部位' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(tabs).getByRole('tab', { name: '加碼研究' })).toBeInTheDocument();
+    expect(within(tabs).getByRole('tab', { name: '再進場研究' })).toBeInTheDocument();
+  });
+
   it('沒有建立部位時引導先匯入交易明細', async () => {
     render(<ResearchPage />);
 
@@ -88,6 +109,34 @@ describe('沒有資料時', () => {
 
     const inventory = await screen.findByRole('region', { name: '研究樣本' });
     expect(within(inventory).getAllByText('0').length).toBeGreaterThan(0);
+  });
+
+  it('切換加碼研究後顯示相對均價分頁', async () => {
+    render(<ResearchPage />);
+    await userEvent.click(await screen.findByRole('tab', { name: '加碼研究' }));
+
+    expect(await screen.findByRole('tab', { name: '相對均價' })).toBeInTheDocument();
+  });
+
+  it('帳本排除摘要顯示期初部位不明', async () => {
+    await importTransactions(
+      [
+        {
+          tradeDate: '2026-03-02', stockId: '9999', stockName: '測試', side: 'sell',
+          tradeMethod: '普通', tradeType: '現股', quantity: 1000, price: 100,
+          fees: 0, tax: 0, settlementDate: null, brokerReference: null,
+        },
+      ],
+      NOW,
+    );
+    await writeCachedDataset({
+      dataset: 'TaiwanStockSplitPrice', stockId: '9999', rows: [], tradeDate: null,
+      retrievedAt: NOW, coverage: { startDate: '2026-03-02', endDate: '2026-03-02' },
+    });
+
+    render(<ResearchPage />);
+
+    expect(await screen.findByText(/期初部位不明/)).toBeInTheDocument();
   });
 });
 
@@ -101,24 +150,24 @@ describe('有建立部位時', () => {
   it('顯示三個研究指標分頁', async () => {
     render(<ResearchPage />);
 
-    const tabs = await screen.findByRole('navigation', { name: '研究指標' });
+    const tabs = await screen.findByRole('tablist', { name: '研究指標' });
     for (const label of ['20MA 乖離率', '外資流向', '投信流向']) {
-      expect(within(tabs).getByRole('button', { name: label })).toBeInTheDocument();
+      expect(within(tabs).getByRole('tab', { name: label })).toBeInTheDocument();
     }
   });
 
   it('預設顯示 20MA 乖離率，並可切換指標', async () => {
     render(<ResearchPage />);
 
-    const tabs = await screen.findByRole('navigation', { name: '研究指標' });
-    expect(within(tabs).getByRole('button', { name: '20MA 乖離率' })).toHaveAttribute(
+    const tabs = await screen.findByRole('tablist', { name: '研究指標' });
+    expect(within(tabs).getByRole('tab', { name: '20MA 乖離率' })).toHaveAttribute(
       'aria-current',
       'page',
     );
 
-    await userEvent.click(within(tabs).getByRole('button', { name: '投信流向' }));
+    await userEvent.click(within(tabs).getByRole('tab', { name: '投信流向' }));
 
-    expect(within(tabs).getByRole('button', { name: '投信流向' })).toHaveAttribute(
+    expect(within(tabs).getByRole('tab', { name: '投信流向' })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -246,6 +295,7 @@ describe('資料缺漏時', () => {
           stockId: '9999',
           stockName: '未回補',
           side: 'buy',
+          tradeMethod: '普通',
           tradeType: '現股',
           quantity: 1000,
           price: 100,
@@ -257,6 +307,14 @@ describe('資料缺漏時', () => {
       ],
       NOW,
     );
+    await writeCachedDataset({
+      dataset: 'TaiwanStockSplitPrice',
+      stockId: '9999',
+      rows: [],
+      tradeDate: null,
+      retrievedAt: NOW,
+      coverage: { startDate: '2026-03-02', endDate: '2026-03-02' },
+    });
 
     render(<ResearchPage />);
 

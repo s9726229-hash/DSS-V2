@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { backfillResearchData } from '../../research/backfill';
+import { loadResearchLedger, prepareResearchLedgerData } from '../../research/loadLedger';
+import { selectLedgerEvents } from '../../research/positionLedger';
 import {
-  loadResearchEntries,
   METRIC_LABEL,
   METRIC_UNIT,
-  RESEARCH_METRICS,
+  researchMetricsFor,
   runResearch,
-  type ResearchMetric,
+  type ResearchScenario,
+  type ScenarioResearchMetric,
   type ResearchReport,
   type ResearchSample,
 } from '../../research/runResearch';
 import { readResearchRuns, saveResearchRun } from '../../research/runStore';
 import type { AssetClass } from '../../research/snapshot';
 import { buildTransactionLog, type TransactionLogRow } from '../../research/transactionLog';
-import { readTransactions } from '../../storage/portfolio';
 import type { BandResult, WalkForwardResult } from '../../research/walkForward';
 import type { ResearchRunRecord } from '../../storage/types';
 import { DriftLine } from './DriftLine';
@@ -34,6 +35,22 @@ const VIEW_LABEL: Record<View, string> = {
   result: '研究結果',
   log: '交易歷史',
   history: '搜尋紀錄',
+};
+
+const SCENARIO_LABEL: Record<ResearchScenario, string> = {
+  establish: '建立部位',
+  'add-on': '加碼研究',
+  reentry: '再進場研究',
+};
+
+const LEDGER_ISSUE_LABEL: Record<string, string> = {
+  'opening-position-unknown': '期初部位不明',
+  'same-day-opposite-sides': '同日反向交易',
+  'scheduled-investment': '定期定額',
+  'trade-method-unknown': '交易方式不明',
+  'non-cash-position': '非現股部位',
+  'day-trade': '現沖',
+  'split-data-missing': '拆股資料缺漏',
 };
 
 /** 沒有任何檢查點時兩端都是 null，此時要明說沒有門檻，而非印出「≤ —」。 */
@@ -135,8 +152,8 @@ function Band({
 }: {
   band: BandResult;
   unit: string;
-  metric: ResearchMetric;
-  onApply: (band: BandResult) => void;
+  metric: ScenarioResearchMetric;
+  onApply?: (band: BandResult) => void;
 }) {
   const tone = EVIDENCE_TONE[band.evidence];
   const label = bandLabel(metric, band.band);
@@ -199,7 +216,7 @@ function Band({
 
       <p className="band__reason">{band.reason}</p>
 
-      <button
+      {onApply === undefined ? <p className="band__reason">此為加碼專用研究指標，尚不可套用到通用 Profile。</p> : <button
         type="button"
         className="band__apply"
         disabled={!applicable}
@@ -207,7 +224,7 @@ function Band({
         onClick={() => onApply(band)}
       >
         加入 Profile 候選
-      </button>
+      </button>}
     </article>
   );
 }
@@ -224,8 +241,8 @@ function AssetSection({
   result: WalkForwardResult;
   samples: ResearchSample[];
   unit: string;
-  metric: ResearchMetric;
-  onApply: (assetClass: AssetClass, band: BandResult) => void;
+  metric: ScenarioResearchMetric;
+  onApply?: (assetClass: AssetClass, band: BandResult) => void;
 }) {
   const scoped = samples.filter((row) => row.assetClass === assetClass);
 
@@ -256,7 +273,7 @@ function AssetSection({
             band={band}
             unit={unit}
             metric={metric}
-            onApply={(applied) => onApply(assetClass, applied)}
+            onApply={onApply === undefined ? undefined : (applied) => onApply(assetClass, applied)}
           />
         ))}
       </div>
@@ -266,13 +283,14 @@ function AssetSection({
 
 export function ResearchPage() {
   const [view, setView] = useState<View>('result');
+  const [scenario, setScenario] = useState<ResearchScenario>('establish');
   const [report, setReport] = useState<ResearchReport | null>(null);
   const [runs, setRuns] = useState<ResearchRunRecord[] | null>(null);
   const [log, setLog] = useState<TransactionLogRow[]>([]);
   const [profile, setProfile] = useState<Profile>(emptyProfile());
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [pending, setPending] = useState<PendingCandidate | null>(null);
-  const [metric, setMetric] = useState<ResearchMetric>('bias20');
+  const [metric, setMetric] = useState<ScenarioResearchMetric>('bias20');
   const [backfilling, setBackfilling] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
 
@@ -282,14 +300,14 @@ export function ResearchPage() {
    */
   const refresh = useCallback(() => {
     void (async () => {
-      const next = await runResearch();
+      const next = await runResearch(scenario);
       setReport(next);
-      setLog(buildTransactionLog(await readTransactions()));
+      setLog(buildTransactionLog(await loadResearchLedger()));
       setProfile(await readProfile());
       await saveResearchRun(next, new Date().toISOString());
       setRuns(await readResearchRuns());
     })();
-  }, []);
+  }, [scenario]);
 
   useEffect(refresh, [refresh]);
 
@@ -320,14 +338,15 @@ export function ResearchPage() {
     setProgress({ done: 0, total: 0 });
 
     void (async () => {
-      const entries = await loadResearchEntries();
+      await prepareResearchLedgerData();
+      const entries = selectLedgerEvents(await loadResearchLedger(), scenario);
       await backfillResearchData(entries, {
         onProgress: (done, total) => setProgress({ done, total }),
       });
       setBackfilling(false);
       refresh();
     })();
-  }, [refresh]);
+  }, [refresh, scenario]);
 
   if (report === null) {
     return <p className="research__loading">讀取中…</p>;
@@ -353,6 +372,14 @@ export function ResearchPage() {
           {report.reentryCount > 0 ? `（另有 ${report.reentryCount} 筆再進場已保留紀錄）` : null}。
         </p>
       </header>
+
+      <nav className="tabs" aria-label="研究情境" role="tablist">
+        {(Object.keys(SCENARIO_LABEL) as ResearchScenario[]).map((id) => (
+          <button key={id} type="button" role="tab" aria-selected={id === scenario} className={id === scenario ? 'tabs__item tabs__item--active' : 'tabs__item'} aria-current={id === scenario ? 'page' : undefined} onClick={() => setScenario(id)}>
+            {SCENARIO_LABEL[id]}
+          </button>
+        ))}
+      </nav>
 
       <section className="research__inventory" aria-label="研究樣本">
         <div className="gauge">
@@ -392,6 +419,20 @@ export function ResearchPage() {
         </div>
       </section>
 
+      <details className="research__quality">
+        <summary>
+          排除原因（
+          {Object.values(report.ledgerQuality.excludedByCode).reduce((sum, count) => sum + count, 0)}）
+        </summary>
+        <ul>
+          {Object.entries(report.ledgerQuality.excludedByCode)
+            .filter(([, count]) => count > 0)
+            .map(([code, count]) => (
+              <li key={code}>{LEDGER_ISSUE_LABEL[code] ?? code}：{count} 筆</li>
+            ))}
+        </ul>
+      </details>
+
       <nav className="tabs" aria-label="研究檢視">
         {(['result', 'log', 'history'] as const).map((id) => (
           <button
@@ -425,11 +466,13 @@ export function ResearchPage() {
             </p>
           ) : null}
 
-          <nav className="tabs" aria-label="研究指標">
-            {RESEARCH_METRICS.map((id) => (
+          <nav className="tabs" aria-label="研究指標" role="tablist">
+            {researchMetricsFor(scenario).map((id) => (
               <button
                 key={id}
                 type="button"
+                role="tab"
+                aria-selected={id === metric}
                 className={id === metric ? 'tabs__item tabs__item--active' : 'tabs__item'}
                 aria-current={id === metric ? 'page' : undefined}
                 onClick={() => setMetric(id)}
@@ -443,11 +486,11 @@ export function ResearchPage() {
             <AssetSection
               key={assetClass}
               assetClass={assetClass}
-              result={report.results[metric][assetClass]}
-              samples={report.samples[metric]}
+              result={report.results[metric]![assetClass]}
+              samples={report.samples[metric] ?? []}
               unit={METRIC_UNIT[metric]}
               metric={metric}
-              onApply={(applied, band) => setPending({ metric, assetClass: applied, band, runId: latestRunId })}
+              onApply={metric === 'relativeCost' ? undefined : (applied, band) => setPending({ metric, assetClass: applied, band, runId: latestRunId })}
             />
           ))}
 

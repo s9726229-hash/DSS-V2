@@ -27,11 +27,15 @@ const KIND_TONE: Record<TransactionLogKind, string> = {
 };
 
 const EXCLUSION_LABEL: Record<ExclusionReason, string> = {
-  reentry: '再進場不列入本輪',
-  'add-on': '加碼不列入本輪',
   exit: '賣出不是進場樣本',
-  'day-trade': '現沖不構成部位',
   'before-research-window': '不在研究期間',
+  'opening-position-unknown': '期初部位不明',
+  'same-day-opposite-sides': '同日反向交易，成本順序不明',
+  'scheduled-investment': '定期定額，不列為主動決策樣本',
+  'trade-method-unknown': '交易方式不明',
+  'non-cash-position': '非現股部位',
+  'day-trade': '現沖不構成部位',
+  'split-data-missing': '拆股資料尚未驗證',
 };
 
 function quantity(value: number): string {
@@ -51,16 +55,12 @@ function ResearchCell({ row }: { row: TransactionLogRow }) {
     return <span className="log__included">列入</span>;
   }
 
-  if (row.exclusionReason === 'before-research-window') {
-    return <span className="log__excluded">研究期間外</span>;
-  }
-
   return (
     <span
       className="log__excluded"
       title={row.exclusionReason === null ? undefined : EXCLUSION_LABEL[row.exclusionReason]}
     >
-      —
+      {row.exclusionReason === null ? '—' : EXCLUSION_LABEL[row.exclusionReason]}
     </span>
   );
 }
