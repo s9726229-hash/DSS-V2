@@ -1,4 +1,4 @@
-import type { ResearchMetric } from './runResearch';
+import type { ScenarioResearchMetric } from './runResearch';
 import type { BandId } from './walkForward';
 
 /**
@@ -11,7 +11,7 @@ import type { BandId } from './walkForward';
  * 引擎組判定原因時也用這一份，否則畫面說「買超側」而原因說「偏熱上界」，
  * 同一件事會出現兩種講法。
  */
-export const BAND_LABEL: Record<ResearchMetric, Record<BandId, string>> = {
+export const BAND_LABEL: Record<ScenarioResearchMetric, Record<BandId, string>> = {
   bias20: {
     pullback: '回檔下界',
     normal: '合理區',
@@ -33,8 +33,13 @@ export const BAND_LABEL: Record<ResearchMetric, Record<BandId, string>> = {
     normal: '中性',
     overheated: '增加側',
   },
+  relativeCost: {
+    pullback: '低於均價側',
+    normal: '接近均價區',
+    overheated: '高於均價側',
+  },
 };
 
-export function bandLabel(metric: ResearchMetric, band: BandId): string {
+export function bandLabel(metric: ScenarioResearchMetric, band: BandId): string {
   return BAND_LABEL[metric][band];
 }

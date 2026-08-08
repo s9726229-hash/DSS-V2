@@ -1,6 +1,6 @@
 import { bandLabel } from './bandLabels';
 import { computeBaseline, type Baseline } from './outcome';
-import type { ResearchMetric } from './runResearch';
+import type { ScenarioResearchMetric } from './runResearch';
 import type { AssetClass } from './snapshot';
 
 /** 規格的證據門檻：0–4 資料不足、5–9 初步觀察、10 以上才可能值得追蹤。 */
@@ -145,7 +145,7 @@ export function runWalkForward({
   samples: readonly MetricSample[];
   assetClass: AssetClass;
   /** 只用來決定判定原因裡的區間名稱；統計本身與指標無關。 */
-  metric: ResearchMetric;
+  metric: ScenarioResearchMetric;
   fractions?: readonly number[];
 }): WalkForwardResult {
   const usable = samples
@@ -251,7 +251,7 @@ function summarizeBand({
   flipped,
 }: {
   band: BandId;
-  metric: ResearchMetric;
+  metric: ScenarioResearchMetric;
   hit: { samples: Set<MetricSample>; checkpoints: Set<number> };
   range: { min: number | null; max: number | null } | undefined;
   baseline: Baseline;

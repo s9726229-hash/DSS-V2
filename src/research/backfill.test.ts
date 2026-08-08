@@ -18,6 +18,8 @@ function entry(stockId: string, tradeDate: string): PositionEvent {
     isReentry: false,
     quantity: 1000,
     price: 100,
+    positionBefore: 0,
+    averageCostBefore: null,
     positionAfter: 1000,
   };
 }

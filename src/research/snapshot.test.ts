@@ -52,6 +52,8 @@ function entry(tradeDate: string, stockId = '2330'): PositionEvent {
     isReentry: false,
     quantity: 1000,
     price: 100,
+    positionBefore: 0,
+    averageCostBefore: null,
     positionAfter: 1000,
   };
 }
