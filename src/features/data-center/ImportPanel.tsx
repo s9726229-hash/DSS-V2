@@ -40,7 +40,7 @@ const COPY: Record<ImportKind, { title: string; description: string; unit: strin
   {
     transactions: {
       title: '匯入交易明細',
-      description: '券商匯出的成交明細。可重複匯入，已存在的交易會自動略過。',
+      description: '券商匯出的成交明細。重匯相同檔案時，既有交易不會重複新增，並可補齊舊紀錄缺少的交易種類。',
       unit: '筆',
       pick: '選擇交易明細檔案',
     },

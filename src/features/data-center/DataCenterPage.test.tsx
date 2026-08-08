@@ -77,6 +77,15 @@ describe('本機存量', () => {
 });
 
 describe('交易明細匯入', () => {
+  it('說明重匯既有交易可補齊交易種類且不會重複新增', async () => {
+    renderPage();
+
+    const panel = await screen.findByRole('region', { name: '匯入交易明細' });
+    expect(
+      within(panel).getByText(/既有交易不會重複新增.*補齊.*交易種類/),
+    ).toBeInTheDocument();
+  });
+
   it('舊交易缺少交易方式時允許重匯補齊並回報結果', async () => {
     await importTransactions(
       [
