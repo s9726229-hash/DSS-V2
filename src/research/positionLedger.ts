@@ -86,7 +86,7 @@ function isCashPosition(row: StoredTransaction): boolean {
 
 function methodIssue(row: StoredTransaction): LedgerIssueCode | null {
   const method = row.tradeMethod?.trim();
-  if (method === '普通') return null;
+  if (method === '普通' || method === '盤中零股') return null;
   if (method?.includes('定期定額')) return 'scheduled-investment';
   return 'trade-method-unknown';
 }

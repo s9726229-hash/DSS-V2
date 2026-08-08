@@ -87,6 +87,42 @@ describe('buildResearchLedger', () => {
     });
   });
 
+  it('把零部位時的盤中零股買進辨識為建立部位', () => {
+    const ledger = buildResearchLedger({
+      transactions: [tx({ quantity: 50, tradeMethod: '盤中零股' })],
+      splitsByStock: splits(),
+    });
+
+    expect(selectLedgerEvents(ledger, 'establish')[0]).toMatchObject({
+      scenario: 'establish',
+      quantity: 50,
+      includeInScenarioResearch: true,
+    });
+  });
+
+  it('讓盤中零股依持倉狀態參與加碼與再進場研究', () => {
+    const ledger = buildResearchLedger({
+      transactions: [
+        tx({ tradeDate: '2026-01-02', quantity: 100, price: 100 }),
+        tx({ tradeDate: '2026-01-03', quantity: 50, price: 90, tradeMethod: '盤中零股' }),
+        tx({ tradeDate: '2026-01-04', side: 'sell', quantity: 150, price: 110 }),
+        tx({ tradeDate: '2026-01-05', quantity: 20, price: 80, tradeMethod: '盤中零股' }),
+      ],
+      splitsByStock: splits(),
+    });
+
+    expect(selectLedgerEvents(ledger, 'add-on')[0]).toMatchObject({
+      scenario: 'add-on',
+      relativeCostPercent: -10,
+      includeInScenarioResearch: true,
+    });
+    expect(selectLedgerEvents(ledger, 'reentry')[0]).toMatchObject({
+      scenario: 'reentry',
+      quantity: 20,
+      includeInScenarioResearch: true,
+    });
+  });
+
   it('同日同方向買進依股數加權合併', () => {
     const first = tx({ quantity: 100, price: 90 });
     const second = tx({ quantity: 300, price: 110 });
