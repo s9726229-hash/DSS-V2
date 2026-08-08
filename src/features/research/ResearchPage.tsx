@@ -43,6 +43,32 @@ const SCENARIO_LABEL: Record<ResearchScenario, string> = {
   reentry: '再進場研究',
 };
 
+const SCENARIO_COPY: Record<ResearchScenario, {
+  sampleLabel: string;
+  summary: string;
+  empty: string;
+  missing: string;
+}> = {
+  establish: {
+    sampleLabel: '建立部位',
+    summary: '分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。',
+    empty: '研究期間內沒有建立部位。',
+    missing: '這些建立部位無法分析。',
+  },
+  'add-on': {
+    sampleLabel: '加碼',
+    summary: '分析 2026 年起的加碼交易在成交當日的條件，以及加碼後的實際結果。',
+    empty: '研究期間內沒有加碼。',
+    missing: '這些加碼交易無法分析。',
+  },
+  reentry: {
+    sampleLabel: '再進場',
+    summary: '分析 2026 年起的再進場交易在成交當日的條件，以及再進場後的實際結果。',
+    empty: '研究期間內沒有再進場。',
+    missing: '這些再進場交易無法分析。',
+  },
+};
+
 const LEDGER_ISSUE_LABEL: Record<string, string> = {
   'opening-position-unknown': '期初部位不明',
   'same-day-opposite-sides': '同日反向交易',
@@ -352,6 +378,8 @@ export function ResearchPage() {
     return <p className="research__loading">讀取中…</p>;
   }
 
+  const copy = SCENARIO_COPY[scenario];
+
   return (
     <div className="research">
       {pending === null ? null : (
@@ -367,9 +395,8 @@ export function ResearchPage() {
       <header className="research__head">
         <h1 className="research__title">歷史研究</h1>
         <p className="research__lede">
-          用過去交易資料檢查哪些條件值得繼續追蹤。分析 2026 年起的建立部位在買進當日的條件，以及買進後的實際結果。
-          2025 年資料只作查閱，不納入候選。加碼、再進場與現沖不列入本輪分析
-          {report.reentryCount > 0 ? `（另有 ${report.reentryCount} 筆再進場已保留紀錄）` : null}。
+          用過去交易資料檢查哪些條件值得繼續追蹤。{copy.summary}
+          2025 年資料只作查閱，不納入候選；現沖不列入情境研究。
         </p>
       </header>
 
@@ -383,7 +410,7 @@ export function ResearchPage() {
 
       <section className="research__inventory" aria-label="研究樣本">
         <div className="gauge">
-          <p className="gauge__label micro">建立部位</p>
+          <p className="gauge__label micro">{copy.sampleLabel}</p>
           <p className="gauge__value">
             <span className="num">{report.entryCount}</span>
             <span className="gauge__unit">筆</span>
@@ -455,13 +482,13 @@ export function ResearchPage() {
         <>
           {report.entryCount === 0 ? (
             <p className="research__empty">
-              研究期間內沒有建立部位。請先到<strong>資料中心</strong>匯入交易明細。
+              {copy.empty}請先到<strong>資料中心</strong>匯入交易明細。
             </p>
           ) : null}
 
           {report.missingStocks.length > 0 ? (
             <p className="research__missing">
-              有 {report.missingStocks.length} 檔尚未回補價格資料，這些建立部位無法分析。
+              有 {report.missingStocks.length} 檔尚未回補價格資料，{copy.missing}
               請按「回補歷史資料」。
             </p>
           ) : null}

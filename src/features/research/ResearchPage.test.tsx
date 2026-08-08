@@ -118,6 +118,27 @@ describe('沒有資料時', () => {
     expect(await screen.findByRole('tab', { name: '相對均價' })).toBeInTheDocument();
   });
 
+  it('切換加碼研究後使用加碼情境文案', async () => {
+    render(<ResearchPage />);
+    await userEvent.click(await screen.findByRole('tab', { name: '加碼研究' }));
+
+    const inventory = await screen.findByRole('region', { name: '研究樣本' });
+    expect(within(inventory).getByText('加碼')).toBeInTheDocument();
+    expect(screen.getByText(/分析 2026 年起的加碼交易/)).toBeInTheDocument();
+    expect(screen.getByText(/研究期間內沒有加碼/)).toBeInTheDocument();
+    expect(screen.queryByText(/加碼、再進場與現沖不列入本輪分析/)).not.toBeInTheDocument();
+  });
+
+  it('切換再進場研究後使用再進場情境文案', async () => {
+    render(<ResearchPage />);
+    await userEvent.click(await screen.findByRole('tab', { name: '再進場研究' }));
+
+    const inventory = await screen.findByRole('region', { name: '研究樣本' });
+    expect(within(inventory).getByText('再進場')).toBeInTheDocument();
+    expect(screen.getByText(/分析 2026 年起的再進場交易/)).toBeInTheDocument();
+    expect(screen.getByText(/研究期間內沒有再進場/)).toBeInTheDocument();
+  });
+
   it('帳本排除摘要顯示期初部位不明', async () => {
     await importTransactions(
       [
