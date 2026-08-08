@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { analyseHoldings, type StockAnalysis } from '../../dss/analyseHoldings';
 import {
+  buildBatchResearchImport,
+  type BatchResearchImport,
+} from '../../profile/batchResearchCandidates';
+import {
   boundaryConflict,
   clearScenarioBoundary,
   isScenarioProfileEmpty,
@@ -12,6 +16,7 @@ import {
 } from '../../profile/profile';
 import { readProfile, writeProfile } from '../../profile/profileStore';
 import { bandLabel } from '../../research/bandLabels';
+import { readResearchRuns } from '../../research/runStore';
 import {
   METRIC_LABEL,
   METRIC_UNIT,
@@ -20,7 +25,9 @@ import {
   type ScenarioResearchMetric,
 } from '../../research/runResearch';
 import type { AssetClass } from '../../research/snapshot';
+import type { ResearchRunRecord } from '../../storage/types';
 import { ASSET_LABEL, EVIDENCE_LABEL } from '../research/evidence';
+import { BatchResearchImportPreview } from './BatchResearchImportPreview';
 import { ProfileChangePreview } from './ProfileChangePreview';
 import './ProfilePage.css';
 
@@ -206,13 +213,19 @@ export function ProfilePage() {
   const [holdings, setHoldings] = useState<StockAnalysis[] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [scenario, setScenario] = useState<ResearchScenario>('establish');
+  const [runs, setRuns] = useState<ResearchRunRecord[] | null>(null);
+  const [batch, setBatch] = useState<BatchResearchImport | null>(null);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void readProfile().then((next) => {
+    void Promise.all([readProfile(), readResearchRuns()]).then(([next, researchRuns]) => {
       if (cancelled) return;
       setSaved(next);
       setDraft(next);
+      setRuns(researchRuns);
     });
     return () => {
       cancelled = true;
@@ -251,6 +264,38 @@ export function ProfilePage() {
     })();
   }, [draft]);
 
+  const openBatchImport = useCallback(() => {
+    if (saved === null || runs === null) return;
+    const preview = buildBatchResearchImport(runs, saved, new Date().toISOString());
+    setBatchError(null);
+    if (preview.changes.length === 0) {
+      setBatch(null);
+      setBatchMessage('目前沒有可帶入的研究參數');
+      return;
+    }
+    setBatchMessage(null);
+    setBatch(preview);
+  }, [runs, saved]);
+
+  const applyBatchImport = useCallback(() => {
+    if (batch === null || batchSaving) return;
+    setBatchSaving(true);
+    setBatchError(null);
+    void (async () => {
+      try {
+        await writeProfile(batch.nextProfile);
+        setSaved(batch.nextProfile);
+        setDraft(batch.nextProfile);
+        setBatch(null);
+        setBatchMessage(`已帶入 ${batch.changes.length} 組研究參數。`);
+      } catch {
+        setBatchError('套用失敗，已保留原規則，請再試一次。');
+      } finally {
+        setBatchSaving(false);
+      }
+    })();
+  }, [batch, batchSaving]);
+
   if (saved === null || draft === null) {
     return <p className="research__loading">讀取中…</p>;
   }
@@ -260,6 +305,19 @@ export function ProfilePage() {
 
   return (
     <div className="profile">
+      {batch === null ? null : (
+        <BatchResearchImportPreview
+          batch={batch}
+          saving={batchSaving}
+          error={batchError}
+          onCancel={() => {
+            setBatch(null);
+            setBatchError(null);
+          }}
+          onConfirm={applyBatchImport}
+        />
+      )}
+
       {confirming ? (
         <div className="apply" role="dialog" aria-modal="true" aria-label="儲存判定條件">
           <div className="apply__panel">
@@ -313,6 +371,24 @@ export function ProfilePage() {
 
       <section className="profile__section" aria-label="候選參數">
         <h2 className="profile__section-title">候選參數</h2>
+        <div className="profile__batch-action">
+          <div>
+            <strong>一次帶入三種情境</strong>
+            <p>各自取建立部位、加碼、再進場最新研究的一般區間，先預覽再套用。</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={dirty || runs === null}
+            onClick={openBatchImport}
+          >
+            從最新研究一次帶入
+          </button>
+        </div>
+        {dirty ? <p className="profile__batch-message">請先儲存或捨棄目前調整，再執行批次帶入。</p> : null}
+        {batchMessage === null ? null : (
+          <p className="profile__batch-message" role="status">{batchMessage}</p>
+        )}
         {empty ? (
           <p className="research__empty">
             還沒有套用任何候選門檻。到<strong>歷史交易研究</strong>

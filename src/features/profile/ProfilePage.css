@@ -36,6 +36,39 @@
   font-size: 13px;
 }
 
+.profile__batch-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-4);
+  margin-bottom: var(--gap-3);
+  padding: var(--gap-3);
+  border: 1px solid var(--calibrate);
+  border-radius: 4px;
+  background: var(--calibrate-bg);
+}
+
+.profile__batch-action strong {
+  color: var(--calibrate);
+  font-size: 13px;
+}
+
+.profile__batch-action p {
+  margin: 2px 0 0;
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.profile__batch-action .btn {
+  flex: 0 0 auto;
+}
+
+.profile__batch-message {
+  margin: calc(-1 * var(--gap-1)) 0 var(--gap-3);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
 .profile__review {
   display: flex;
   align-items: center;
@@ -249,7 +282,7 @@
 
 /* ── 三情境研究參數批次預覽 ────────────────── */
 
-.batch-import__panel {
+.apply__panel.batch-import__panel {
   width: min(920px, 100%);
 }
 
@@ -388,6 +421,11 @@
 }
 
 @media (max-width: 720px) {
+  .profile__batch-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .batch-import__scenario-head {
     align-items: flex-start;
     flex-direction: column;
