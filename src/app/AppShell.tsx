@@ -96,7 +96,7 @@ function StatusBar({
   return (
     <div className="statusbar" role="status">
       <StatusReading
-        label="市場資料"
+        label="最後同步"
         value={marketDate ?? '未就緒'}
         ready={marketDate !== null}
       />

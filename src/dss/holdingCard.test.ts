@@ -60,16 +60,20 @@ function holding(overrides: Partial<HoldingSnapshotRecord> = {}): HoldingSnapsho
 
 function analysis(overrides: {
   stockId?: string;
+  marketClose?: number | null;
   bias20?: number;
   technicalOk?: boolean;
   chipOk?: boolean;
 } = {}): StockAnalysis {
-  const { stockId = '2330', bias20 = 5, technicalOk = true, chipOk = true } = overrides;
+  const {
+    stockId = '2330', marketClose = null, bias20 = 5, technicalOk = true, chipOk = true,
+  } = overrides;
 
   return {
     stockId,
     stockName: '測試股',
     priceDate: '2026-07-31',
+    marketClose,
     appliedAdjustments: [],
     margin: [],
     trend: { points: [], min: 0, max: 1, drawable: false },
@@ -218,6 +222,42 @@ describe('資料完整度', () => {
 });
 
 describe('持股卡', () => {
+  it('市場收盤價可用時優先用來估算現值與報酬率', () => {
+    const card = buildHoldingCard({
+      holding: holding({ costPrice: 100, currentPrice: 110 }),
+      analysis: analysis({ marketClose: 120 }),
+      profile: emptyProfile(),
+      entryDate: null,
+    });
+
+    expect(card).toMatchObject({
+      currentPrice: 120,
+      snapshotPrice: 110,
+      currentPriceSource: 'market',
+      position: {
+        marketValue: 120000,
+        unrealized: 20000,
+        returnPercent: 20,
+      },
+    });
+  });
+
+  it('市場收盤價缺少時明確退回券商快照價', () => {
+    const card = buildHoldingCard({
+      holding: holding({ costPrice: 100, currentPrice: 110 }),
+      analysis: analysis({ marketClose: null }),
+      profile: emptyProfile(),
+      entryDate: null,
+    });
+
+    expect(card).toMatchObject({
+      currentPrice: 110,
+      snapshotPrice: 110,
+      currentPriceSource: 'snapshot',
+      position: { returnPercent: 10 },
+    });
+  });
+
   it('帶入識別、價格、損益與資料完整度', () => {
     const card = buildHoldingCard({
       holding: holding(),

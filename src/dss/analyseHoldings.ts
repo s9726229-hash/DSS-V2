@@ -22,6 +22,8 @@ export type StockAnalysis = {
   stockId: string;
   stockName: string;
   priceDate: string | null;
+  /** 最新交易日的原始收盤價；持股損益不可使用還原後價格。 */
+  marketClose: number | null;
   technical: TechnicalResult;
   chip: ChipResult;
   appliedAdjustments: DistortionEvent[];
@@ -51,10 +53,16 @@ export async function analyseStock(stockId: string, stockName: string): Promise<
     splits: (splitCache?.payload ?? []) as AdjustmentEventRow[],
   });
 
+  const latestRaw = raw.reduce<PriceRow | null>(
+    (latest, row) => (latest === null || row.date > latest.date ? row : latest),
+    null,
+  );
+
   return {
     stockId,
     stockName,
     priceDate: priceCache?.tradeDate || null,
+    marketClose: latestRaw?.close ?? null,
     technical: computeTechnicalSnapshot(prices),
     chip: computeChipSnapshot({ institutional, prices }),
     appliedAdjustments: appliedEvents,

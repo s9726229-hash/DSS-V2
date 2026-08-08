@@ -56,7 +56,10 @@ export type HoldingCard = CardCore & {
   snapshotDate: string;
   quantity: number;
   costPrice: number;
+  /** 今日總覽使用的價格；優先為市場收盤，缺少時才是快照價。 */
   currentPrice: number;
+  snapshotPrice: number;
+  currentPriceSource: 'market' | 'snapshot';
   position: PositionResult;
   heldDays: number | null;
   addOnCostBasis: number | null;
@@ -71,13 +74,15 @@ export function plannedRelativeCost(plannedPrice: number | null, averageCost: nu
 /**
  * 未實現損益。
  *
- * 一律使用券商快照自己的成本價與現價——兩者都是未還原的原始價，屬於同一個尺度。
- * 我們計算技術指標時用的是還原後的價格，拿它來算損益會把兩個尺度混在一起，
- * 除權息或分割過的股票會算出離譜的數字。
+ * 券商成本與市場收盤都使用未還原的原始價，屬於同一個尺度。
+ * 技術指標使用的是還原後價格，不能拿來算損益；除權息或分割過的股票會失真。
  */
-export function positionResult(holding: HoldingSnapshotRecord): PositionResult {
+export function positionResult(
+  holding: HoldingSnapshotRecord,
+  currentPrice = holding.currentPrice,
+): PositionResult {
   const cost = holding.costPrice * holding.quantity;
-  const marketValue = holding.currentPrice * holding.quantity;
+  const marketValue = currentPrice * holding.quantity;
 
   return {
     cost,
@@ -91,7 +96,7 @@ export function positionResult(holding: HoldingSnapshotRecord): PositionResult {
     returnPercent:
       holding.costPrice === 0
         ? null
-        : ((holding.currentPrice - holding.costPrice) / holding.costPrice) * 100,
+        : ((currentPrice - holding.costPrice) / holding.costPrice) * 100,
   };
 }
 
@@ -226,6 +231,8 @@ export function buildHoldingCard({
   scenario?: ResearchScenario | null;
   addOnCostBasis?: number | null;
 }): HoldingCard {
+  const currentPrice = analysis.marketClose ?? holding.currentPrice;
+
   return {
     ...buildCardCore({
       stockId: holding.stockId,
@@ -238,8 +245,10 @@ export function buildHoldingCard({
     snapshotDate: holding.snapshotDate,
     quantity: holding.quantity,
     costPrice: holding.costPrice,
-    currentPrice: holding.currentPrice,
-    position: positionResult(holding),
+    currentPrice,
+    snapshotPrice: holding.currentPrice,
+    currentPriceSource: analysis.marketClose === null ? 'snapshot' : 'market',
+    position: positionResult(holding, currentPrice),
     heldDays: heldDays(entryDate, analysis.priceDate),
     addOnCostBasis,
     addOnCostProfile: readScenarioEntry(profile, 'add-on', classifyAsset(holding.stockId), 'relativeCost'),

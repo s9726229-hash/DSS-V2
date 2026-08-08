@@ -89,16 +89,25 @@ function LeadReadout({
 }
 
 function HoldingSummary({ card }: { card: HoldingCard }) {
+  const shortDate = (card.currentPriceSource === 'market' ? card.priceDate : card.snapshotDate)
+    ?.slice(5)
+    .replace('-', '/');
+
   return (
     <div className="card__holding-summary">
       <span className="card__stat">
-        <span className="card__stat-label micro">報酬率</span>
+        <span className="card__stat-label micro">
+          {card.currentPriceSource === 'market' ? '估算報酬率' : '快照報酬率'}
+        </span>
         <span className={`card__stat-value num${tone(card.position.returnPercent)}`}>
           {percent(card.position.returnPercent, '%')}
         </span>
       </span>
       <span className="card__stat">
-        <span className="card__stat-label micro">庫存現價</span>
+        <span className="card__stat-label micro">
+          {card.currentPriceSource === 'market' ? '市場收盤價' : '券商快照價'}
+          {shortDate ? ` ${shortDate}` : ''}
+        </span>
         <span className="card__stat-value num">{price(card.currentPrice)}</span>
       </span>
       <span className="card__stat">

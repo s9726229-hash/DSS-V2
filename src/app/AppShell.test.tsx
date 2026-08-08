@@ -107,7 +107,7 @@ describe('AppShell', () => {
     render(<AppShell />);
 
     const status = await screen.findByRole('status');
-    expect(status).toHaveTextContent('市場資料');
+    expect(status).toHaveTextContent('最後同步');
     expect(status).toHaveTextContent('未就緒');
   });
 
@@ -199,6 +199,33 @@ describe('AppShell', () => {
     vi.unstubAllGlobals();
   });
 
+  it('同步後持股卡以市場收盤價重算估算報酬率，不停在庫存快照價', async () => {
+    await importHoldingsSnapshot(
+      [{
+        stockId: '2330', stockName: '台積電', tradeType: '現股', quantity: 1000,
+        costPrice: 80, currentPrice: 105,
+      }],
+      '2026-07-28',
+      '2026-07-28T02:00:00.000Z',
+    );
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => marketResponse(input)));
+
+    render(<AppShell />);
+
+    const card = await screen.findByRole('article', { name: '2330 台積電' });
+    expect(within(card).getByText(/快照報酬率/)).toBeInTheDocument();
+    expect(within(card).getByText(/券商快照價/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '同步市場資料' }));
+
+    expect(await within(card).findByText(/估算報酬率/)).toBeInTheDocument();
+    expect(within(card).getByText(/市場收盤價/)).toBeInTheDocument();
+    expect(within(card).getByText('+25.00%')).toBeInTheDocument();
+    expect(within(card).getByText('100.00')).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
   it('觀察標的只有代號時，同步會把名稱補回來', async () => {
     await writeWatchlist(
       addWatch(emptyWatchlist(), {
@@ -246,7 +273,7 @@ describe('AppShell', () => {
 
     expect(screen.getAllByText('資料不足').length).toBeGreaterThan(0);
     expect(screen.queryByText('明細')).not.toBeInTheDocument();
-    expect(screen.getByText('庫存現價')).toBeInTheDocument();
+    expect(screen.getByText(/券商快照價/)).toBeInTheDocument();
     expect(screen.getByText('持有天數')).toBeInTheDocument();
     expect(screen.getByText('融資流向')).toBeInTheDocument();
   });

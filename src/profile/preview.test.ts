@@ -50,6 +50,7 @@ function analysis(overrides: {
     stockId,
     stockName,
     priceDate: '2026-07-31',
+    marketClose: null,
     appliedAdjustments: [],
     margin: [],
     trend: { points: [], min: 0, max: 1, drawable: false },
