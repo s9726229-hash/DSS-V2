@@ -246,3 +246,154 @@
   color: var(--calibrate);
   font-size: 12px;
 }
+
+/* ── 三情境研究參數批次預覽 ────────────────── */
+
+.batch-import__panel {
+  width: min(920px, 100%);
+}
+
+.batch-import__intro {
+  margin: 0 0 var(--gap-4);
+  color: var(--graphite);
+  font-size: 12px;
+}
+
+.batch-import__scenarios {
+  display: grid;
+  gap: var(--gap-3);
+  margin-bottom: var(--gap-4);
+}
+
+.batch-import__scenario {
+  padding: var(--gap-3);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel-sunken);
+}
+
+.batch-import__scenario-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2);
+}
+
+.batch-import__scenario-head h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.batch-import__run {
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.batch-import__run--missing,
+.batch-import__empty {
+  color: var(--graphite-light);
+}
+
+.batch-import__counts {
+  display: flex;
+  gap: var(--gap-2);
+  margin: var(--gap-2) 0;
+}
+
+.batch-import__counts span {
+  padding: 1px var(--gap-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.batch-import__empty {
+  margin: var(--gap-2) 0 0;
+  font-size: 12px;
+}
+
+.batch-import__changes {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: var(--gap-2);
+  list-style: none;
+}
+
+.batch-import__change {
+  padding: var(--gap-2) var(--gap-3);
+  border-left: 2px solid var(--calibrate);
+  background: var(--panel);
+}
+
+.batch-import__change--manual {
+  border-color: var(--attention);
+  background: var(--attention-bg);
+}
+
+.batch-import__change-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap-2);
+  font-size: 12px;
+}
+
+.batch-import__manual {
+  color: var(--attention);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.batch-import__values {
+  display: grid;
+  margin-top: var(--gap-1);
+  color: var(--graphite);
+  font-size: 12px;
+  gap: var(--gap-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.batch-import__reason {
+  margin: var(--gap-1) 0 0;
+  color: var(--graphite-light);
+  font-size: 11px;
+}
+
+.batch-import__preserved {
+  margin-top: var(--gap-2);
+  color: var(--graphite);
+  font-size: 11px;
+}
+
+.batch-import__preserved summary {
+  cursor: pointer;
+}
+
+.batch-import__preserved ul {
+  margin: var(--gap-2) 0 0;
+  padding-left: var(--gap-4);
+}
+
+.batch-import__error {
+  margin: 0 0 var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  border: 1px solid var(--attention);
+  border-radius: 3px;
+  background: var(--attention-bg);
+  color: var(--attention);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .batch-import__scenario-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .batch-import__values {
+    grid-template-columns: 1fr;
+  }
+}

@@ -17,8 +17,6 @@ import {
 } from './profile';
 import { buildBatchResearchImport } from './batchResearchCandidates';
 
-const ASSET_CLASSES: AssetClass[] = ['stock', 'etf'];
-
 function band(
   range: { min: number | null; max: number | null } = { min: -2, max: 3 },
   evidence: EvidenceLevel = 'worth-tracking',
